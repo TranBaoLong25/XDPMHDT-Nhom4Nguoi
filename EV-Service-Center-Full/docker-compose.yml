@@ -1,0 +1,84 @@
+services:
+  # 🧱 DATABASE (PostgreSQL)
+  db:
+    image: postgres:14-alpine
+    container_name: ev_db
+    restart: always
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-ev_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-ev_pass}
+      - POSTGRES_DB=${POSTGRES_DB:-ev_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - ev_network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-ev_user} -d ${POSTGRES_DB:-ev_db}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ⚡ REDIS CACHE
+  redis:
+    image: redis:alpine
+    container_name: redis_cache
+    ports:
+      - "6379:6379"
+    networks:
+      - ev_network
+
+  # 👤 USER SERVICE
+  user-service:
+    build: ./services/user-service
+    container_name: user_service
+    command: uvicorn app:app --host 0.0.0.0 --port 5000
+    volumes:
+      - ./services/user-service:/app
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-ev_user}:${POSTGRES_PASSWORD:-ev_pass}@db:5432/${POSTGRES_DB:-ev_db}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-supersecret}
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - ev_network
+    ports:
+      - "5000:5000"
+
+  # 🚪 API GATEWAY (Nginx)
+  api-gateway:
+    build: ./api-gateway
+    container_name: api_gateway
+    ports:
+      - "80:80"
+    depends_on:
+      - user-service
+    networks:
+      - ev_network
+
+  # 💻 FRONTEND
+  frontend:
+    build: ./frontend
+    container_name: frontend_server
+    ports:
+      - "8080:80"
+    networks:
+      - ev_network
+
+# 🌐 NETWORKS
+networks:
+  ev_network:
+    driver: bridge
+
+# 💾 VOLUMES
+volumes:
+  postgres_data:
