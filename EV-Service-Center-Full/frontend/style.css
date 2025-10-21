@@ -1,0 +1,178 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Segoe UI", Tahoma, sans-serif;
+  background: #eef1f5;
+  margin: 0;
+  padding: 40px 10px;
+  display: flex;
+  justify-content: center;
+}
+
+.app-container {
+  width: 100%;
+  max-width: 420px;
+}
+
+.app-title {
+  text-align: center;
+  color: #2f3640;
+  margin-bottom: 20px;
+}
+
+.card {
+  background: white;
+  border-radius: 10px;
+  padding: 25px 20px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.card h2 {
+  text-align: center;
+  color: #273c75;
+  margin-bottom: 15px;
+}
+
+input {
+  width: 100%;
+  padding: 10px;
+  margin: 8px 0;
+  border-radius: 6px;
+  border: 1px solid #dcdde1;
+  outline: none;
+  font-size: 14px;
+}
+
+button {
+  width: 100%;
+  padding: 10px;
+  background: #44bd32;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  font-size: 15px;
+  margin-top: 10px;
+  transition: background 0.3s ease;
+}
+
+button:hover {
+  background: #4cd137;
+}
+
+.btn-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.btn-group button {
+  flex: 1;
+}
+
+.btn-danger {
+  background: #e84118;
+}
+
+.btn-danger:hover {
+  background: #c23616;
+}
+
+.switch {
+  text-align: center;
+  font-size: 14px;
+  margin-top: 10px;
+}
+
+.switch a {
+  color: #273c75;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.switch a:hover {
+  text-decoration: underline;
+}
+
+.result {
+  background: #f5f6fa;
+  padding: 10px;
+  margin-top: 10px;
+  border-radius: 6px;
+  min-height: 20px;
+  font-size: 14px;
+}
+
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.btn-close {
+  background: #44bd32;
+  border: none;
+  color: white;
+  font-size: 15px;
+  font-weight: bold;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.btn-close:hover {
+  background: #4cd137;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+.header-row {
+  display: flex;
+  justify-content: center; /* căn giữa theo chiều ngang */
+  align-items: center; /* căn giữa theo chiều dọc */
+  margin-bottom: 15px;
+}
+
+.header-row h2 {
+  color: #74b9ff;
+  font-size: 22px;
+  margin: 0;
+  text-align: center;
+}
+
+th,
+td {
+  padding: 8px;
+  border: 1px solid #ddd;
+  text-align: left;
+}
+
+th {
+  background: #2c3e50;
+  color: white;
+  text-transform: uppercase;
+  font-size: 13px;
+}
+
+tr:nth-child(even) {
+  background: #f2f2f2;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

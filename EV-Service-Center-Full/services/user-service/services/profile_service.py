@@ -1,4 +1,6 @@
+from models.user import User
 from models.profile import Profile
+from config.config import get_db
 
 class ProfileService:
     def __init__(self, db):

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Hệ thống EV</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body>
+    <div class="app-container">
+      <h1 class="app-title">⚡ Hệ thống EV</h1>
+
+      <!-- Đăng nhập -->
+      <div class="card" id="login-card">
+        <h2>Đăng nhập</h2>
+        <input type="text" id="login-username" placeholder="Tên đăng nhập" />
+        <input type="password" id="login-password" placeholder="Mật khẩu" />
+        <button onclick="loginUser()">Đăng nhập</button>
+        <p class="switch">
+          Chưa có tài khoản?
+          <a href="#" onclick="showRegister()">Đăng ký</a>
+        </p>
+        <div class="result" id="login-result"></div>
+      </div>
+
+      <!-- Đăng ký -->
+      <div class="card" id="register-card" style="display: none">
+        <h2>Đăng ký tài khoản</h2>
+        <input type="text" id="reg-username" placeholder="Tên đăng nhập" />
+        <input type="password" id="reg-password" placeholder="Mật khẩu" />
+        <input type="text" id="reg-name" placeholder="Họ và tên" />
+        <button onclick="registerUser()">Đăng ký</button>
+        <p class="switch">
+          Đã có tài khoản?
+          <a href="#" onclick="showLogin()">Đăng nhập</a>
+        </p>
+        <div class="result" id="reg-result"></div>
+      </div>
+
+      <!-- Trang cá nhân -->
+      <div class="card" id="profile-card" style="display: none">
+        <h2>Trang cá nhân</h2>
+        <input type="text" id="profile-phone" placeholder="Số điện thoại" />
+        <input type="text" id="profile-address" placeholder="Địa chỉ" />
+
+        <div class="btn-group">
+          <button onclick="createProfile()">Tạo Profile</button>
+          <button onclick="viewProfile()">Xem Profile</button>
+          <button class="btn-danger" onclick="logout()">Đăng xuất</button>
+        </div>
+
+        <div class="result" id="profile-result"></div>
+      </div>
+
+      <!-- Trang quản trị -->
+<div class="card" id="admin-card" style="display: none">
+  <div class="header-row">
+  <h2>Quản trị Admin</h2>
+</div>
+  <div class="btn-group">
+    <button onclick="viewAllUsers()">Xem tất cả người dùng</button>
+    <button class="btn-danger" onclick="logout()">Đăng xuất</button>
+  </div>
+
+  <div id="user-list" style="display: none">
+    <div class="header-row">
+      <h3>Danh sách người dùng</h3>
+      <button class="btn-close" onclick="hideUserList()">Đóng</button>
+    </div>
+    <div id="user-table-container"></div>
+  </div>
+
+  <div class="result" id="admin-result"></div>
+</div>
+
+
+    <script src="script.js"></script>
+  </body>
+</html>

@@ -1,8 +1,10 @@
+version: "3.8"
+
 services:
-  # 🧱 DATABASE (PostgreSQL)
+  # 1. DATABASE (PostgreSQL)
   db:
     image: postgres:14-alpine
-    container_name: ev_db
+    container_name: ev-db
     restart: always
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-ev_user}
@@ -24,26 +26,23 @@ services:
       timeout: 5s
       retries: 5
 
-  # ⚡ REDIS CACHE
+  # 2. REDIS CACHE
   redis:
     image: redis:alpine
-    container_name: redis_cache
+    container_name: ev-redis-cache
     ports:
       - "6379:6379"
     networks:
       - ev_network
 
-  # 👤 USER SERVICE
+  # 3. USER SERVICE (FastAPI)
   user-service:
     build: ./services/user-service
-    container_name: user_service
-    command: uvicorn app:app --host 0.0.0.0 --port 5000
+    container_name: ev-user-service
     volumes:
       - ./services/user-service:/app
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-ev_user}:${POSTGRES_PASSWORD:-ev_pass}@db:5432/${POSTGRES_DB:-ev_db}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-supersecret}
-      - REDIS_URL=redis://redis:6379
     depends_on:
       db:
         condition: service_healthy
@@ -51,34 +50,31 @@ services:
         condition: service_started
     networks:
       - ev_network
-    ports:
-      - "5000:5000"
 
-  # 🚪 API GATEWAY (Nginx)
+  # 4. API GATEWAY (Nginx) - ĐÃ SỬA ĐÚNG
   api-gateway:
     build: ./api-gateway
-    container_name: api_gateway
+    container_name: ev-api-gateway
     ports:
-      - "80:80"
+      - "80:80" # Cổng chính cho toàn bộ hệ thống
     depends_on:
       - user-service
     networks:
       - ev_network
+    # Đã xóa phần 'environment' của Flask
 
-  # 💻 FRONTEND
+  # 5. FRONTEND (Nginx)
   frontend:
     build: ./frontend
-    container_name: frontend_server
+    container_name: ev-frontend
     ports:
       - "8080:80"
     networks:
       - ev_network
 
-# 🌐 NETWORKS
 networks:
   ev_network:
     driver: bridge
 
-# 💾 VOLUMES
 volumes:
   postgres_data:
