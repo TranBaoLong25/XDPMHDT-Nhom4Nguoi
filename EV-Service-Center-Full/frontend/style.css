@@ -176,3 +176,127 @@ tr:nth-child(even) {
     transform: translateY(0);
   }
 }
+/* ==============================
+   🧾 INVENTORY SECTION
+============================== */
+#inventory-card {
+  display: none;
+  padding: 20px;
+  max-width: 900px;
+  margin: 0 auto;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.inventory-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.inventory-header h3 {
+  font-size: 1.5rem;
+  color: #2a4d8f;
+}
+
+.inventory-header button {
+  background: #2a4d8f;
+  color: #fff;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.inventory-header button:hover {
+  background: #1d3a73;
+}
+
+/* Bảng sản phẩm */
+.inventory-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.inventory-table th,
+.inventory-table td {
+  border: 1px solid #ccc;
+  padding: 10px;
+  text-align: center;
+}
+
+.inventory-table th {
+  background-color: #f2f6ff;
+  color: #2a4d8f;
+  font-weight: 600;
+}
+
+.inventory-table tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.inventory-table button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #fff;
+  font-size: 0.9rem;
+}
+
+.inventory-table .edit-btn {
+  background-color: #ffb84d;
+}
+
+.inventory-table .edit-btn:hover {
+  background-color: #e69b00;
+}
+
+.inventory-table .delete-btn {
+  background-color: #ff5c5c;
+}
+
+.inventory-table .delete-btn:hover {
+  background-color: #d94a4a;
+}
+
+/* Form thêm / sửa sản phẩm */
+.inventory-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.inventory-form input {
+  flex: 1 1 calc(33.33% - 10px);
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+.inventory-form button {
+  flex: 1 1 100%;
+  background: #2a4d8f;
+  color: #fff;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.inventory-form button:hover {
+  background: #1d3a73;
+}
+
+/* Thông báo */
+#inventory-result {
+  text-align: center;
+  margin-top: 15px;
+  font-weight: 500;
+  color: #2a4d8f;
+}

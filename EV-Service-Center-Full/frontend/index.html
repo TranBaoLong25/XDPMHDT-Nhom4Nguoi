@@ -73,6 +73,34 @@
   <div class="result" id="admin-result"></div>
 </div>
 
+<!-- Trang Quản lý Kho -->
+<div class="card" id="inventory-card" style="display: none">
+  <h2>📦 Quản lý Kho</h2>
+
+  <div class="btn-group">
+    <button onclick="loadInventory()">Xem tất cả sản phẩm</button>
+    <button onclick="showAddForm()">➕ Thêm sản phẩm</button>
+    <button class="btn-danger" onclick="logout()">Đăng xuất</button>
+  </div>
+
+  <!-- Form thêm/sửa -->
+  <div id="inventory-form" style="display: none; margin-top: 15px">
+    <h3 id="form-title">Thêm sản phẩm</h3>
+    <input type="hidden" id="inv-id" />
+    <input type="text" id="inv-name" placeholder="Tên sản phẩm" />
+    <input type="number" id="inv-quantity" placeholder="Số lượng" />
+    <input type="text" id="inv-category" placeholder="Loại" />
+    <input type="text" id="inv-status" placeholder="Trạng thái" />
+    <div class="btn-group">
+      <button onclick="saveInventory()">💾 Lưu</button>
+      <button class="btn-danger" onclick="cancelForm()">Hủy</button>
+    </div>
+  </div>
+
+  <div id="inventory-list" style="margin-top: 15px"></div>
+  <div id="inventory-result"></div>
+</div>
+
 
     <script src="script.js"></script>
   </body>

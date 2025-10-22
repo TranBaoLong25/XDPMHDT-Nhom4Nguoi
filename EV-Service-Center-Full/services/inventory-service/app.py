@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config.config import Base, engine
 from routes import routers  # Danh sách các router
+import sys, os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 app = FastAPI(title="Inventory Service - EV System")
 

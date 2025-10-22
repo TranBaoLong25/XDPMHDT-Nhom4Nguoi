@@ -1,4 +1,4 @@
-from models.inventory import Inventory
+from models.inventory_model import Inventory
 
 class InventoryService:
     def __init__(self, db):
