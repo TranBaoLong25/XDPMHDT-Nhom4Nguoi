@@ -1,65 +1,122 @@
-// File: frontend/scripts.js (PHIÊN BẢN ĐÃ SỬA VÀ TỐI ƯU)
-// ✅ ĐÃ SỬA LỖI GỌI HÀM loadProfileDetails KHÔNG ĐÚNG ARGUMENT
+// ============================================================
+// ✅ GỘP utils.js + scripts.js thành 1 file duy nhất
+// ============================================================
 
-// --- GLOBAL CONSTANTS ---
+// --- GLOBAL CONFIG ---
+const API_BASE_URL = "http://localhost"; // nếu chạy qua nginx gateway, để trống là đúng
+const TOKEN_KEY = "jwt_token";
+const ADMIN_TOKEN_KEY = "admin_jwt_token";
+let currentUserId = null;
+
+// --- GLOBAL ELEMENTS ---
 const navAuthLinks = document.getElementById("nav-auth-links");
 let currentPageElement = document.getElementById("login-page");
-let currentUserId = null; // Biến này đã được khai báo
-// --- ROUTING ---
+
+// --- LOADING SPINNER ---
+function showLoading() {
+  const loader = document.getElementById("loading-spinner");
+  if (loader) loader.classList.remove("hidden");
+}
+function hideLoading() {
+  const loader = document.getElementById("loading-spinner");
+  if (loader) loader.classList.add("hidden");
+}
+
+// --- TOAST ---
+function showToast(message, isError = false) {
+  const toast = document.createElement("div");
+  toast.textContent = message;
+  toast.className = `fixed bottom-5 right-5 p-4 rounded-lg shadow-lg text-white z-50 ${
+    isError ? "bg-red-500" : "bg-green-500"
+  }`;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+// --- CORE API REQUEST ---
+async function apiRequestCore(tokenKey, endpoint, method = "GET", body = null) {
+  showLoading();
+  try {
+    const headers = { "Content-Type": "application/json" };
+
+    const token = localStorage.getItem(tokenKey || TOKEN_KEY);
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const options = { method, headers };
+    if (body) options.body = JSON.stringify(body);
+
+    const url = endpoint.startsWith("http")
+      ? endpoint
+      : `${API_BASE_URL}${endpoint}`;
+
+    const response = await fetch(url, options);
+
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { message: text };
+    }
+
+    if (!response.ok) {
+      const errMsg =
+        data.error || data.message || `HTTP Error ${response.status}`;
+      throw { message: errMsg, status: response.status };
+    }
+
+    return data;
+  } catch (err) {
+    console.error("🚨 API Request Error:", err);
+    showToast(err.message || "Lỗi không xác định!", true);
+    throw err;
+  } finally {
+    hideLoading();
+  }
+}
+
+// --- API WRAPPER ---
+async function apiRequest(endpoint, method = "GET", body = null) {
+  return apiRequestCore(TOKEN_KEY, endpoint, method, body);
+}
+
+// --- NAVIGATION ---
 function navigateTo(pageId) {
   const nextPageElement = document.getElementById(`${pageId}-page`);
-
-  document.querySelectorAll(".page").forEach((page) => {
-    page.classList.add("hidden");
-    page.classList.remove("active");
+  document.querySelectorAll(".page").forEach((p) => {
+    p.classList.add("hidden");
+    p.classList.remove("active");
   });
 
   if (nextPageElement) {
     nextPageElement.classList.remove("hidden");
     nextPageElement.classList.add("active");
   }
+  currentPageElement = nextPageElement;
 
-  currentPageElement = nextPageElement; // ✅ Sửa lỗi: Truyền currentUserId vào hàm loadProfileDetails
-
-  if (pageId === "profile") loadProfileDetails(currentUserId);
-  if (pageId === "forget-password") {
-    resetForgetForm();
-  }
-}
-
-function resetForgetForm() {
-  const forgetForm = document.getElementById("forget-password-form");
-  const resetForm = document.getElementById("reset-password-form");
-  const forgetEmail = document.getElementById("forget-email");
-  const otpCode = document.getElementById("otp-code");
-  const newPassword = document.getElementById("new-password");
-
-  if (forgetForm) forgetForm.classList.remove("hidden");
-  if (resetForm) resetForm.classList.add("hidden");
-  if (forgetEmail) forgetEmail.value = "";
-  if (otpCode) otpCode.value = "";
-  if (newPassword) newPassword.value = "";
+  if (pageId === "profile") loadProfileDetails();
+  if (pageId === "forget-password") resetForgetForm?.();
 }
 
 // --- AUTH NAVIGATION ---
 function updateNav() {
-  const token = localStorage.getItem(window.TOKEN_KEY);
+  const token = localStorage.getItem(TOKEN_KEY);
   if (!navAuthLinks) return;
 
   navAuthLinks.innerHTML = token
     ? `
-      <a href="#" onclick="navigateTo('profile')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Hồ Sơ</a>
-      <a href="#" onclick="logout()" class="ml-4 bg-red-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-red-600">Đăng Xuất</a>
-    `
+      <a href="#" onclick="navigateTo('profile')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Hồ Sơ</a>
+      <a href="#" onclick="logout()" class="ml-4 bg-red-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-red-600">Đăng Xuất</a>
+    `
     : `
-      <a href="#" onclick="navigateTo('login')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Đăng Nhập</a>
-      <a href="#" onclick="navigateTo('register')" class="ml-4 bg-green-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-green-600">Đăng Ký</a>
-    `;
+      <a href="#" onclick="navigateTo('login')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Đăng Nhập</a>
+      <a href="#" onclick="navigateTo('register')" class="ml-4 bg-green-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-green-600">Đăng Ký</a>
+    `;
 }
 
 function logout() {
-  localStorage.removeItem(window.TOKEN_KEY);
-  window.showToast("Bạn đã đăng xuất thành công.");
+  localStorage.removeItem(TOKEN_KEY);
+  showToast("Đã đăng xuất!");
   updateNav();
   navigateTo("login");
 }
@@ -67,50 +124,39 @@ function logout() {
 // --- PROFILE HANDLERS ---
 function toggleProfileForm(forceShow) {
   const form = document.getElementById("profile-update-form");
-  const buttonContainer = document.getElementById(
-    "update-profile-button-container"
-  );
+  const btnBox = document.getElementById("update-profile-button-container");
+  if (!form || !btnBox) return;
 
-  if (!form || !buttonContainer) return;
-
-  const shouldShow =
-    forceShow === undefined ? form.classList.contains("hidden") : forceShow;
-
-  if (shouldShow) {
+  const show = forceShow ?? form.classList.contains("hidden");
+  if (show) {
     form.classList.remove("hidden");
-    buttonContainer.classList.add("hidden");
+    btnBox.classList.add("hidden");
   } else {
     form.classList.add("hidden");
-    buttonContainer.classList.remove("hidden");
+    btnBox.classList.remove("hidden");
   }
 }
-// Hàm loadProfileDetails chuẩn, tránh 422 và 404
-async function loadProfileDetails(userId) {
-  if (!userId) {
-    console.error("userId is required to load profile details");
-    return;
-  }
 
+async function loadProfileDetails() {
   try {
-    const profile = await window.apiRequest("/user/api/profile-details", {
-      method: "POST", // dùng POST nếu backend yêu cầu
-      body: { subject: userId.toString() }, // gửi đúng kiểu string
+    const profile = await apiRequest("/user/api/profile-details", "POST", {
+      subject: currentUserId?.toString(),
     });
 
-    const detailsDiv = document.getElementById("profile-details");
-    if (!detailsDiv) return;
+    const div = document.getElementById("profile-details");
+    if (!div) return;
 
-    detailsDiv.innerHTML = `
-      <p><strong>Họ và tên:</strong> ${profile.full_name || "Chưa cập nhật"}</p>
-      <p><strong>Điện thoại:</strong> ${
-      profile.phone_number || "Chưa cập nhật"
-    }</p>
-      <p><strong>Địa chỉ:</strong> ${profile.address || "Chưa cập nhật"}</p>
-      <p><strong>Model Xe:</strong> ${
-      profile.vehicle_model || "Chưa cập nhật"
-    }</p>
-      <p><strong>Số VIN:</strong> ${profile.vin_number || "Chưa cập nhật"}</p>
-    `; // Cập nhật input fields
+    div.innerHTML = `
+      <p><strong>Họ và tên:</strong> ${profile.full_name || "Chưa cập nhật"}</p>
+      <p><strong>Điện thoại:</strong> ${
+        profile.phone_number || "Chưa cập nhật"
+      }</p>
+      <p><strong>Địa chỉ:</strong> ${profile.address || "Chưa cập nhật"}</p>
+      <p><strong>Model Xe:</strong> ${
+        profile.vehicle_model || "Chưa cập nhật"
+      }</p>
+      <p><strong>Số VIN:</strong> ${profile.vin_number || "Chưa cập nhật"}</p>
+    `;
 
     const fields = [
       ["profile-fullname", "full_name"],
@@ -126,264 +172,107 @@ async function loadProfileDetails(userId) {
     });
 
     toggleProfileForm(false);
-  } catch (error) {
-    console.error("Failed to load profile details:", error);
-
-    if (error?.status === 401) {
-      logout();
-      return;
-    }
-
-    const detailsDiv = document.getElementById("profile-details");
-    if (detailsDiv) {
-      detailsDiv.innerHTML =
-        "<p>Chưa có thông tin hồ sơ. Vui lòng cập nhật.</p>";
-    }
-
+  } catch (err) {
+    console.error("❌ Failed to load profile:", err);
+    const div = document.getElementById("profile-details");
+    if (div)
+      div.innerHTML = "<p>Chưa có thông tin hồ sơ. Vui lòng cập nhật.</p>";
     toggleProfileForm(true);
   }
 }
 
 // --- FORM HANDLERS ---
+document.getElementById("login-form")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email_username = document.getElementById("login-email-username")?.value;
+  const password = document.getElementById("login-password")?.value;
 
-// Login
-const loginForm = document.getElementById("login-form");
-if (loginForm) {
-  loginForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
+  try {
+    const data = await apiRequestCore(null, "/user/api/login", "POST", {
+      email_username,
+      password,
+    });
 
-    const emailInput = document.getElementById("login-email-username");
-    const passwordInput = document.getElementById("login-password");
+    if (data?.access_token) {
+      localStorage.setItem(TOKEN_KEY, data.access_token);
+      showToast("Đăng nhập thành công!");
+      updateNav();
 
-    if (!emailInput || !passwordInput) {
-      window.showToast("Không tìm thấy form đăng nhập", true);
-      return;
+      const token = data.access_token;
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      currentUserId = payload.sub;
+
+      navigateTo("home");
     }
+  } catch (error) {
+    console.error("Login failed:", error);
+    showToast("Sai tài khoản hoặc mật khẩu!", true);
+  }
+});
 
-    const email_username = emailInput.value;
-    const password = passwordInput.value;
+document
+  .getElementById("register-form")
+  ?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const username = document.getElementById("register-username")?.value;
+    const email = document.getElementById("register-email")?.value;
+    const password = document.getElementById("register-password")?.value;
 
     try {
-      const data = await window.apiRequestCore(
-        null,
-        "/user/api/login",
-        "POST",
-        {
-          email_username,
-          password,
-        }
-      );
-
-      if (data?.access_token) {
-        localStorage.setItem(window.TOKEN_KEY, data.access_token);
-        window.showToast("Đăng nhập thành công!");
-        e.target.reset();
-        updateNav();
-        // ✅ Thêm logic lưu currentUserId và load profile sau khi đăng nhập
-        const token = data.access_token;
-        if (token) {
-          try {
-            const payload = JSON.parse(atob(token.split(".")[1]));
-            currentUserId = payload.sub; // Lưu ID
-          } catch {}
-        }
-
-        navigateTo("home");
-      }
-    } catch (error) {
-      console.error("Login failed:", error);
-    }
-  });
-}
-
-// Send OTP
-const forgetPasswordForm = document.getElementById("forget-password-form");
-if (forgetPasswordForm) {
-  forgetPasswordForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    const emailInput = document.getElementById("forget-email");
-    if (!emailInput) return;
-
-    const email = emailInput.value;
-
-    try {
-      const data = await window.apiRequestCore(
-        null,
-        "/user/api/send-otp",
-        "POST",
-        { email }
-      );
-      window.showToast(data.message || "OTP đã được gửi đến email của bạn.");
-
-      const forgetForm = document.getElementById("forget-password-form");
-      const resetForm = document.getElementById("reset-password-form");
-      const resetEmailHidden = document.getElementById("reset-email-hidden");
-
-      if (forgetForm) forgetForm.classList.add("hidden");
-      if (resetForm) resetForm.classList.remove("hidden");
-      if (resetEmailHidden) resetEmailHidden.value = email;
-    } catch (error) {
-      console.error("Send OTP failed:", error);
-    }
-  });
-}
-// --- REGISTER HANDLER ---
-
-const registerForm = document.getElementById("register-form");
-if (registerForm) {
-  registerForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    // 1. Lấy giá trị và kiểm tra null (phòng lỗi)
-    const usernameInput = document.getElementById("register-username");
-    const emailInput = document.getElementById("register-email");
-    const passwordInput = document.getElementById("register-password");
-
-    if (!usernameInput || !emailInput || !passwordInput) {
-      window.showToast("Lỗi: Không tìm thấy trường nhập liệu Đăng ký.", true);
-      return;
-    }
-
-    const username = usernameInput.value;
-    const email = emailInput.value;
-    const password = passwordInput.value;
-
-    try {
-      // Giả định apiRequest là hàm của bạn có sẵn trong utils.js
-      const data = await window.apiRequest("/user/api/register", "POST", {
+      const data = await apiRequest("/user/api/register", "POST", {
         username,
         email,
         password,
       });
-
-      if (data) {
-        window.showToast(
-          data.message || "Đăng ký thành công! Vui lòng đăng nhập."
-        );
-        e.target.reset(); // Xóa dữ liệu đã nhập
-        navigateTo("login");
-      }
-    } catch (error) {
-      // 2. Xử lý lỗi: Hiển thị lỗi API cho người dùng
-      console.error("Registration failed:", error);
-      const errorMessage =
-        error?.message || "Đăng ký thất bại. Vui lòng thử lại.";
-      window.showToast(errorMessage, true); // true để hiển thị là thông báo lỗi
-    }
-  });
-}
-// Reset Password
-const resetPasswordForm = document.getElementById("reset-password-form");
-if (resetPasswordForm) {
-  resetPasswordForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    const emailInput = document.getElementById("reset-email-hidden");
-    const otpInput = document.getElementById("otp-code");
-    const passwordInput = document.getElementById("new-password");
-
-    if (!emailInput || !otpInput || !passwordInput) return;
-
-    const email = emailInput.value;
-    const otp = otpInput.value;
-    const new_password = passwordInput.value;
-
-    try {
-      const data = await window.apiRequestCore(
-        null,
-        "/user/api/reset-password",
-        "POST",
-        {
-          email,
-          otp,
-          new_password,
-        }
-      );
-      window.showToast(data.message || "Mật khẩu đã được đặt lại thành công!");
+      showToast(data.message || "Đăng ký thành công!");
       e.target.reset();
       navigateTo("login");
     } catch (error) {
-      console.error("Reset password failed:", error);
+      console.error("Register failed:", error);
+      showToast("Lỗi đăng ký!", true);
     }
   });
-}
 
-// Update Profile
-const profileUpdateForm = document.getElementById("profile-update-form");
-if (profileUpdateForm) {
-  profileUpdateForm.addEventListener("submit", async (e) => {
-    e.preventDefault(); // ✅ KIỂM TRA NULL trước khi đọc .value
-
-    const phoneInput = document.getElementById("profile-phone");
-    const addressInput = document.getElementById("profile-address");
-    const vehicleInput = document.getElementById("profile-vehicle-model");
-    const vinInput = document.getElementById("profile-vin-number");
-
-    // ✅ Thêm trường Họ và tên
-    const fullnameInput = document.getElementById("profile-fullname");
-
-    if (
-      !phoneInput ||
-      !addressInput ||
-      !vehicleInput ||
-      !vinInput ||
-      !fullnameInput
-    ) {
-      window.showToast("Không tìm thấy form cập nhật hồ sơ", true);
-      return;
-    }
+document
+  .getElementById("profile-update-form")
+  ?.addEventListener("submit", async (e) => {
+    e.preventDefault();
 
     const body = {
-      full_name: fullnameInput.value, // ✅ Thêm trường Họ và tên vào body
-      phone: phoneInput.value,
-      address: addressInput.value,
-      vehicle_model: vehicleInput.value,
-      vin_number: vinInput.value,
+      full_name: document.getElementById("profile-fullname")?.value,
+      phone: document.getElementById("profile-phone")?.value,
+      address: document.getElementById("profile-address")?.value,
+      vehicle_model: document.getElementById("profile-vehicle-model")?.value,
+      vin_number: document.getElementById("profile-vin-number")?.value,
     };
 
     try {
-      await window.apiRequest("/user/api/profile", "PUT", body);
-      window.showToast("Cập nhật hồ sơ thành công!");
-
-      loadProfileDetails(currentUserId); // ✅ Sửa lỗi: Truyền currentUserId
+      await apiRequest("/user/api/profile", "PUT", body);
+      showToast("Cập nhật hồ sơ thành công!");
+      loadProfileDetails();
       toggleProfileForm(false);
     } catch (error) {
       console.error("Update profile failed:", error);
+      showToast("Cập nhật thất bại!", true);
     }
   });
-}
 
 // --- INIT ---
 document.addEventListener("DOMContentLoaded", () => {
   updateNav();
-  const token = localStorage.getItem(window.TOKEN_KEY);
+  const token = localStorage.getItem(TOKEN_KEY);
 
   if (token) {
     try {
       const payload = JSON.parse(atob(token.split(".")[1]));
-      currentUserId = payload.sub; // ✅ Sửa lỗi: Lưu currentUserId khi tải trang
+      currentUserId = payload.sub;
       const now = Math.floor(Date.now() / 1000);
-
-      if (payload.exp && payload.exp < now) {
-        logout();
-      } else {
-        if (["login-page", "register-page"].includes(currentPageElement?.id)) {
-          navigateTo("home");
-        } else if (!currentPageElement) {
-          navigateTo("home");
-        }
-      }
+      if (payload.exp && payload.exp < now) logout();
+      else navigateTo("home");
     } catch {
       logout();
     }
   } else {
-    if (
-      !["login-page", "register-page", "forget-password-page"].includes(
-        currentPageElement?.id
-      )
-    ) {
-      navigateTo("login");
-    }
+    navigateTo("login");
   }
 });

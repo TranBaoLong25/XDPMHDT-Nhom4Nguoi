@@ -69,6 +69,14 @@ services:
     networks:
       - ev_network
 
+  frontend:
+    build: ./frontend
+    container_name: frontend_server
+    ports:
+      - "8080:80"
+    networks:
+      - ev_network
+
 # ===================== NETWORKS =====================
 networks:
   ev_network:
