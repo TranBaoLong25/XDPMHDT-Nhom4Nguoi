@@ -1,14 +1,12 @@
-# Sử dụng base image Nginx
-FROM nginx:1.25-alpine
+# Sử dụng image Nginx chính thức
+FROM nginx:alpine
 
-# Xóa file config mặc định của Nginx
+# Xóa file cấu hình mặc định
 RUN rm /etc/nginx/conf.d/default.conf
 
-# Sao chép file cấu hình tùy chỉnh vào trong container
-COPY nginx.conf /etc/nginx/conf.d/
+# ✅ SỬA LỖI: Đường dẫn COPY tính từ thư mục gốc (context: .)
+COPY ./api-gateway/nginx.conf /etc/nginx/conf.d/
 
-# Mở cổng 80
-EXPOSE 80
-
-# Lệnh chạy Nginx
-CMD ["nginx", "-g", "daemon off;"]
+# ✅ SỬA LỖI: Đường dẫn COPY tính từ thư mục gốc (context: .)
+# Đường dẫn này khớp với "root /usr/share/nginx/html/frontend" trong nginx.conf
+COPY ./frontend /usr/share/nginx/html/frontend

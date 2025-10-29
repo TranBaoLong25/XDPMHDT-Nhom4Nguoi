@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Dashboard - EV Service Center</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+      }
+      .dashboard-section {
+        /* Bỏ 'display: none;' vì đã được quản lý bằng class 'hidden' trong JS */
+      }
+      .dashboard-section.active {
+        display: block;
+        animation: fadeIn 0.5s;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+      /* Đảm bảo trang login chiếm toàn bộ viewport */
+      .page-auth {
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      /* TỐI ƯU: Thiết lập màu nền và hiệu ứng focus chung cho form admin */
+      input:focus,
+      textarea:focus {
+        border-color: #4f46e5; /* indigo-600 */
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.5); /* ring-indigo-500/50 */
+      }
+    </style>
+  </head>
+  <body class="bg-gray-100">
+    <div id="admin-login-page" class="page-auth">
+      <div class="w-full max-w-md bg-white p-8 rounded-lg shadow-lg">
+        <h2 class="text-2xl font-bold text-center mb-6">Admin Login</h2>
+        <form id="admin-login-form">
+          <div class="mb-4">
+            <label
+              for="admin-email"
+              class="block text-sm font-medium text-gray-700"
+              >Email hoặc Username</label
+            >
+            <input
+              type="text"
+              id="admin-email"
+              autocomplete="username"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              required
+            />
+          </div>
+          <div class="mb-6">
+            <label
+              for="admin-password"
+              class="block text-sm font-medium text-gray-700"
+              >Mật khẩu</label
+            >
+            <input
+              type="password"
+              id="admin-password"
+              autocomplete="current-password"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            class="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700"
+          >
+            Đăng Nhập
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div id="dashboard" class="hidden">
+      <header class="bg-white shadow">
+        <div
+          class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center"
+        >
+          <h1 class="text-2xl font-bold text-gray-900">Quản lý Người Dùng</h1>
+          <button
+            onclick="adminLogout()"
+            class="bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600"
+          >
+            Đăng Xuất
+          </button>
+        </div>
+      </header>
+
+      <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div id="users-section" class="dashboard-section active">
+          <h2 class="text-xl font-semibold mb-4">Danh sách người dùng</h2>
+          <div class="bg-white shadow rounded-lg overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    ID
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Username
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Email
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Role
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Status
+                  </th>
+                  <th
+                    class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody
+                id="users-table-body"
+                class="bg-white divide-y divide-gray-200"
+              ></tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <div
+      id="loading-spinner"
+      class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50"
+    >
+      <div
+        class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-white"
+      ></div>
+    </div>
+
+    <script src="utils.js"></script>
+    <script src="admin_scripts.js"></script>
+  </body>
+</html>

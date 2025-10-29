@@ -1,80 +1,79 @@
-version: "3.8"
-
 services:
-  # 1. DATABASE (PostgreSQL)
-  db:
+  # ===================== DATABASE (Postgres cho User Service) =====================
+  db-user:
     image: postgres:14-alpine
-    container_name: ev-db
-    restart: always
+    container_name: user_db
     environment:
-      - POSTGRES_USER=${POSTGRES_USER:-ev_user}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-ev_pass}
-      - POSTGRES_DB=${POSTGRES_DB:-ev_db}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
     ports:
       - "5433:5432"
+    volumes:
+      - user_data:/var/lib/postgresql/data
     networks:
       - ev_network
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER:-ev_user} -d ${POSTGRES_DB:-ev_db}",
-        ]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  # 2. REDIS CACHE
+  # ===================== REDIS CACHE =====================
   redis:
     image: redis:alpine
-    container_name: ev-redis-cache
+    container_name: redis_cache
     ports:
       - "6379:6379"
     networks:
       - ev_network
 
-  # 3. USER SERVICE (FastAPI)
+  # ===================== USER SERVICE (bao gồm phần Admin) =====================
   user-service:
     build: ./services/user-service
-    container_name: ev-user-service
+    container_name: user-service
+    command: gunicorn --bind 0.0.0.0:5000 "app:create_app()"
     volumes:
       - ./services/user-service:/app
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-ev_user}:${POSTGRES_PASSWORD:-ev_pass}@db:5432/${POSTGRES_DB:-ev_db}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-user:5432/${POSTGRES_DB}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - REDIS_URL=redis://redis:6379
+      - SENDER_EMAIL=${SENDER_EMAIL}
+      - APP_PASSWORD=${APP_PASSWORD}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN}
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./.env
     depends_on:
-      db:
+      db-user:
         condition: service_healthy
       redis:
         condition: service_started
     networks:
       - ev_network
 
-  # 4. API GATEWAY (Nginx) - ĐÃ SỬA ĐÚNG
+  # ===================== API GATEWAY (NGINX) =====================
   api-gateway:
-    build: ./api-gateway
-    container_name: ev-api-gateway
+    # ✅ SỬA LỖI: Thay đổi cách build để nhận bối cảnh từ thư mục gốc
+    build:
+      context: .
+      dockerfile: ./api-gateway/Dockerfile
+    container_name: api_gateway
     ports:
-      - "80:80" # Cổng chính cho toàn bộ hệ thống
+      - "80:80" # Chỉ cần cổng 80, không cần 8080 nữa
     depends_on:
       - user-service
     networks:
       - ev_network
-    # Đã xóa phần 'environment' của Flask
 
-  # 5. FRONTEND (Nginx)
-  frontend:
-    build: ./frontend
-    container_name: ev-frontend
-    ports:
-      - "8080:80"
-    networks:
-      - ev_network
-
+# ===================== NETWORKS =====================
 networks:
   ev_network:
     driver: bridge
 
+# ===================== VOLUMES =====================
 volumes:
-  postgres_data:
+  user_data:

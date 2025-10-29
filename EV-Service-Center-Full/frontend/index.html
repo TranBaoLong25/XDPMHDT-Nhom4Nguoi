@@ -2,106 +2,362 @@
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
-    <title>Hệ thống EV</title>
-    <link rel="stylesheet" href="style.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EV Service Center Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" href="favicon.ico" />
+    <link rel="stylesheet" href="styles.css" />
   </head>
 
-  <body>
-    <div class="app-container">
-      <h1 class="app-title">⚡ Hệ thống EV</h1>
-
-      <!-- Đăng nhập -->
-      <div class="card" id="login-card">
-        <h2>Đăng nhập</h2>
-        <input type="text" id="login-username" placeholder="Tên đăng nhập" />
-        <input type="password" id="login-password" placeholder="Mật khẩu" />
-        <button onclick="loginUser()">Đăng nhập</button>
-        <p class="switch">
-          Chưa có tài khoản?
-          <a href="#" onclick="showRegister()">Đăng ký</a>
-        </p>
-        <div class="result" id="login-result"></div>
-      </div>
-
-      <!-- Đăng ký -->
-      <div class="card" id="register-card" style="display: none">
-        <h2>Đăng ký tài khoản</h2>
-        <input type="text" id="reg-username" placeholder="Tên đăng nhập" />
-        <input type="password" id="reg-password" placeholder="Mật khẩu" />
-        <input type="text" id="reg-name" placeholder="Họ và tên" />
-        <button onclick="registerUser()">Đăng ký</button>
-        <p class="switch">
-          Đã có tài khoản?
-          <a href="#" onclick="showLogin()">Đăng nhập</a>
-        </p>
-        <div class="result" id="reg-result"></div>
-      </div>
-
-      <!-- Trang cá nhân -->
-      <div class="card" id="profile-card" style="display: none">
-        <h2>Trang cá nhân</h2>
-        <input type="text" id="profile-phone" placeholder="Số điện thoại" />
-        <input type="text" id="profile-address" placeholder="Địa chỉ" />
-
-        <div class="btn-group">
-          <button onclick="createProfile()">Tạo Profile</button>
-          <button onclick="viewProfile()">Xem Profile</button>
-          <button class="btn-danger" onclick="logout()">Đăng xuất</button>
+  <body class="bg-gray-100 text-gray-800 font-['Inter']">
+    <!-- 🧭 Navigation -->
+    <nav class="bg-white shadow-md sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+          <a
+            href="#"
+            onclick="navigateTo('home')"
+            class="font-bold text-xl text-indigo-600"
+          >
+            EV-Service
+          </a>
+          <div class="hidden md:block">
+            <div class="ml-10 flex items-baseline space-x-4">
+              <a
+                href="#"
+                onclick="navigateTo('home')"
+                class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+              >
+                Trang Chủ
+              </a>
+            </div>
+          </div>
+          <div id="nav-auth-links" class="flex items-center"></div>
         </div>
+      </div>
+    </nav>
 
-        <div class="result" id="profile-result"></div>
+    <!-- 🧩 MAIN CONTENT -->
+    <main id="app-container" class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      <!-- HOME PAGE -->
+      <div id="home-page" class="page hidden">
+        <div class="text-center p-12 bg-white rounded-lg shadow">
+          <h1 class="text-4xl font-bold text-gray-900">
+            EV Service Center Management
+          </h1>
+          <p class="mt-4 text-lg text-gray-600">
+            Hệ thống quản lý thông tin và hồ sơ khách hàng.
+          </p>
+          <button
+            onclick="navigateTo('profile')"
+            class="mt-8 bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-indigo-700 transition duration-300"
+          >
+            Quản lý Hồ sơ
+          </button>
+        </div>
       </div>
 
-      <!-- Trang quản trị -->
-<div class="card" id="admin-card" style="display: none">
-  <div class="header-row">
-  <h2>Quản trị Admin</h2>
-</div>
-  <div class="btn-group">
-    <button onclick="viewAllUsers()">Xem tất cả người dùng</button>
-    <button class="btn-danger" onclick="logout()">Đăng xuất</button>
+      <!-- LOGIN PAGE -->
+      <div id="login-page" class="page active">
+        <div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg">
+          <h2 class="text-2xl font-bold text-center mb-6">Đăng Nhập</h2>
+          <form id="login-form">
+            <div class="mb-4">
+              <label
+                for="login-email-username"
+                class="block text-sm font-medium text-gray-700"
+              >
+                Email hoặc Tên đăng nhập
+              </label>
+              <input
+                type="text"
+                id="login-email-username"
+                autocomplete="username"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500"
+                required
+              />
+            </div>
+            <div class="mb-6">
+              <label
+                for="login-password"
+                class="block text-sm font-medium text-gray-700"
+              >
+                Mật khẩu
+              </label>
+              <input
+                type="password"
+                id="login-password"
+                autocomplete="current-password"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500"
+                required
+              />
+              <a
+                href="#"
+                onclick="navigateTo('forget-password')"
+                class="text-indigo-600 hover:underline text-right block mt-2"
+              >
+                Quên mật khẩu?
+              </a>
+            </div>
+            <button
+              type="submit"
+              class="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700"
+            >
+              Đăng Nhập
+            </button>
+          </form>
+          <p class="text-center mt-4 text-sm">
+            Chưa có tài khoản?
+            <a
+              href="#"
+              onclick="navigateTo('register')"
+              class="text-indigo-600 hover:underline"
+            >
+              Đăng ký ngay
+            </a>
+          </p>
+        </div>
+      </div>
+
+      <!-- REGISTER PAGE -->
+      <div id="register-page" class="page hidden">
+        <div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg">
+          <h2 class="text-2xl font-bold text-center mb-6">Đăng Ký Tài Khoản</h2>
+          <form id="register-form">
+            <div class="mb-4">
+              <label
+                for="register-username"
+                class="block text-sm font-medium text-gray-700"
+              >
+                Tên đăng nhập
+              </label>
+              <input
+                type="text"
+                id="register-username"
+                autocomplete="username"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                required
+              />
+            </div>
+            <div class="mb-4">
+              <label
+                for="register-email"
+                class="block text-sm font-medium text-gray-700"
+              >
+                Email
+              </label>
+              <input
+                type="email"
+                id="register-email"
+                autocomplete="email"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                required
+              />
+            </div>
+            <div class="mb-6">
+              <label
+                for="register-password"
+                class="block text-sm font-medium text-gray-700"
+              >
+                Mật khẩu
+              </label>
+              <input
+                type="password"
+                id="register-password"
+                autocomplete="new-password"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700"
+            >
+              Đăng Ký
+            </button>
+          </form>
+          <p class="text-center mt-4 text-sm">
+            Đã có tài khoản?
+            <a
+              href="#"
+              onclick="navigateTo('login')"
+              class="text-indigo-600 hover:underline"
+            >
+              Đăng nhập
+            </a>
+          </p>
+        </div>
+      </div>
+
+      <!-- FORGET PASSWORD PAGE -->
+      <div id="forget-password-page" class="page hidden">
+        <div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg">
+          <h2 class="text-2xl font-bold text-center mb-6">Quên Mật Khẩu</h2>
+          <form id="forget-password-form">
+            <div class="mb-4">
+              <label
+                for="forget-email"
+                class="block text-sm font-medium text-gray-700"
+                >Email đăng ký</label
+              >
+              <input
+                type="email"
+                id="forget-email"
+                autocomplete="email"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              class="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700"
+            >
+              Gửi Mã OTP
+            </button>
+          </form>
+
+          <form id="reset-password-form" class="mt-6 hidden">
+            <input type="hidden" id="reset-email-hidden" />
+            <div class="mb-4">
+              <label
+                for="otp-code"
+                class="block text-sm font-medium text-gray-700"
+                >Mã OTP</label
+              >
+              <input
+                type="text"
+                id="otp-code"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                required
+              />
+            </div>
+            <div class="mb-6">
+              <label
+                for="new-password"
+                class="block text-sm font-medium text-gray-700"
+                >Mật khẩu mới</label
+              >
+              <input
+                type="password"
+                id="new-password"
+                autocomplete="new-password"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700"
+            >
+              Đặt Lại Mật Khẩu
+            </button>
+          </form>
+
+          <p class="text-center mt-4 text-sm">
+            <a
+              href="#"
+              onclick="navigateTo('login')"
+              class="text-indigo-600 hover:underline"
+            >
+              Quay lại Đăng nhập
+            </a>
+          </p>
+        </div>
+      </div>
+<!-- PROFILE PAGE -->
+<div id="profile-page" class="page hidden">
+  <h2 class="text-3xl font-bold mb-6 text-gray-900">Hồ Sơ Cá Nhân</h2>
+
+  <!-- Thông tin hiện tại -->
+  <div id="profile-details" class="bg-white p-6 rounded-lg shadow-md space-y-2">
+    <p><strong>Họ và tên:</strong> <span id="profile-fullname-display">bảo long</span></p>
+    <p><strong>Số điện thoại:</strong> <span id="profile-phone-display">111</span></p>
+    <p><strong>Địa chỉ:</strong> <span id="profile-address-display">1111</span></p>
+    <p><strong>Model xe:</strong> <span id="profile-vehicle-model-display">11111</span></p>
+    <p><strong>Số VIN:</strong> <span id="profile-vin-number-display">1111</span></p>
   </div>
 
-  <div id="user-list" style="display: none">
-    <div class="header-row">
-      <h3>Danh sách người dùng</h3>
-      <button class="btn-close" onclick="hideUserList()">Đóng</button>
+  <div id="update-profile-button-container" class="mt-4">
+  <button
+    onclick="toggleProfileForm(true)"
+    class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition"
+  >
+    Chỉnh Sửa Hồ Sơ
+  </button>
+</div>
+
+  <!-- Form chỉnh sửa -->
+  <form
+    id="profile-update-form"
+    class="hidden bg-white p-6 rounded-lg shadow-md space-y-4 mt-4"
+  >
+    <input
+      class="w-full px-3 py-2 border rounded-md"
+      type="text"
+      id="profile-fullname"
+      placeholder="Họ và tên"
+    />
+    <input
+      class="w-full px-3 py-2 border rounded-md"
+      type="text"
+      id="profile-phone"
+      placeholder="Số điện thoại"
+    />
+    <input
+      class="w-full px-3 py-2 border rounded-md"
+      type="text"
+      id="profile-address"
+      placeholder="Địa chỉ"
+    />
+    <input
+      class="w-full px-3 py-2 border rounded-md"
+      type="text"
+      id="profile-vehicle-model"
+      placeholder="Model xe"
+    />
+    <input
+      class="w-full px-3 py-2 border rounded-md"
+      type="text"
+      id="profile-vin-number"
+      placeholder="Số VIN"
+    />
+
+    <div class="flex space-x-2">
+      <button
+        type="submit"
+        class="bg-indigo-600 text-white py-2 px-4 rounded hover:bg-indigo-700 transition"
+      >
+        Lưu Thay Đổi
+      </button>
+      <button
+        type="button"
+        onclick="toggleProfileForm(false)"
+        class="bg-gray-300 py-2 px-4 rounded hover:bg-gray-400 transition"
+      >
+        Hủy
+      </button>
     </div>
-    <div id="user-table-container"></div>
-  </div>
-
-  <div class="result" id="admin-result"></div>
+  </form>
 </div>
 
-<!-- Trang Quản lý Kho -->
-<div class="card" id="inventory-card" style="display: none">
-  <h2>📦 Quản lý Kho</h2>
 
-  <div class="btn-group">
-    <button onclick="loadInventory()">Xem tất cả sản phẩm</button>
-    <button onclick="showAddForm()">➕ Thêm sản phẩm</button>
-    <button class="btn-danger" onclick="logout()">Đăng xuất</button>
-  </div>
 
-  <!-- Form thêm/sửa -->
-  <div id="inventory-form" style="display: none; margin-top: 15px">
-    <h3 id="form-title">Thêm sản phẩm</h3>
-    <input type="hidden" id="inv-id" />
-    <input type="text" id="inv-name" placeholder="Tên sản phẩm" />
-    <input type="number" id="inv-quantity" placeholder="Số lượng" />
-    <input type="text" id="inv-category" placeholder="Loại" />
-    <input type="text" id="inv-status" placeholder="Trạng thái" />
-    <div class="btn-group">
-      <button onclick="saveInventory()">💾 Lưu</button>
-      <button class="btn-danger" onclick="cancelForm()">Hủy</button>
+    <!-- SPINNER -->
+    <div
+      id="loading-spinner"
+      class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50"
+    >
+      <div
+        class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-white"
+      ></div>
     </div>
-  </div>
 
-  <div id="inventory-list" style="margin-top: 15px"></div>
-  <div id="inventory-result"></div>
-</div>
-
-
-    <script src="script.js"></script>
+    <!-- JS -->
+    <script src="utils.js"></script>
+    <script src="scripts.js"></script>
   </body>
 </html>

@@ -1,32 +1,87 @@
-# ⚡ EV-Service-Center Microservice System
+docker-compose up -d --force-recreate listing-service
+docker-compose up -d --build frontend
+docker-compose down -v
+"\\wsl.localhost\docker-desktop\mnt\docker-desktop-disk\data\docker\volumes\second-handevbatterytradingplatform_listing_uploads_data"
 
-Hệ thống quản lý trung tâm dịch vụ xe điện (EV Service Center), được thiết kế theo kiến trúc **Microservice** sử dụng **FastAPI**, **PostgreSQL**, **Redis**, và **Docker Compose**.
+<!-- lần đầu chạy -->
+<!-- 1. xây dựng (build) và chạy container của chương trình ở chế độ nền -->
 
----
+docker-compose up -d --build
 
-## 🏗️ Kiến trúc hệ thống
+<!-- 2. tạo và cập nhật cơ sở dữ liệu trong Flask -->
+<!-- db init: khởi tạo thư mục migration. -->
+<!-- db migrate: tạo file migration (các thay đổi bảng). -->
+<!-- db upgrade: áp dụng migration vào database. -->
+<!-- auction-service  -->
 
-- **api-gateway/** → Nginx làm cổng giao tiếp
-- **frontend/** → Giao diện chính (HTML/CSS/JS)
-- **services/**
-  - `user-service/` → Đăng ký, đăng nhập, quản lý tài khoản
-  - `listing-service/` → Quản lý danh sách dịch vụ
-  - (Có thể mở rộng thêm các service khác sau)
-- **PostgreSQL** → Database chính
-- **Redis** → Lưu cache & session
-- **Docker Compose** → Dàn orchestration toàn hệ thống
+docker-compose exec auction-service flask db init
+docker-compose exec auction-service flask db migrate -m "Initial auction service tables"
+docker-compose exec auction-service flask db upgrade
 
----
+<!-- transaction-service -->
 
-## ⚙️ Chạy hệ thống
+docker-compose exec transaction-service flask db init
+docker-compose exec transaction-service flask db migrate -m "Initial transaction service tables"
+docker-compose exec transaction-service flask db upgrade
 
-```bash
-# Bước 1: Build và khởi động tất cả container
-docker compose up --build
+ <!-- user-service -->
 
-# Bước 2: Truy cập
-# API Gateway: http://localhost
-# User Service: http://localhost:5000/docs
-# Listing Service: http://localhost:5001/docs
-# Frontend: http://localhost:8080
-```
+docker-compose exec user-service flask db init
+docker-compose exec user-service flask db migrate -m "Initial user service tables"
+docker-compose exec user-service flask db upgrade
+
+<!-- listing-service -->
+
+docker-compose exec listing-service flask db init
+docker-compose exec listing-service flask db migrate -m "Initial listing service tables"
+docker-compose exec listing-service flask db upgrade
+
+<!-- review-service -->
+
+docker-compose exec review-service flask db init
+docker-compose exec review-service flask db migrate -m "Initial review service tables"
+docker-compose exec review-service flask db upgrade
+
+<!-- report-service -->
+
+docker-compose exec report-service flask db init
+docker-compose exec report-service flask db migrate -m "Initial report service tables"
+docker-compose exec report-service flask db upgrade
+
+docker-compose exec ai-pricing-service flask db init
+docker-compose exec ai-pricing-service flask db migrate -m "Initial ai pricing service tables"
+docker-compose exec ai-pricing-service flask db upgrade
+
+<!-- tạo tài khoản admin(có hàm trong user-service/app.py) -->
+
+docker-compose exec user-service flask create-admin admin admin@gmail.com 12345
+
+<!-- xem log (nhật ký chạy) của container(thay tên service để có thể xem log của các service khác) -->
+
+docker-compose logs -f transaction-service
+
+<!-- vào terminal bên trong container transaction_db(thay tên db để có thể xem log của các db khác -->
+
+docker exec -it transaction_db bash
+
+<!-- mở PostgreSQL CLI và kết nối vào database transaction_db(thay tên db để có thể xem log của các db khác với user db_user (POSTGRES_USER=db_user trong .env) -->
+
+psql -U db_user -d transaction_db
+
+<!-- xóa toàn bộ dữ liệu trong bảng -->
+
+TRUNCATE TABLE transaction_db CASCADE;
+
+<!-- xóa toàn bộ dữ liệu bảng transaction, đặt lại ID về 1, và xóa cả dữ liệu ở bảng liên quan (CASCADE). -->
+
+TRUNCATE TABLE transaction RESTART IDENTITY CASCADE;
+
+<!-- các câu lệnh truy vấn csdl -->
+
+select _ from
+INSERT INTO ... () VALUES ();
+UPDATE ... SET * = * WHERE * = *;
+select _ from ...;
+DELETE FROM ... WHERE _ = _;
+UPDATE auctions SET start_time = start_time::date + interval '8 hour 5 minute', end_time = start_time::date + interval '10 hour 5 minute' WHERE EXTRACT(HOUR FROM start_time) = 8;
+UPDATE auctions SET auction_status = 'started' where auction_id = 1;
