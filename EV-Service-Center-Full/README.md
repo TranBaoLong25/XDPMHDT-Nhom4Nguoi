@@ -54,7 +54,7 @@ docker-compose exec ai-pricing-service flask db upgrade
 
 <!-- tạo tài khoản admin(có hàm trong user-service/app.py) -->
 
-docker-compose exec user-service flask create-admin admin admin@gmail.com 12345
+docker-compose exec user-service flask create-admin admin1 kyu764904@gmail.com 12345
 
 <!-- xem log (nhật ký chạy) của container(thay tên service để có thể xem log của các service khác) -->
 

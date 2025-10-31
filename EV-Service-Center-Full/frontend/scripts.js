@@ -75,9 +75,41 @@ async function apiRequestCore(tokenKey, endpoint, method = "GET", body = null) {
   }
 }
 
-// --- API WRAPPER ---
 async function apiRequest(endpoint, method = "GET", body = null) {
-  return apiRequestCore(TOKEN_KEY, endpoint, method, body);
+  showLoading();
+  try {
+    const headers = { "Content-Type": "application/json" };
+    const token = localStorage.getItem("jwt_token");
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const options = { method, headers };
+    if (body) {
+      options.body = JSON.stringify(body);
+    }
+
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+
+    const responseData = await response
+      .json()
+      .catch(() => ({ message: "Operation successful" }));
+
+    if (!response.ok) {
+      throw new Error(
+        responseData.error ||
+          responseData.msg ||
+          `HTTP error! status: ${response.status}`
+      );
+    }
+    return responseData;
+  } catch (error) {
+    console.error("API Request Error:", error);
+    showToast(error.message, true);
+    throw error;
+  } finally {
+    hideLoading();
+  }
 }
 
 // --- NAVIGATION ---
@@ -120,6 +152,39 @@ function logout() {
   updateNav();
   navigateTo("login");
 }
+// Dán hàm này vào file frontend/scripts.js
+
+function resetForgetForm() {
+  // 1. Lấy các ô input bằng ID (khớp với HTML của bạn)
+  const emailInput = document.getElementById("forget-email");
+  const otpInput = document.getElementById("otp-code");
+  const newPasswordInput = document.getElementById("new-password");
+
+  // 2. Đặt giá trị của chúng về rỗng
+  if (emailInput) {
+    emailInput.value = "";
+  }
+  if (otpInput) {
+    otpInput.value = "";
+  }
+  if (newPasswordInput) {
+    newPasswordInput.value = "";
+  }
+
+  // 3. (Quan trọng) Ẩn form reset và hiện lại form gửi OTP
+  // Điều này đảm bảo trang "Quên mật khẩu" quay về trạng thái ban đầu
+  const forgetForm = document.getElementById("forget-password-form");
+  const resetForm = document.getElementById("reset-password-form");
+
+  if (forgetForm) {
+    forgetForm.classList.remove("hidden"); // Hiện form gửi email
+  }
+  if (resetForm) {
+    resetForm.classList.add("hidden"); // Ẩn form nhập OTP/pass mới
+  }
+
+  // (Tùy chọn: Ẩn các thông báo lỗi nếu bạn có)
+}
 
 // --- PROFILE HANDLERS ---
 function toggleProfileForm(forceShow) {
@@ -139,7 +204,7 @@ function toggleProfileForm(forceShow) {
 
 async function loadProfileDetails() {
   try {
-    const profile = await apiRequest("/user/api/profile-details", "POST", {
+    const profile = await apiRequest("/api/profile-details", "POST", {
       subject: currentUserId?.toString(),
     });
 
@@ -188,7 +253,7 @@ document.getElementById("login-form")?.addEventListener("submit", async (e) => {
   const password = document.getElementById("login-password")?.value;
 
   try {
-    const data = await apiRequestCore(null, "/user/api/login", "POST", {
+    const data = await apiRequestCore(null, "/api/login", "POST", {
       email_username,
       password,
     });
@@ -219,7 +284,7 @@ document
     const password = document.getElementById("register-password")?.value;
 
     try {
-      const data = await apiRequest("/user/api/register", "POST", {
+      const data = await apiRequest("/api/register", "POST", {
         username,
         email,
         password,
@@ -247,7 +312,7 @@ document
     };
 
     try {
-      await apiRequest("/user/api/profile", "PUT", body);
+      await apiRequest("/api/profile", "PUT", body);
       showToast("Cập nhật hồ sơ thành công!");
       loadProfileDetails();
       toggleProfileForm(false);
@@ -274,5 +339,111 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   } else {
     navigateTo("login");
+  }
+});
+document.addEventListener("DOMContentLoaded", () => {
+  // --- Bộ não cho Form 1: Gửi Mã OTP ---
+  const forgetForm = document.getElementById("forget-password-form");
+  if (forgetForm) {
+    forgetForm.addEventListener("submit", async (event) => {
+      event.preventDefault(); // Ngăn trang tải lại
+
+      const emailInput = document.getElementById("forget-email");
+      const email = emailInput.value;
+      const submitButton = forgetForm.querySelector('button[type="submit"]');
+
+      if (!email) {
+        alert("Vui lòng nhập email của bạn.");
+        return;
+      }
+
+      // Vô hiệu hóa nút để tránh nhấn đúp
+      submitButton.disabled = true;
+      submitButton.textContent = "Đang gửi...";
+
+      try {
+        // 1. Gọi API (giả sử bạn có hàm apiRequestCore)
+        const data = await window.apiRequestCore(
+          null,
+          "/api/send-otp",
+          "POST",
+          { email: email }
+        );
+
+        // 2. Xử lý thành công
+        alert(data.message || "Gửi OTP thành công! Vui lòng kiểm tra email.");
+
+        // Ẩn form gửi, hiện form reset
+        forgetForm.classList.add("hidden");
+        document
+          .getElementById("reset-password-form")
+          .classList.remove("hidden");
+
+        // Lưu email vào ô input ẩn
+        document.getElementById("reset-email-hidden").value = email;
+      } catch (error) {
+        // 3. Xử lý lỗi
+        console.error("Lỗi khi gửi OTP:", error);
+        alert("Gửi OTP thất bại. Email không tồn tại hoặc có lỗi xảy ra.");
+      } finally {
+        // 4. Kích hoạt lại nút
+        submitButton.disabled = false;
+        submitButton.textContent = "Gửi Mã OTP";
+      }
+    });
+  }
+
+  // --- Bộ não cho Form 2: Đặt Lại Mật Khẩu ---
+  const resetForm = document.getElementById("reset-password-form");
+  if (resetForm) {
+    resetForm.addEventListener("submit", async (event) => {
+      event.preventDefault(); // Ngăn trang tải lại
+
+      // 1. Lấy dữ liệu
+      const email = document.getElementById("reset-email-hidden").value;
+      const otp = document.getElementById("otp-code").value;
+      const newPassword = document.getElementById("new-password").value;
+      const submitButton = resetForm.querySelector('button[type="submit"]');
+
+      if (!otp || !newPassword) {
+        alert("Vui lòng nhập Mã OTP và Mật khẩu mới.");
+        return;
+      }
+
+      // Vô hiệu hóa nút
+      submitButton.disabled = true;
+      submitButton.textContent = "Đang xử lý...";
+
+      try {
+        // 2. Gọi API
+        const data = await window.apiRequestCore(
+          null,
+          "/api/reset-password",
+          "POST",
+          {
+            email: email,
+            otp: otp,
+            new_password: newPassword,
+          }
+        );
+
+        // 3. Xử lý thành công
+        alert(
+          data.message || "Đặt lại mật khẩu thành công! Bạn có thể đăng nhập."
+        );
+
+        // Chuyển về trang đăng nhập
+        navigateTo("login-page"); // (Giả sử bạn có hàm này)
+        resetForgetForm(); // Gọi hàm reset (bạn đã thêm ở bước trước)
+      } catch (error) {
+        // 4. Xử lý lỗi
+        console.error("Lỗi khi reset mật khẩu:", error);
+        alert("Đặt lại mật khẩu thất bại. Mã OTP không đúng hoặc đã hết hạn.");
+      } finally {
+        // 5. Kích hoạt lại nút
+        submitButton.disabled = false;
+        submitButton.textContent = "Đặt Lại Mật Khẩu";
+      }
+    });
   }
 });

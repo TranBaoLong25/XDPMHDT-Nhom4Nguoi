@@ -1,5 +1,5 @@
 services:
-  # ===================== DATABASE (Postgres cho User Service) =====================
+  # ===================== DATABASE (Postgres) =====================
   db-user:
     image: postgres:14-alpine
     container_name: user_db
@@ -8,7 +8,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
     ports:
-      - "5433:5432"
+      - "5433:5432" # Vẫn giữ để debug CSDL
     volumes:
       - user_data:/var/lib/postgresql/data
     networks:
@@ -24,11 +24,11 @@ services:
     image: redis:alpine
     container_name: redis_cache
     ports:
-      - "6379:6379"
+      - "6379:6379" # Vẫn giữ để debug Redis
     networks:
       - ev_network
 
-  # ===================== USER SERVICE (bao gồm phần Admin) =====================
+  # ===================== USER SERVICE (Backend) =====================
   user-service:
     build: ./services/user-service
     container_name: user-service
@@ -36,17 +36,13 @@ services:
     volumes:
       - ./services/user-service:/app
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-user:5432/${POSTGRES_DB}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@user_db:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://${REDIS_HOST}:6379
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      - REDIS_URL=redis://redis:6379
-      - SENDER_EMAIL=${SENDER_EMAIL}
-      - APP_PASSWORD=${APP_PASSWORD}
-      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
-      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN}
-    ports:
-      - "5000:5000"
-    env_file:
-      - ./.env
+      # ... các biến env khác ...
+    # KHÔNG cần 'ports' nữa vì chỉ Nginx mới gọi nó
+    expose:
+      - "5000"
     depends_on:
       db-user:
         condition: service_healthy
@@ -55,33 +51,36 @@ services:
     networks:
       - ev_network
 
+  # ===================== FRONTEND SERVICE =====================
+  frontend:
+    build: ./frontend
+    container_name: frontend_server
+    # ⛔ BỎ 'ports' đi, không cần truy cập trực tiếp cổng 8080 nữa
+    # ports:
+    #   - "8080:80"
+    # ✅ Dùng 'expose' để Nginx thấy port 80 (port nội bộ của frontend)
+    expose:
+      - "80"
+    networks:
+      - ev_network
+
   # ===================== API GATEWAY (NGINX) =====================
   api-gateway:
-    # ✅ SỬA LỖI: Thay đổi cách build để nhận bối cảnh từ thư mục gốc
     build:
       context: .
       dockerfile: ./api-gateway/Dockerfile
     container_name: api_gateway
     ports:
-      - "80:80" # Chỉ cần cổng 80, không cần 8080 nữa
+      - "80:80" # <-- CỔNG DUY NHẤT bạn sẽ truy cập
     depends_on:
       - user-service
+      - frontend # Nginx cần frontend chạy trước
     networks:
       - ev_network
 
-  frontend:
-    build: ./frontend
-    container_name: frontend_server
-    ports:
-      - "8080:80"
-    networks:
-      - ev_network
-
-# ===================== NETWORKS =====================
+# ===================== NETWORKS & VOLUMES =====================
 networks:
   ev_network:
     driver: bridge
-
-# ===================== VOLUMES =====================
 volumes:
   user_data:

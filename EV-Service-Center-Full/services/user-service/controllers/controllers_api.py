@@ -109,6 +109,9 @@ def send_otp():
         return jsonify(error=message), 404
     return jsonify(message=message), 200
 
+
+
+
 @api_bp.route("/reset-password", methods=["POST"])
 def reset_password():
     data = request.get_json()
@@ -174,8 +177,61 @@ def delete_my_account():
     return jsonify({"message": message}), 200
 
 # --- Admin endpoints (commented for now) ---
-# @api_bp.route("/admin/users", methods=["GET"])
-# @admin_required()
-# def get_all_users():
-#     users = UserLogic.get_all_users()
-#     return jsonify([serialize_user(u) for u in users]), 200
+@api_bp.route("/admin/users", methods=["GET"])
+@admin_required()
+def get_all_users():
+    users = UserLogic.get_all_users()
+    return jsonify([serialize_user(u) for u in users]), 200
+
+@api_bp.route("/admin/users/<string:user_id>", methods=["DELETE"])
+@admin_required()
+def delete_user_account(user_id):
+    """
+    Route để xóa một tài khoản người dùng (chỉ admin)
+    """
+    success, message = UserLogic.delete_user(user_id)
+    
+    if not success:
+        # Nếu service báo lỗi (ví dụ: không tìm thấy user)
+        return jsonify(error=message), 404
+    
+    # Xóa thành công
+    return jsonify(message=message), 200
+
+@api_bp.route("/admin/users/<string:user_id>/toggle-lock", methods=["PUT"])
+@admin_required()
+def toggle_user_lock_account(user_id):
+    """
+    Route để Khóa hoặc Mở khóa tài khoản (chỉ admin)
+    """
+    user, error = UserLogic.toggle_user_lock(user_id)
+    if error:
+        return jsonify(error=error), 404
+    return jsonify(serialize_user(user)), 200
+
+@api_bp.route("/admin/users", methods=["POST"])
+@admin_required()
+def create_user_by_admin():
+    """
+    Route để admin tạo một tài khoản người dùng mới
+    """
+    data = request.get_json()
+    if not data or not data.get('email') or not data.get('username') or not data.get('password'):
+        return jsonify(error="Thiếu email, username, hoặc password"), 400
+    
+    # Admin có thể tùy chọn vai trò, nếu không thì mặc định là 'user'
+    role = data.get('role', 'user')
+    
+    user, error = UserLogic.create_user(
+        data['email'],
+        data['username'],
+        data['password'],
+        role=role
+    )
+    
+    if error:
+        # Lỗi 409 (Conflict) nếu email/username đã tồn tại
+        return jsonify(error=error), 409
+    
+    # 201 (Created) khi tạo thành công
+    return jsonify(serialize_user(user)), 201

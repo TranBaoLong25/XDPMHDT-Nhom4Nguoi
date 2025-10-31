@@ -85,12 +85,10 @@ document
     const password = document.getElementById("admin-password").value;
 
     try {
-      const data = await window.apiRequestCore(
-        null,
-        "/user/api/login",
-        "POST",
-        { email_username, password }
-      );
+      const data = await window.apiRequestCore(null, "/api/login", "POST", {
+        email_username,
+        password,
+      });
       const token = data.access_token;
 
       const payload = JSON.parse(atob(token.split(".")[1]));
@@ -113,7 +111,7 @@ async function loadAllUsers() {
   try {
     const users = await window.apiRequestCore(
       window.ADMIN_TOKEN_KEY,
-      "/user/api/admin/users"
+      "/api/admin/users"
     );
     const tbody = document.getElementById("users-table-body");
     tbody.innerHTML = "";
@@ -152,28 +150,76 @@ async function loadAllUsers() {
     ).innerHTML = `<tr><td colspan="6" class="text-center text-red-500 py-4">Lỗi khi tải dữ liệu người dùng.</td></tr>`;
   }
 }
-
 async function toggleUserLock(userId) {
-  if (!confirm("Thay đổi trạng thái người dùng này?")) return;
-  await window.apiRequestCore(
-    window.ADMIN_TOKEN_KEY,
-    `/user/api/admin/users/${userId}/toggle-lock`,
-    "POST"
-  );
-  window.showToast("Cập nhật thành công!");
-  loadAllUsers();
+  try {
+    // Dùng ADMIN_TOKEN_KEY
+    const updatedUser = await window.apiRequestCore(
+      window.ADMIN_TOKEN_KEY,
+      `/api/admin/users/${userId}/toggle-lock`,
+      "PUT"
+    );
+
+    alert("Cập nhật trạng thái người dùng thành công.");
+    loadAllUsers(); // Tải lại danh sách
+  } catch (error) {
+    console.error("Lỗi khi khóa/mở khóa user:", error);
+    alert("Cập nhật thất bại. Vui lòng xem console.");
+  }
 }
 
 async function deleteUser(userId) {
   if (!confirm("Bạn có chắc chắn muốn xóa người dùng này?")) return;
   await window.apiRequestCore(
     window.ADMIN_TOKEN_KEY,
-    `/user/api/admin/users/${userId}`,
+    `/api/admin/users/${userId}`,
     "DELETE"
   );
   window.showToast("Đã xóa người dùng!");
   loadAllUsers();
 }
+
+// XỬ LÝ MODAL THÊM NGƯỜI DÙNG ==
+const addUserModal = document.getElementById("add-user-modal");
+function openAddUserModal() {
+  if (addUserModal) addUserModal.classList.remove("hidden");
+}
+
+function closeAddUserModal() {
+  if (addUserModal) addUserModal.classList.add("hidden");
+  // Xóa trống form khi đóng
+  document.getElementById("add-user-form")?.reset();
+}
+
+// --- Add User Form Handler (Lắng nghe sự kiện submit) ---
+document
+  .getElementById("add-user-form")
+  ?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    // 1. Lấy dữ liệu từ form
+    const username = document.getElementById("add-username").value;
+    const email = document.getElementById("add-email").value;
+    const password = document.getElementById("add-password").value;
+    const role = document.getElementById("add-role").value;
+
+    try {
+      // 2. Gọi API (dùng route POST mới)
+      await window.apiRequestCore(
+        window.ADMIN_TOKEN_KEY, // Phải có token
+        "/api/admin/users", // Đường dẫn POST
+        "POST",
+        { username, email, password, role } // Dữ liệu body
+      );
+
+      // 3. Xử lý thành công
+      window.showToast("Tạo người dùng thành công!");
+      closeAddUserModal();
+      loadAllUsers(); // Tải lại bảng user
+    } catch (error) {
+      // apiRequestCore đã tự động showToast, chúng ta chỉ cần log lỗi
+      console.error("Lỗi khi tạo người dùng:", error);
+    }
+  });
 
 // ===================== INIT =====================
 document.addEventListener("DOMContentLoaded", () => {
