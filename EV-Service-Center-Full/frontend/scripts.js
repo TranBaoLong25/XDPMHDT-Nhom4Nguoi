@@ -83,10 +83,8 @@ async function apiRequestCore(tokenKey, endpoint, method = "GET", body = null) {
     if (!response.ok) {
       // XỬ LÝ 401: Tự động đăng xuất
       if (response.status === 401) {
-        // Chỉ gọi logout nếu lỗi 401 là từ token user (Client Portal)
         if ((tokenKey || TOKEN_KEY) === TOKEN_KEY) {
           logout();
-          // Sử dụng throw để thoát khỏi block try và ngăn toast lỗi chung chạy
           throw {
             message: "Phiên làm việc hết hạn. Vui lòng đăng nhập lại.",
             status: 401,
@@ -101,7 +99,6 @@ async function apiRequestCore(tokenKey, endpoint, method = "GET", body = null) {
 
     return data;
   } catch (err) {
-    // Nếu lỗi là 401 đã được xử lý ở trên, err.message sẽ là thông báo đã tùy chỉnh
     const errMsg = err.message || "Lỗi không xác định!";
     console.error("🚨 API Request Error:", err);
     showToast(errMsg, true);
@@ -159,13 +156,13 @@ function navigateTo(pageId) {
   }
   currentPageElement = nextPageElement;
 
-  if (pageId === "profile") loadProfileDetails();
+  if (pageId === "profile") loadProfileDetails(); // ✅ Trigger tải Profile và Lịch sử
   if (pageId === "forget-password") resetForgetForm?.();
 
   // Tải dữ liệu khi chuyển trang
   if (pageId === "inventory-list") loadInventoryList();
   if (pageId === "booking") {
-    loadMyBookings();
+    loadMyBookings(); // Tải lịch hẹn cho trang đặt lịch
   }
 
   // Gọi updateNav sau khi điều hướng
@@ -201,7 +198,7 @@ function resetForgetForm() {
   }
 }
 
-// --- PROFILE HANDLERS ---
+// --- PROFILE HANDLERS (Đã sửa để tải lịch sử) ---
 function toggleProfileForm(forceShow) {
   const form = document.getElementById("profile-update-form");
   const btnBox = document.getElementById("update-profile-button-container");
@@ -218,9 +215,17 @@ function toggleProfileForm(forceShow) {
 }
 window.toggleProfileForm = toggleProfileForm;
 
+// ✅ HÀM TẢI PROFILE MỚI: Tải cả thông tin cá nhân và lịch sử
 async function loadProfileDetails() {
+  const bookingListEl = document.getElementById("profile-booking-list");
+  if (bookingListEl) {
+    // Đặt trạng thái tải khi bắt đầu
+    bookingListEl.innerHTML =
+      '<div class="bg-white p-6 rounded-lg shadow-md text-gray-500">Đang tải lịch sử đặt lịch...</div>';
+  }
+
   try {
-    // Gọi đúng API /api/profile với GET, không cần body
+    // 1. Tải Profile
     const profile = await apiRequestCore(TOKEN_KEY, "/api/profile", "GET");
 
     const div = document.getElementById("profile-details");
@@ -258,13 +263,15 @@ async function loadProfileDetails() {
     });
 
     toggleProfileForm(false);
+
+    // 2. Tải Lịch sử Đặt Lịch
+    await loadBookingsForProfile();
   } catch (err) {
-    // Xử lý trường hợp 404 (Profile not found)
     if (err.status === 404) {
       const div = document.getElementById("profile-details");
       if (div)
         div.innerHTML = "<p>Chưa có thông tin hồ sơ. Vui lòng cập nhật.</p>";
-      toggleProfileForm(true); // Mở form để người dùng nhập
+      toggleProfileForm(true);
       return;
     }
 
@@ -272,6 +279,11 @@ async function loadProfileDetails() {
     const div = document.getElementById("profile-details");
     if (div) div.innerHTML = "<p>Lỗi tải hồ sơ. Vui lòng thử lại sau.</p>";
     toggleProfileForm(false);
+
+    if (bookingListEl) {
+      bookingListEl.innerHTML =
+        '<div class="bg-red-100 p-6 rounded-lg shadow-md text-red-700">Lỗi: Không thể tải lịch sử đặt lịch.</div>';
+    }
   }
 }
 
@@ -611,6 +623,54 @@ function formatBookingStatus(status) {
       return { text: "Đã hủy", class: "bg-red-100 text-red-800" };
     default:
       return { text: status, class: "bg-gray-100 text-gray-800" };
+  }
+}
+
+// ✅ HÀM MỚI: Tải lịch hẹn cho trang profile (Tương tự loadMyBookings)
+async function loadBookingsForProfile() {
+  const bookingListEl = document.getElementById("profile-booking-list");
+  if (!bookingListEl) return;
+
+  try {
+    const bookings = await apiRequestCore(
+      TOKEN_KEY,
+      "/api/bookings/my-bookings",
+      "GET"
+    );
+
+    if (bookings.length === 0) {
+      bookingListEl.innerHTML =
+        '<div class="bg-white p-6 rounded-lg shadow-md text-center text-gray-500">Bạn chưa có lịch hẹn nào.</div>';
+      return;
+    }
+
+    let html = "";
+    bookings.forEach((booking) => {
+      const startDate = new Date(booking.start_time).toLocaleString("vi-VN", {
+        dateStyle: "short",
+        timeStyle: "short",
+      });
+      const endDate = new Date(booking.end_time).toLocaleTimeString("vi-VN", {
+        timeStyle: "short",
+      });
+      const status = formatBookingStatus(booking.status);
+
+      html += `
+                <div class="booking-item bg-white p-6 rounded-lg shadow-md border-l-4 border-indigo-500">
+                    <p class="font-bold text-lg">${booking.service_type}</p>
+                    <p class="text-gray-600">Lịch ID: ${booking.id} | KTV: ID ${booking.technician_id} | Trạm: ID ${booking.station_id}</p>
+                    <p class="text-sm text-gray-500">Thời gian: ${startDate} - ${endDate}</p>
+                    <span class="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium ${status.class}">
+                        Trạng thái: ${status.text}
+                    </span>
+                </div>
+            `;
+    });
+    bookingListEl.innerHTML = html;
+  } catch (error) {
+    bookingListEl.innerHTML =
+      '<div class="bg-red-100 p-6 rounded-lg shadow-md text-center text-red-700">Lỗi: Không thể tải lịch hẹn.</div>';
+    console.error("Lỗi khi tải lịch hẹn cho profile:", error);
   }
 }
 

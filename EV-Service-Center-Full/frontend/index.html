@@ -279,79 +279,85 @@
       </div>
 <!-- PROFILE PAGE -->
 <div id="profile-page" class="page hidden">
-  <h2 class="text-3xl font-bold mb-6 text-gray-900">Hồ Sơ Cá Nhân</h2>
+    <h2 class="text-3xl font-bold mb-6 text-gray-900">Hồ Sơ Cá Nhân</h2>
 
-  <!-- Thông tin hiện tại -->
-  <div id="profile-details" class="bg-white p-6 rounded-lg shadow-md space-y-2">
-    <p><strong>Họ và tên:</strong> <span id="profile-fullname-display">bảo long</span></p>
-    <p><strong>Số điện thoại:</strong> <span id="profile-phone-display">111</span></p>
-    <p><strong>Địa chỉ:</strong> <span id="profile-address-display">1111</span></p>
-    <p><strong>Model xe:</strong> <span id="profile-vehicle-model-display">11111</span></p>
-    <p><strong>Số VIN:</strong> <span id="profile-vin-number-display">1111</span></p>
-  </div>
-
-  <div id="update-profile-button-container" class="mt-4">
-  <button
-    onclick="toggleProfileForm(true)"
-    class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition"
-  >
-    Chỉnh Sửa Hồ Sơ
-  </button>
-</div>
-
-  <!-- Form chỉnh sửa -->
-  <form
-    id="profile-update-form"
-    class="hidden bg-white p-6 rounded-lg shadow-md space-y-4 mt-4"
-  >
-    <input
-      class="w-full px-3 py-2 border rounded-md"
-      type="text"
-      id="profile-fullname"
-      placeholder="Họ và tên"
-    />
-    <input
-      class="w-full px-3 py-2 border rounded-md"
-      type="text"
-      id="profile-phone"
-      placeholder="Số điện thoại"
-    />
-    <input
-      class="w-full px-3 py-2 border rounded-md"
-      type="text"
-      id="profile-address"
-      placeholder="Địa chỉ"
-    />
-    <input
-      class="w-full px-3 py-2 border rounded-md"
-      type="text"
-      id="profile-vehicle-model"
-      placeholder="Model xe"
-    />
-    <input
-      class="w-full px-3 py-2 border rounded-md"
-      type="text"
-      id="profile-vin-number"
-      placeholder="Số VIN"
-    />
-
-    <div class="flex space-x-2">
-      <button
-        type="submit"
-        class="bg-indigo-600 text-white py-2 px-4 rounded hover:bg-indigo-700 transition"
-      >
-        Lưu Thay Đổi
-      </button>
-      <button
-        type="button"
-        onclick="toggleProfileForm(false)"
-        class="bg-gray-300 py-2 px-4 rounded hover:bg-gray-400 transition"
-      >
-        Hủy
-      </button>
+    <div id="profile-details" class="bg-white p-6 rounded-lg shadow-md space-y-2">
+        <p><strong>Họ và tên:</strong> <span id="profile-fullname-display">bảo long</span></p>
+        <p><strong>Số điện thoại:</strong> <span id="profile-phone-display">111</span></p>
+        <p><strong>Địa chỉ:</strong> <span id="profile-address-display">1111</span></p>
+        <p><strong>Model xe:</strong> <span id="profile-vehicle-model-display">11111</span></p>
+        <p><strong>Số VIN:</strong> <span id="profile-vin-number-display">1111</span></p>
     </div>
-  </form>
-</div>
+
+    <div id="update-profile-button-container" class="mt-4">
+        <button
+            onclick="toggleProfileForm(true)"
+            class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition"
+        >
+            Chỉnh Sửa Hồ Sơ
+        </button>
+    </div>
+
+    <form
+        id="profile-update-form"
+        class="hidden bg-white p-6 rounded-lg shadow-md space-y-4 mt-4"
+    >
+        <input
+            class="w-full px-3 py-2 border rounded-md"
+            type="text"
+            id="profile-fullname"
+            placeholder="Họ và tên"
+        />
+        <input
+            class="w-full px-3 py-2 border rounded-md"
+            type="text"
+            id="profile-phone"
+            placeholder="Số điện thoại"
+        />
+        <input
+            class="w-full px-3 py-2 border rounded-md"
+            type="text"
+            id="profile-address"
+            placeholder="Địa chỉ"
+        />
+        <input
+            class="w-full px-3 py-2 border rounded-md"
+            type="text"
+            id="profile-vehicle-model"
+            placeholder="Model xe"
+        />
+        <input
+            class="w-full px-3 py-2 border rounded-md"
+            type="text"
+            id="profile-vin-number"
+            placeholder="Số VIN"
+        />
+
+        <div class="flex space-x-2">
+            <button
+                type="submit"
+                class="bg-indigo-600 text-white py-2 px-4 rounded hover:bg-indigo-700 transition"
+            >
+                Lưu Thay Đổi
+            </button>
+            <button
+                type="button"
+                onclick="toggleProfileForm(false)"
+                class="bg-gray-300 py-2 px-4 rounded hover:bg-gray-400 transition"
+            >
+                Hủy
+            </button>
+        </div>
+    </form>
+
+    <div id="booking-history-container" class="mt-10">
+        <h3 class="text-2xl font-bold mb-4 text-gray-900">Lịch Sử Đặt Lịch</h3>
+        <div id="profile-booking-list" class="space-y-4">
+            <div class="bg-white p-6 rounded-lg shadow-md text-gray-500">Đang tải lịch sử đặt lịch...</div>
+        </div>
+    </div>
+    </div>
+
 <div id="booking-page" class="page hidden">
     <h2 class="text-3xl font-bold mb-6 text-gray-900">Đặt Lịch Dịch Vụ</h2>
 
@@ -401,7 +407,6 @@
         </div>
     </div>
 </div>
-
 
     <!-- SPINNER -->
     <div

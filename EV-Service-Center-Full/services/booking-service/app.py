@@ -8,6 +8,10 @@ from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
 from dotenv import load_dotenv
 
+import sys # ✅ THÊM: Import sys
+# ✅ THÊM: Thêm thư mục hiện tại (/app) vào Python Path để tìm thấy các module con
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))) 
+
 load_dotenv()
 
 # Khởi tạo Extensions

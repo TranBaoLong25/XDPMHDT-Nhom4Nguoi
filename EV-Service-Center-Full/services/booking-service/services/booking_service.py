@@ -6,7 +6,7 @@ from sqlalchemy import and_, or_
 import requests 
 
 from app import db
-from models.booking_model import Booking
+from models.booking_model import Booking # ✅ Sửa lỗi: Đã đổi về absolute import (Giả định path đã được set trong app.py)
 
 class BookingService:
     """Service xử lý logic nghiệp vụ liên quan đến Đặt lịch"""
@@ -142,6 +142,7 @@ class BookingService:
         except Exception as e:
             db.session.rollback()
             return False, f"Lỗi khi xóa lịch đặt: {str(e)}"
+    
     @staticmethod
     def get_bookings_by_user(user_id):
         """Lấy tất cả lịch đặt của một người dùng"""
@@ -149,13 +150,4 @@ class BookingService:
         user_id_int = int(user_id)
         
         # Sắp xếp theo start_time để lịch sắp tới hiển thị trước
-        return Booking.query.filter_by(user_id=user_id_int).order_by(Booking.start_time.desc()).all()
-    @staticmethod
-    def get_bookings_by_user(user_id):
-        """Lấy tất cả lịch đặt của một người dùng"""
-        # Đảm bảo user_id là integer
-        user_id_int = int(user_id)
-        
-        # Sắp xếp theo start_time để lịch sắp tới hiển thị trước
-        from app.models.booking_model import Booking
         return Booking.query.filter_by(user_id=user_id_int).order_by(Booking.start_time.desc()).all()

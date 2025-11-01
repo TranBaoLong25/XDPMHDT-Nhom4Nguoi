@@ -1,6 +1,11 @@
 # File: services/booking-service/controllers/booking_controller.py
 from flask import Blueprint, request, jsonify, current_app
-from flask_jwt_extended import jwt_required, verify_jwt_in_request, get_jwt
+from flask_jwt_extended import (
+    jwt_required, 
+    verify_jwt_in_request, 
+    get_jwt,
+    get_jwt_identity # ✅ Đã thêm import bị thiếu
+)
 from functools import wraps
 
 from services.booking_service import BookingService as service
@@ -39,7 +44,8 @@ def get_bookings():
 @jwt_required()
 def create_booking_route():
     data = request.json
-    from flask_jwt_extended import get_jwt_identity
+    
+    # ✅ Đã sửa: get_jwt_identity đã được import ở trên, không cần import lại ở đây
     current_user_id = get_jwt_identity()
     
     data['user_id'] = int(current_user_id) 
@@ -101,7 +107,7 @@ def get_booking_by_id_route(booking_id):
 def get_my_bookings():
     """Lấy danh sách lịch đặt của User hiện tại (lấy ID từ JWT)"""
     try:
-        user_id = get_jwt_identity() # Lấy user_id từ token
+        user_id = get_jwt_identity() # ✅ Hàm đã được tìm thấy
         bookings = service.get_bookings_by_user(user_id)
         
         return jsonify([b.to_dict() for b in bookings]), 200
