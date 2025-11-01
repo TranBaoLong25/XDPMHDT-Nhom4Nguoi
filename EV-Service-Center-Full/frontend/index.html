@@ -352,7 +352,55 @@
     </div>
   </form>
 </div>
+<div id="booking-page" class="page hidden">
+    <h2 class="text-3xl font-bold mb-6 text-gray-900">Đặt Lịch Dịch Vụ</h2>
 
+    <div class="max-w-xl mx-auto bg-white p-8 rounded-lg shadow-lg">
+        <h3 class="text-xl font-semibold mb-4">Thông tin đặt lịch</h3>
+        <form id="booking-form" class="space-y-4">
+            <div>
+                <label for="service-type" class="block text-sm font-medium text-gray-700">Loại Dịch Vụ</label>
+                <select id="service-type" class="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm" required>
+                    <option value="Bảo dưỡng định kỳ">Bảo dưỡng định kỳ</option>
+                    <option value="Sửa chữa hệ thống pin">Sửa chữa hệ thống pin</option>
+                    <option value="Kiểm tra tổng quát">Kiểm tra tổng quát</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="technician-id" class="block text-sm font-medium text-gray-700">Kỹ Thuật Viên (ID)</label>
+                <input type="number" id="technician-id" value="1" min="1" class="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm" required>
+            </div>
+
+            <div>
+                <label for="station-id" class="block text-sm font-medium text-gray-700">Trạm Dịch Vụ (ID)</label>
+                <input type="number" id="station-id" value="1" min="1" class="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm" required>
+            </div>
+            
+            <div class="flex space-x-4">
+                <div class="flex-1">
+                    <label for="start-time" class="block text-sm font-medium text-gray-700">Thời gian Bắt đầu</label>
+                    <input type="datetime-local" id="start-time" class="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm" required>
+                </div>
+                <div class="flex-1">
+                    <label for="end-time" class="block text-sm font-medium text-gray-700">Thời gian Kết thúc</label>
+                    <input type="datetime-local" id="end-time" class="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm" required>
+                </div>
+            </div>
+
+            <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition">
+                Xác Nhận Đặt Lịch
+            </button>
+        </form>
+    </div>
+
+    <div id="my-bookings-container" class="mt-10">
+        <h3 class="text-2xl font-semibold mb-4 text-gray-800">Lịch Hẹn Của Bạn</h3>
+        <div id="booking-list" class="space-y-4">
+            <div class="bg-white p-6 rounded-lg shadow-md text-gray-500">Đang tải lịch hẹn...</div>
+        </div>
+    </div>
+</div>
 
 
     <!-- SPINNER -->

@@ -8,7 +8,7 @@ let currentUserId = null;
 const navAuthLinks = document.getElementById("nav-auth-links");
 let currentPageElement = document.getElementById("login-page");
 
-// --- LOADING SPINNER ---
+// --- UTILITIES (Show/Hide/Toast) ---
 function showLoading() {
   const loader = document.getElementById("loading-spinner");
   if (loader) loader.classList.remove("hidden");
@@ -18,7 +18,6 @@ function hideLoading() {
   if (loader) loader.classList.add("hidden");
 }
 
-// --- TOAST ---
 function showToast(message, isError = false) {
   const toast = document.createElement("div");
   toast.textContent = message;
@@ -28,8 +27,34 @@ function showToast(message, isError = false) {
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 3000);
 }
+window.showToast = showToast;
 
-// --- CORE API REQUEST ---
+// --- AUTH & NAVIGATION HELPERS (Hoisted/Đưa ra ngoài phạm vi) ---
+function updateNav() {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!navAuthLinks) return;
+
+  navAuthLinks.innerHTML = token
+    ? `
+        <a href="#" onclick="navigateTo('booking')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Đặt Lịch</a> 
+        <a href="#" onclick="navigateTo('profile')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Hồ Sơ</a>
+        <a href="#" onclick="logout()" class="ml-4 bg-red-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-red-600">Đăng Xuất</a>
+        `
+    : `
+        <a href="#" onclick="navigateTo('login')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Đăng Nhập</a>
+        <a href="#" onclick="navigateTo('register')" class="ml-4 bg-green-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-green-600">Đăng Ký</a>
+        `;
+}
+
+function logout() {
+  localStorage.removeItem(TOKEN_KEY);
+  showToast("Đã đăng xuất!");
+  updateNav();
+  navigateTo("login");
+}
+window.logout = logout;
+
+// --- CORE API REQUEST (UPDATED) ---
 async function apiRequestCore(tokenKey, endpoint, method = "GET", body = null) {
   showLoading();
   try {
@@ -56,6 +81,19 @@ async function apiRequestCore(tokenKey, endpoint, method = "GET", body = null) {
     }
 
     if (!response.ok) {
+      // XỬ LÝ 401: Tự động đăng xuất
+      if (response.status === 401) {
+        // Chỉ gọi logout nếu lỗi 401 là từ token user (Client Portal)
+        if ((tokenKey || TOKEN_KEY) === TOKEN_KEY) {
+          logout();
+          // Sử dụng throw để thoát khỏi block try và ngăn toast lỗi chung chạy
+          throw {
+            message: "Phiên làm việc hết hạn. Vui lòng đăng nhập lại.",
+            status: 401,
+          };
+        }
+      }
+
       const errMsg =
         data.error || data.message || `HTTP Error ${response.status}`;
       throw { message: errMsg, status: response.status };
@@ -63,50 +101,49 @@ async function apiRequestCore(tokenKey, endpoint, method = "GET", body = null) {
 
     return data;
   } catch (err) {
+    // Nếu lỗi là 401 đã được xử lý ở trên, err.message sẽ là thông báo đã tùy chỉnh
+    const errMsg = err.message || "Lỗi không xác định!";
     console.error("🚨 API Request Error:", err);
-    showToast(err.message || "Lỗi không xác định!", true);
+    showToast(errMsg, true);
     throw err;
   } finally {
     hideLoading();
   }
 }
 
-async function apiRequest(endpoint, method = "GET", body = null) {
-  showLoading();
-  try {
-    const headers = { "Content-Type": "application/json" };
-    const token = localStorage.getItem("jwt_token");
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
+// ✅ NEW FUNCTION: Đặt loại dịch vụ khi chuyển từ trang Inventory
+function setServiceType(itemName) {
+  // Chờ 1 chút để trang booking được tải và các element hiện ra
+  setTimeout(() => {
+    const selectElement = document.getElementById("service-type");
+    const newOptionValue = `Yêu cầu thay thế/lắp đặt: ${itemName}`;
+
+    // 1. Kiểm tra xem option đã tồn tại chưa
+    let optionExists = false;
+    for (let i = 0; i < selectElement.options.length; i++) {
+      if (selectElement.options[i].value === newOptionValue) {
+        selectElement.value = newOptionValue;
+        optionExists = true;
+        break;
+      }
     }
 
-    const options = { method, headers };
-    if (body) {
-      options.body = JSON.stringify(body);
+    // 2. Nếu chưa tồn tại, thêm option mới và chọn nó
+    if (!optionExists) {
+      const newOption = document.createElement("option");
+      newOption.value = newOptionValue;
+      newOption.textContent = newOptionValue;
+      selectElement.appendChild(newOption);
+      selectElement.value = newOptionValue;
     }
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
-
-    const responseData = await response
-      .json()
-      .catch(() => ({ message: "Operation successful" }));
-
-    if (!response.ok) {
-      throw new Error(
-        responseData.error ||
-          responseData.msg ||
-          `HTTP error! status: ${response.status}`
-      );
-    }
-    return responseData;
-  } catch (error) {
-    console.error("API Request Error:", error);
-    showToast(error.message, true);
-    throw error;
-  } finally {
-    hideLoading();
-  }
+    // Tùy chọn: Scroll đến form đặt lịch nếu cần
+    document
+      .getElementById("booking-form")
+      ?.scrollIntoView({ behavior: "smooth" });
+  }, 100);
 }
+window.setServiceType = setServiceType;
 
 // --- NAVIGATION (Định nghĩa DUY NHẤT một lần) ---
 function navigateTo(pageId) {
@@ -125,41 +162,24 @@ function navigateTo(pageId) {
   if (pageId === "profile") loadProfileDetails();
   if (pageId === "forget-password") resetForgetForm?.();
 
-  // ✅ LOGIC MỚI: Tải danh sách vật tư khi chuyển trang
+  // Tải dữ liệu khi chuyển trang
   if (pageId === "inventory-list") loadInventoryList();
-}
+  if (pageId === "booking") {
+    loadMyBookings();
+  }
 
-// --- AUTH NAVIGATION ---
-function updateNav() {
-  const token = localStorage.getItem(TOKEN_KEY);
-  if (!navAuthLinks) return;
-
-  navAuthLinks.innerHTML = token
-    ? `
-        <a href="#" onclick="navigateTo('profile')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Hồ Sơ</a>
-        <a href="#" onclick="logout()" class="ml-4 bg-red-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-red-600">Đăng Xuất</a>
-        `
-    : `
-        <a href="#" onclick="navigateTo('login')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Đăng Nhập</a>
-        <a href="#" onclick="navigateTo('register')" class="ml-4 bg-green-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-green-600">Đăng Ký</a>
-        `;
-}
-
-function logout() {
-  localStorage.removeItem(TOKEN_KEY);
-  showToast("Đã đăng xuất!");
+  // Gọi updateNav sau khi điều hướng
   updateNav();
-  navigateTo("login");
 }
-// Dán hàm này vào file frontend/scripts.js
+window.navigateTo = navigateTo;
+
+// --- NAVIGATION HELPERS (Logic không cần public) ---
 
 function resetForgetForm() {
-  // 1. Lấy các ô input bằng ID (khớp với HTML của bạn)
   const emailInput = document.getElementById("forget-email");
   const otpInput = document.getElementById("otp-code");
   const newPasswordInput = document.getElementById("new-password");
 
-  // 2. Đặt giá trị của chúng về rỗng
   if (emailInput) {
     emailInput.value = "";
   }
@@ -170,8 +190,6 @@ function resetForgetForm() {
     newPasswordInput.value = "";
   }
 
-  // 3. (Quan trọng) Ẩn form reset và hiện lại form gửi OTP
-  // Điều này đảm bảo trang "Quên mật khẩu" quay về trạng thái ban đầu
   const forgetForm = document.getElementById("forget-password-form");
   const resetForm = document.getElementById("reset-password-form");
 
@@ -181,8 +199,6 @@ function resetForgetForm() {
   if (resetForm) {
     resetForm.classList.add("hidden"); // Ẩn form nhập OTP/pass mới
   }
-
-  // (Tùy chọn: Ẩn các thông báo lỗi nếu bạn có)
 }
 
 // --- PROFILE HANDLERS ---
@@ -200,28 +216,32 @@ function toggleProfileForm(forceShow) {
     btnBox.classList.remove("hidden");
   }
 }
+window.toggleProfileForm = toggleProfileForm;
 
 async function loadProfileDetails() {
   try {
-    const profile = await apiRequest("/api/profile-details", "POST", {
-      subject: currentUserId?.toString(),
-    });
+    // Gọi đúng API /api/profile với GET, không cần body
+    const profile = await apiRequestCore(TOKEN_KEY, "/api/profile", "GET");
 
     const div = document.getElementById("profile-details");
     if (!div) return;
 
     div.innerHTML = `
-        <p><strong>Họ và tên:</strong> ${
-          profile.full_name || "Chưa cập nhật"
-        }</p>
-        <p><strong>Điện thoại:</strong> ${
-          profile.phone_number || "Chưa cập nhật"
-        }</p>
-        <p><strong>Địa chỉ:</strong> ${profile.address || "Chưa cập nhật"}</p>
-        <p><strong>Model Xe:</strong> ${
-          profile.vehicle_model || "Chưa cập nhật"
-        }</p>
-        <p><strong>Số VIN:</strong> ${profile.vin_number || "Chưa cập nhật"}</p>
+            <p><strong>Họ và tên:</strong> ${
+              profile.full_name || "Chưa cập nhật"
+            }</p>
+            <p><strong>Điện thoại:</strong> ${
+              profile.phone_number || "Chưa cập nhật"
+            }</p>
+            <p><strong>Địa chỉ:</strong> ${
+              profile.address || "Chưa cập nhật"
+            }</p>
+            <p><strong>Model Xe:</strong> ${
+              profile.vehicle_model || "Chưa cập nhật"
+            }</p>
+            <p><strong>Số VIN:</strong> ${
+              profile.vin_number || "Chưa cập nhật"
+            }</p>
         `;
 
     const fields = [
@@ -239,11 +259,19 @@ async function loadProfileDetails() {
 
     toggleProfileForm(false);
   } catch (err) {
+    // Xử lý trường hợp 404 (Profile not found)
+    if (err.status === 404) {
+      const div = document.getElementById("profile-details");
+      if (div)
+        div.innerHTML = "<p>Chưa có thông tin hồ sơ. Vui lòng cập nhật.</p>";
+      toggleProfileForm(true); // Mở form để người dùng nhập
+      return;
+    }
+
     console.error("❌ Failed to load profile:", err);
     const div = document.getElementById("profile-details");
-    if (div)
-      div.innerHTML = "<p>Chưa có thông tin hồ sơ. Vui lòng cập nhật.</p>";
-    toggleProfileForm(true);
+    if (div) div.innerHTML = "<p>Lỗi tải hồ sơ. Vui lòng thử lại sau.</p>";
+    toggleProfileForm(false);
   }
 }
 
@@ -272,7 +300,6 @@ document.getElementById("login-form")?.addEventListener("submit", async (e) => {
     }
   } catch (error) {
     console.error("Login failed:", error);
-    showToast("Sai tài khoản hoặc mật khẩu!", true);
   }
 });
 
@@ -285,7 +312,8 @@ document
     const password = document.getElementById("register-password")?.value;
 
     try {
-      const data = await apiRequest("/api/register", "POST", {
+      // SỬ DỤNG apiRequestCore
+      const data = await apiRequestCore(null, "/api/register", "POST", {
         username,
         email,
         password,
@@ -295,31 +323,90 @@ document
       navigateTo("login");
     } catch (error) {
       console.error("Register failed:", error);
-      showToast("Lỗi đăng ký!", true);
     }
   });
 
+// Event listener cho form cập nhật hồ sơ
 document
   .getElementById("profile-update-form")
   ?.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const body = {
+    const data = {
       full_name: document.getElementById("profile-fullname")?.value,
-      phone: document.getElementById("profile-phone")?.value,
+      phone_number: document.getElementById("profile-phone")?.value,
       address: document.getElementById("profile-address")?.value,
       vehicle_model: document.getElementById("profile-vehicle-model")?.value,
       vin_number: document.getElementById("profile-vin-number")?.value,
     };
 
     try {
-      await apiRequest("/api/profile", "PUT", body);
-      showToast("Cập nhật hồ sơ thành công!");
-      loadProfileDetails();
-      toggleProfileForm(false);
+      const result = await apiRequestCore(
+        TOKEN_KEY,
+        "/api/profile",
+        "PUT",
+        data
+      );
+      showToast(result.message || "Cập nhật hồ sơ thành công!");
+      loadProfileDetails(); // Tải lại thông tin sau khi cập nhật
     } catch (error) {
-      console.error("Update profile failed:", error);
-      showToast("Cập nhật thất bại!", true);
+      console.error("Lỗi khi cập nhật hồ sơ:", error);
+    }
+  });
+
+document
+  .getElementById("booking-form")
+  ?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    // 1. Lấy dữ liệu từ form
+    const service_type = document.getElementById("service-type")?.value;
+    const technician_id = parseInt(
+      document.getElementById("technician-id")?.value
+    );
+    const station_id = parseInt(document.getElementById("station-id")?.value);
+
+    const startTimeInput = document.getElementById("start-time")?.value;
+    const endTimeInput = document.getElementById("end-time")?.value;
+
+    if (!startTimeInput || !endTimeInput) {
+      showToast("Vui lòng nhập đầy đủ thời gian.", true);
+      return;
+    }
+
+    // Logic kiểm tra thời gian
+    if (new Date(startTimeInput) >= new Date(endTimeInput)) {
+      showToast("Thời gian kết thúc phải sau thời gian bắt đầu.", true);
+      return;
+    }
+
+    const bookingData = {
+      service_type,
+      technician_id,
+      station_id,
+      // Backend Flask/Python cần định dạng ISO 8601 (như datetime-local cung cấp)
+      start_time: startTimeInput + ":00",
+      end_time: endTimeInput + ":00",
+    };
+
+    try {
+      // 2. Gọi API CREATE BOOKING (Endpoint: /api/bookings/items)
+      const data = await apiRequestCore(
+        TOKEN_KEY,
+        "/api/bookings/items",
+        "POST",
+        bookingData
+      );
+
+      // 3. Xử lý thành công
+      showToast(data.message || "Đặt lịch thành công!");
+      e.target.reset();
+
+      // Tải lại danh sách lịch hẹn sau khi đặt thành công
+      loadMyBookings();
+    } catch (error) {
+      // Lỗi đã được xử lý trong apiRequestCore
+      console.error("Lỗi khi đặt lịch:", error);
     }
   });
 
@@ -342,6 +429,8 @@ document.addEventListener("DOMContentLoaded", () => {
     navigateTo("login");
   }
 });
+
+// Thêm lại event listener cho form quên mật khẩu
 document.addEventListener("DOMContentLoaded", () => {
   // --- Bộ não cho Form 1: Gửi Mã OTP ---
   const forgetForm = document.getElementById("forget-password-form");
@@ -354,46 +443,32 @@ document.addEventListener("DOMContentLoaded", () => {
       const submitButton = forgetForm.querySelector('button[type="submit"]');
 
       if (!email) {
-        // Thay alert bằng showToast
         showToast("Vui lòng nhập email của bạn.", true);
         return;
       }
 
-      // Vô hiệu hóa nút để tránh nhấn đúp
       submitButton.disabled = true;
       submitButton.textContent = "Đang gửi...";
 
       try {
-        // 1. Gọi API (giả sử bạn có hàm apiRequestCore)
-        const data = await window.apiRequestCore(
-          null,
-          "/api/send-otp",
-          "POST",
-          { email: email }
-        );
+        const data = await apiRequestCore(null, "/api/send-otp", "POST", {
+          email: email,
+        });
 
-        // 2. Xử lý thành công
         showToast(
           data.message || "Gửi OTP thành công! Vui lòng kiểm tra email."
         );
 
-        // Ẩn form gửi, hiện form reset
         forgetForm.classList.add("hidden");
         document
           .getElementById("reset-password-form")
           .classList.remove("hidden");
 
-        // Lưu email vào ô input ẩn
         document.getElementById("reset-email-hidden").value = email;
       } catch (error) {
-        // 3. Xử lý lỗi
         console.error("Lỗi khi gửi OTP:", error);
-        showToast(
-          "Gửi OTP thất bại. Email không tồn tại hoặc có lỗi xảy ra.",
-          true
-        );
+        // Lỗi đã được xử lý trong apiRequestCore
       } finally {
-        // 4. Kích hoạt lại nút
         submitButton.disabled = false;
         submitButton.textContent = "Gửi Mã OTP";
       }
@@ -406,7 +481,6 @@ document.addEventListener("DOMContentLoaded", () => {
     resetForm.addEventListener("submit", async (event) => {
       event.preventDefault(); // Ngăn trang tải lại
 
-      // 1. Lấy dữ liệu
       const email = document.getElementById("reset-email-hidden").value;
       const otp = document.getElementById("otp-code").value;
       const newPassword = document.getElementById("new-password").value;
@@ -417,40 +491,26 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // Vô hiệu hóa nút
       submitButton.disabled = true;
       submitButton.textContent = "Đang xử lý...";
 
       try {
-        // 2. Gọi API
-        const data = await window.apiRequestCore(
-          null,
-          "/api/reset-password",
-          "POST",
-          {
-            email: email,
-            otp: otp,
-            new_password: newPassword,
-          }
-        );
+        const data = await apiRequestCore(null, "/api/reset-password", "POST", {
+          email: email,
+          otp: otp,
+          new_password: newPassword,
+        });
 
-        // 3. Xử lý thành công
         showToast(
           data.message || "Đặt lại mật khẩu thành công! Bạn có thể đăng nhập."
         );
 
-        // Chuyển về trang đăng nhập
-        navigateTo("login"); // Sử dụng navigateTo đã sửa lỗi
-        resetForgetForm(); // Gọi hàm reset (bạn đã thêm ở bước trước)
+        navigateTo("login");
+        resetForgetForm();
       } catch (error) {
-        // 4. Xử lý lỗi
         console.error("Lỗi khi reset mật khẩu:", error);
-        showToast(
-          "Đặt lại mật khẩu thất bại. Mã OTP không đúng hoặc đã hết hạn.",
-          true
-        );
+        // Lỗi đã được xử lý trong apiRequestCore
       } finally {
-        // 5. Kích hoạt lại nút
         submitButton.disabled = false;
         submitButton.textContent = "Đặt Lại Mật Khẩu";
       }
@@ -459,33 +519,43 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ========================================================
-// ✅ LOGIC INVENTORY MỚI
+// LOGIC CHỨC NĂNG (INVENTORY VÀ BOOKING)
 // ========================================================
 
+// ✅ Cập nhật renderItemCard để thêm nút "Đặt Lịch Dịch Vụ Liên Quan"
 function renderItemCard(item) {
-  // Sử dụng Tailwind CSS cho một card đẹp mắt
   return `
-        <div class="bg-white p-5 rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition duration-200">
-            <h3 class="text-xl font-semibold text-indigo-700">${item.name}</h3>
-            <p class="text-gray-500 text-sm mt-1">Mã Part: <span class="font-mono text-gray-700">${
-              item.part_number
-            }</span></p>
-            
-            <div class="mt-4 flex justify-between items-center">
-                <div>
-                    <p class="text-lg font-bold text-green-600">
-                        ${new Intl.NumberFormat("vi-VN").format(item.price)}₫
-                    </p>
-                    <p class="text-xs text-gray-400">Giá tham khảo</p>
-                </div>
-                <div class="text-right">
-                    <span class="text-sm font-medium text-gray-800 p-2 bg-indigo-100 rounded-full">
-                        Còn: ${item.quantity || "Liên hệ"}
-                    </span>
-                </div>
+    <div class="bg-white p-5 rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition duration-200">
+        <h3 class="text-xl font-semibold text-indigo-700">${item.name}</h3>
+        <p class="text-gray-500 text-sm mt-1">Mã Part: <span class="font-mono text-gray-700">${
+          item.part_number
+        }</span></p>
+        
+        <div class="mt-4 flex justify-between items-center">
+            <div>
+                <p class="text-lg font-bold text-green-600">
+                    ${new Intl.NumberFormat("vi-VN").format(item.price)}₫
+                </p>
+                <p class="text-xs text-gray-400">Giá tham khảo</p>
+            </div>
+            <div class="text-right">
+                <span class="text-sm font-medium text-gray-800 p-2 bg-indigo-100 rounded-full">
+                    Còn: ${item.quantity || "Liên hệ"}
+                </span>
             </div>
         </div>
-    `;
+        
+        <div class="mt-4 pt-4 border-t border-gray-100">
+            <button 
+                onclick="navigateTo('booking'); setServiceType('${item.name}')" 
+                class="w-full bg-indigo-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-indigo-700 transition"
+            >
+                Đặt Lịch Dịch Vụ Liên Quan
+            </button>
+        </div>
+        
+    </div>
+  `;
 }
 
 async function loadInventoryList() {
@@ -508,10 +578,10 @@ async function loadInventoryList() {
 
     if (!items || items.length === 0) {
       container.innerHTML = `
-                <div class="text-center py-12 bg-gray-50 rounded-lg">
-                    <p class="text-lg text-gray-500">Hiện tại chưa có phụ tùng nào được niêm yết.</p>
-                </div>
-            `;
+        <div class="text-center py-12 bg-gray-50 rounded-lg">
+            <p class="text-lg text-gray-500">Hiện tại chưa có phụ tùng nào được niêm yết.</p>
+        </div>
+    `;
       return;
     }
 
@@ -520,10 +590,76 @@ async function loadInventoryList() {
   } catch (error) {
     loadingMessage.classList.add("hidden");
     container.innerHTML = `
-            <div class="text-center py-12 bg-red-100 text-red-700 rounded-lg border border-red-300">
-                <p>Lỗi khi tải danh sách vật tư. Vui lòng thử lại sau.</p>
-            </div>
-        `;
+        <div class="text-center py-12 bg-red-100 text-red-700 rounded-lg border border-red-300">
+            <p>Lỗi khi tải danh sách vật tư. Vui lòng thử lại sau.</p>
+        </div>
+    `;
     console.error("Failed to load inventory list:", error);
+  }
+}
+
+// Logic Booking
+function formatBookingStatus(status) {
+  switch (status) {
+    case "pending":
+      return { text: "Chờ xác nhận", class: "bg-yellow-100 text-yellow-800" };
+    case "confirmed":
+      return { text: "Đã xác nhận", class: "bg-green-100 text-green-800" };
+    case "completed":
+      return { text: "Hoàn thành", class: "bg-indigo-100 text-indigo-800" };
+    case "canceled":
+      return { text: "Đã hủy", class: "bg-red-100 text-red-800" };
+    default:
+      return { text: status, class: "bg-gray-100 text-gray-800" };
+  }
+}
+
+async function loadMyBookings() {
+  const bookingListEl = document.getElementById("booking-list");
+  if (!bookingListEl) return;
+  bookingListEl.innerHTML =
+    '<div class="bg-white p-6 rounded-lg shadow-md text-center text-gray-500">Đang tải lịch hẹn...</div>';
+
+  try {
+    // Gọi API GET MY BOOKINGS
+    const bookings = await apiRequestCore(
+      TOKEN_KEY,
+      "/api/bookings/my-bookings",
+      "GET"
+    );
+
+    if (bookings.length === 0) {
+      bookingListEl.innerHTML =
+        '<div class="bg-white p-6 rounded-lg shadow-md text-center text-gray-500">Bạn chưa có lịch hẹn nào.</div>';
+      return;
+    }
+
+    let html = "";
+    bookings.forEach((booking) => {
+      const startDate = new Date(booking.start_time).toLocaleString("vi-VN", {
+        dateStyle: "short",
+        timeStyle: "short",
+      });
+      const endDate = new Date(booking.end_time).toLocaleTimeString("vi-VN", {
+        timeStyle: "short",
+      });
+      const status = formatBookingStatus(booking.status);
+
+      html += `
+        <div class="booking-item bg-white p-6 rounded-lg shadow-md border-l-4 border-indigo-500">
+            <p class="font-bold text-lg">${booking.service_type}</p>
+            <p class="text-gray-600">Lịch ID: ${booking.id} | KTV: ID ${booking.technician_id} | Trạm: ID ${booking.station_id}</p>
+            <p class="text-sm text-gray-500">Thời gian: ${startDate} - ${endDate}</p>
+            <span class="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium ${status.class}">
+                Trạng thái: ${status.text}
+            </span>
+        </div>
+    `;
+    });
+    bookingListEl.innerHTML = html;
+  } catch (error) {
+    bookingListEl.innerHTML =
+      '<div class="bg-red-100 p-6 rounded-lg shadow-md text-center text-red-700">Lỗi: Không thể tải lịch hẹn.</div>';
+    console.error("Lỗi khi tải lịch hẹn:", error);
   }
 }

@@ -3,6 +3,8 @@ docker-compose up -d --build frontend
 docker-compose down -v
 "\\wsl.localhost\docker-desktop\mnt\docker-desktop-disk\data\docker\volumes\second-handevbatterytradingplatform_listing_uploads_data"
 
+Move-Item -Path .\app\* -Destination .\ # Di chuyển toàn bộ nội dung bên trong thư mục app ra thư mục hiện tại
+
 <!-- lần đầu chạy -->
 <!-- 1. xây dựng (build) và chạy container của chương trình ở chế độ nền -->
 
@@ -24,6 +26,12 @@ docker-compose exec user-service flask db upgrade
 docker-compose exec inventory-service flask db init
 docker-compose exec inventory-service flask db migrate -m "Initial inventory service tables"
 docker-compose exec inventory-service flask db upgrade
+
+<!-- booking-service -->
+
+docker-compose exec booking-service flask db init
+docker-compose exec booking-service flask db migrate -m "Initial booking service tables"
+docker-compose exec booking-service flask db upgrade
 
 <!-- tạo tài khoản admin(có hàm trong user-service/app.py) -->
 

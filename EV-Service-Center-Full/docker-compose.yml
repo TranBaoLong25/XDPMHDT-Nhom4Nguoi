@@ -37,7 +37,24 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-
+  db-booking:
+    image: postgres:14-alpine
+    container_name: booking_db
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=ev_booking_db
+    ports:
+      - "5435:5432" # Cổng debug khác (5433, 5434)
+    volumes:
+      - booking_data:/var/lib/postgresql/data
+    networks:
+      - ev_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ev_booking_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
   # ===================== REDIS CACHE =====================
   redis:
     image: redis:alpine
@@ -89,7 +106,26 @@ services:
         condition: service_healthy
     networks:
       - ev_network
-
+  booking-service:
+    build: ./services/booking-service
+    container_name: booking-service
+    command: gunicorn --bind 0.0.0.0:8001 "app:create_app()"
+    volumes:
+      - ./services/booking-service:/app
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-booking:5432/ev_booking_db
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN}
+      - USER_SERVICE_URL=http://user-service:5000 # URL nội bộ của User Service
+    expose:
+      - "8001"
+    depends_on:
+      db-booking:
+        condition: service_healthy
+      user-service: # Phụ thuộc User Service để gọi Internal API
+        condition: service_started
+    networks:
+      - ev_network
   # ===================== FRONTEND SERVICE =====================
   frontend:
     build: ./frontend
@@ -124,3 +160,4 @@ networks:
 volumes:
   user_data:
   inventory_data:
+  booking_data:
