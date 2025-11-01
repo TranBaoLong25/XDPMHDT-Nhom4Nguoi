@@ -13,8 +13,12 @@
       body {
         font-family: "Inter", sans-serif;
       }
-      .dashboard-section {
-        /* Bỏ 'display: none;' vì đã được quản lý bằng class 'hidden' trong JS */
+      /* Đảm bảo trang login chiếm toàn bộ viewport */
+      .page-auth {
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
       .dashboard-section.active {
         display: block;
@@ -28,25 +32,18 @@
           opacity: 1;
         }
       }
-      /* Đảm bảo trang login chiếm toàn bộ viewport */
-      .page-auth {
-        height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
       /* TỐI ƯU: Thiết lập màu nền và hiệu ứng focus chung cho form admin */
       input:focus,
       textarea:focus,
       select:focus {
-        /* Thêm select vào */
         border-color: #4f46e5; /* indigo-600 */
         box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.5); /* ring-indigo-500/50 */
-        outline: none; /* Bỏ outline mặc định */
+        outline: none;
       }
     </style>
   </head>
   <body class="bg-gray-100">
+    <!-- 1. LOGIN PAGE -->
     <div id="admin-login-page" class="page-auth">
       <div class="w-full max-w-md bg-white p-8 rounded-lg shadow-lg">
         <h2 class="text-2xl font-bold text-center mb-6">Admin Login</h2>
@@ -89,26 +86,44 @@
       </div>
     </div>
 
+    <!-- 2. DASHBOARD CONTENT (Chứa Header, Main và Sections) -->
     <div id="dashboard" class="hidden">
+      <!-- HEADER MỚI (Có Navigation) -->
       <header class="bg-white shadow">
         <div
           class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center"
         >
-          <h1 class="text-2xl font-bold text-gray-900">Quản lý Người Dùng</h1>
-          <button
-            onclick="adminLogout()"
-            class="bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600"
-          >
-            Đăng Xuất
-          </button>
+          <h1 id="dashboard-title" class="text-2xl font-bold text-gray-900">
+            Quản lý Kho Phụ Tùng
+          </h1>
+          <div class="flex items-center space-x-4">
+            <button
+              onclick="navigateToDashboardSection('users-section', 'Quản lý Người Dùng')"
+              class="text-gray-600 hover:text-indigo-600 font-medium"
+            >
+              Users
+            </button>
+            <button
+              onclick="navigateToDashboardSection('inventory-section', 'Quản lý Kho Phụ Tùng')"
+              class="text-gray-600 hover:text-indigo-600 font-medium"
+            >
+              Kho Phụ Tùng
+            </button>
+            <button
+              onclick="adminLogout()"
+              class="bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600"
+            >
+              Đăng Xuất
+            </button>
+          </div>
         </div>
       </header>
 
+      <!-- MAIN CONTENT (Sections) -->
       <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div id="users-section" class="dashboard-section active">
+        <!-- Section: USERS -->
+        <div id="users-section" class="dashboard-section hidden">
           <h2 class="text-xl font-semibold mb-4">Danh sách người dùng</h2>
-
-          <!-- ========== NÚT THÊM MỚI ĐÃ ĐƯỢC THÊM VÀO ĐÂY ========== -->
           <div class="flex justify-end mb-4">
             <button
               onclick="openAddUserModal()"
@@ -117,8 +132,6 @@
               + Thêm Người Dùng Mới
             </button>
           </div>
-          <!-- ====================================================== -->
-
           <div class="bg-white shadow rounded-lg overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
@@ -162,9 +175,84 @@
             </table>
           </div>
         </div>
+
+        <!-- Section: INVENTORY (Mặc định active) -->
+        <div id="inventory-section" class="dashboard-section active">
+          <h2 class="text-xl font-semibold mb-4">
+            Danh sách Vật tư & Phụ tùng
+          </h2>
+          <div class="flex justify-between items-center mb-4">
+            <button
+              onclick="loadAllInventory()"
+              class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 shadow"
+            >
+              Tải lại Kho hàng
+            </button>
+            <button
+              onclick="openItemModal('add')"
+              class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 shadow"
+            >
+              + Thêm Vật tư Mới
+            </button>
+          </div>
+          <div class="bg-white shadow rounded-lg overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    ID
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Tên Vật tư
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Mã Part
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Tồn Kho
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Min Stock
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Giá (VND)
+                  </th>
+                  <th
+                    class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody
+                id="inventory-table-body"
+                class="bg-white divide-y divide-gray-200"
+              >
+                <tr>
+                  <td colspan="7" class="text-center py-4 text-gray-500">
+                    Đang tải dữ liệu...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </main>
     </div>
 
+    <!-- 3. GLOBAL MODALS & SPINNER -->
     <div
       id="loading-spinner"
       class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50"
@@ -174,16 +262,14 @@
       ></div>
     </div>
 
-    <!-- ========== MODAL THÊM USER ĐÃ ĐƯỢC THÊM VÀO ĐÂY ========== -->
+    <!-- MODAL THÊM USER (Vị trí cũ) -->
     <div
       id="add-user-modal"
       class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center hidden z-40"
     >
       <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
         <h3 class="text-xl font-bold mb-6 text-gray-800">Tạo Tài Khoản Mới</h3>
-
         <form id="add-user-form">
-          <!-- Username -->
           <div class="mb-4">
             <label
               for="add-username"
@@ -197,8 +283,6 @@
               required
             />
           </div>
-
-          <!-- Email -->
           <div class="mb-4">
             <label
               for="add-email"
@@ -212,8 +296,6 @@
               required
             />
           </div>
-
-          <!-- Password -->
           <div class="mb-4">
             <label
               for="add-password"
@@ -227,8 +309,6 @@
               required
             />
           </div>
-
-          <!-- Role -->
           <div class="mb-4">
             <label
               for="add-role"
@@ -243,8 +323,6 @@
               <option value="admin">Admin</option>
             </select>
           </div>
-
-          <!-- Buttons -->
           <div class="flex justify-end space-x-4 mt-8">
             <button
               type="button"
@@ -263,8 +341,114 @@
         </form>
       </div>
     </div>
-    <!-- ======================================================== -->
 
+    <!-- MODAL THÊM/SỬA VẬT TƯ (MỚI) -->
+    <div
+      id="item-modal"
+      class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center hidden z-40"
+    >
+      <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-lg">
+        <h3 id="item-modal-title" class="text-xl font-bold mb-6 text-gray-800">
+          Thêm Vật tư Mới
+        </h3>
+
+        <form id="item-form">
+          <input type="hidden" id="item-id-hidden" />
+          <div class="mb-4">
+            <label
+              for="item-name"
+              class="block text-sm font-medium text-gray-700"
+              >Tên Vật tư</label
+            >
+            <input
+              type="text"
+              id="item-name"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+              required
+            />
+          </div>
+
+          <div class="mb-4">
+            <label
+              for="item-part-number"
+              class="block text-sm font-medium text-gray-700"
+              >Mã Part (Part Number)</label
+            >
+            <input
+              type="text"
+              id="item-part-number"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+              required
+            />
+          </div>
+
+          <div class="flex space-x-4 mb-4">
+            <div class="flex-1">
+              <label
+                for="item-quantity"
+                class="block text-sm font-medium text-gray-700"
+                >Số lượng Tồn Kho</label
+              >
+              <input
+                type="number"
+                id="item-quantity"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                required
+                min="0"
+              />
+            </div>
+            <div class="flex-1">
+              <label
+                for="item-min-quantity"
+                class="block text-sm font-medium text-gray-700"
+                >Tồn kho Tối thiểu (Min Stock)</label
+              >
+              <input
+                type="number"
+                id="item-min-quantity"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                required
+                min="0"
+              />
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label
+              for="item-price"
+              class="block text-sm font-medium text-gray-700"
+              >Giá (VND)</label
+            >
+            <input
+              type="number"
+              id="item-price"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+              required
+              min="0"
+            />
+          </div>
+
+          <div class="flex justify-end space-x-4 mt-8">
+            <button
+              type="button"
+              onclick="closeItemModal()"
+              class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              id="item-submit-button"
+              class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            >
+              Lưu
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 4. JAVASCRIPT -->
     <script src="admin_scripts.js"></script>
   </body>
 </html>

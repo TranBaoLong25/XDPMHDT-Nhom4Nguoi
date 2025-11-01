@@ -18,6 +18,25 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+  db-inventory:
+    image: postgres:14-alpine
+    container_name: inventory_db
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      # Sử dụng DB name riêng cho Inventory
+      - POSTGRES_DB=ev_inventory_db # Khớp với DATABASE_URL trong .env
+    ports:
+      - "5434:5432" # Cổng debug khác với User DB (5433)
+    volumes:
+      - inventory_data:/var/lib/postgresql/data # Sử dụng volume riêng
+    networks:
+      - ev_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ev_inventory_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   # ===================== REDIS CACHE =====================
   redis:
@@ -48,6 +67,26 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+    networks:
+      - ev_network
+  inventory-service:
+    build: ./services/inventory-service
+    container_name: inventory-service
+    # Port 8000 được định nghĩa trong Dockerfile của Inventory Service
+    command: gunicorn --bind 0.0.0.0:8000 "app:create_app()"
+    volumes:
+      - ./services/inventory-service:/app
+    environment:
+      # Chuỗi kết nối đến DB Inventory
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-inventory:5432/ev_inventory_db
+      # Tái sử dụng các biến bảo mật toàn cục
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN}
+    expose:
+      - "8000" # Expose cổng 8000 cho Nginx thấy
+    depends_on:
+      db-inventory: # Phụ thuộc vào DB Inventory mới
+        condition: service_healthy
     networks:
       - ev_network
 
@@ -84,3 +123,4 @@ networks:
     driver: bridge
 volumes:
   user_data:
+  inventory_data:

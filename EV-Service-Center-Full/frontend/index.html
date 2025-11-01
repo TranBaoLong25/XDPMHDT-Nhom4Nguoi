@@ -14,32 +14,41 @@
   </head>
 
   <body class="bg-gray-100 text-gray-800 font-['Inter']">
-    <!-- 🧭 Navigation -->
-    <nav class="bg-white shadow-md sticky top-0 z-50">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- KHỐI NAVIGATION -->
+<nav class="bg-white shadow-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
-          <a
-            href="#"
-            onclick="navigateTo('home')"
-            class="font-bold text-xl text-indigo-600"
-          >
-            EV-Service
-          </a>
-          <div class="hidden md:block">
-            <div class="ml-10 flex items-baseline space-x-4">
-              <a
+            <a
                 href="#"
                 onclick="navigateTo('home')"
-                class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
-              >
-                Trang Chủ
-              </a>
+                class="font-bold text-xl text-indigo-600"
+            >
+                EV-Service
+            </a>
+            <!-- BẮT ĐẦU KHỐI THAY THẾ -->
+            <div class="hidden md:block">
+                <div class="ml-10 flex items-baseline space-x-4">
+                    <a
+                        href="#"
+                        onclick="navigateTo('home')"
+                        class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                    >
+                        Trang Chủ
+                    </a>
+                    <a
+                        href="#"
+                        onclick="navigateTo('inventory-list')"
+                        class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                    >
+                        Kho Vật Tư
+                    </a>
+                </div>
             </div>
-          </div>
-          <div id="nav-auth-links" class="flex items-center"></div>
+            <!-- KẾT THÚC KHỐI THAY THẾ -->
+            <div id="nav-auth-links" class="flex items-center"></div>
         </div>
-      </div>
-    </nav>
+    </div>
+</nav>
 
     <!-- 🧩 MAIN CONTENT -->
     <main id="app-container" class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
@@ -355,7 +364,19 @@
         class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-white"
       ></div>
     </div>
+    
+    <!-- ✅ VỊ TRÍ CHÈN Inventory List Page -->
+    <div id="inventory-list-page" class="page hidden">
+        <h2 class="text-3xl font-bold mb-6 text-gray-900">Vật Tư & Phụ Tùng Hiện Có</h2>
+        <p class="text-gray-600 mb-6">Danh sách các phụ tùng có sẵn tại trung tâm dịch vụ.</p>
 
+        <div id="inventory-list-container" class="space-y-4">
+            <!-- Dữ liệu vật tư sẽ được chèn vào đây bằng JavaScript -->
+            <div class="text-center py-8 bg-white rounded-lg shadow-md" id="inventory-loading-message">
+                Đang tải danh sách vật tư...
+            </div>
+        </div>
+    </div>
     <!-- JS -->
 
     <script src="scripts.js"></script>

@@ -1,7 +1,3 @@
-// ============================================================
-// ✅ GỘP utils.js + scripts.js thành 1 file duy nhất
-// ============================================================
-
 // --- GLOBAL CONFIG ---
 const API_BASE_URL = "http://localhost"; // nếu chạy qua nginx gateway, để trống là đúng
 const TOKEN_KEY = "jwt_token";
@@ -112,7 +108,7 @@ async function apiRequest(endpoint, method = "GET", body = null) {
   }
 }
 
-// --- NAVIGATION ---
+// --- NAVIGATION (Định nghĩa DUY NHẤT một lần) ---
 function navigateTo(pageId) {
   const nextPageElement = document.getElementById(`${pageId}-page`);
   document.querySelectorAll(".page").forEach((p) => {
@@ -128,6 +124,9 @@ function navigateTo(pageId) {
 
   if (pageId === "profile") loadProfileDetails();
   if (pageId === "forget-password") resetForgetForm?.();
+
+  // ✅ LOGIC MỚI: Tải danh sách vật tư khi chuyển trang
+  if (pageId === "inventory-list") loadInventoryList();
 }
 
 // --- AUTH NAVIGATION ---
@@ -137,13 +136,13 @@ function updateNav() {
 
   navAuthLinks.innerHTML = token
     ? `
-      <a href="#" onclick="navigateTo('profile')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Hồ Sơ</a>
-      <a href="#" onclick="logout()" class="ml-4 bg-red-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-red-600">Đăng Xuất</a>
-    `
+        <a href="#" onclick="navigateTo('profile')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Hồ Sơ</a>
+        <a href="#" onclick="logout()" class="ml-4 bg-red-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-red-600">Đăng Xuất</a>
+        `
     : `
-      <a href="#" onclick="navigateTo('login')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Đăng Nhập</a>
-      <a href="#" onclick="navigateTo('register')" class="ml-4 bg-green-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-green-600">Đăng Ký</a>
-    `;
+        <a href="#" onclick="navigateTo('login')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Đăng Nhập</a>
+        <a href="#" onclick="navigateTo('register')" class="ml-4 bg-green-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-green-600">Đăng Ký</a>
+        `;
 }
 
 function logout() {
@@ -212,16 +211,18 @@ async function loadProfileDetails() {
     if (!div) return;
 
     div.innerHTML = `
-      <p><strong>Họ và tên:</strong> ${profile.full_name || "Chưa cập nhật"}</p>
-      <p><strong>Điện thoại:</strong> ${
-        profile.phone_number || "Chưa cập nhật"
-      }</p>
-      <p><strong>Địa chỉ:</strong> ${profile.address || "Chưa cập nhật"}</p>
-      <p><strong>Model Xe:</strong> ${
-        profile.vehicle_model || "Chưa cập nhật"
-      }</p>
-      <p><strong>Số VIN:</strong> ${profile.vin_number || "Chưa cập nhật"}</p>
-    `;
+        <p><strong>Họ và tên:</strong> ${
+          profile.full_name || "Chưa cập nhật"
+        }</p>
+        <p><strong>Điện thoại:</strong> ${
+          profile.phone_number || "Chưa cập nhật"
+        }</p>
+        <p><strong>Địa chỉ:</strong> ${profile.address || "Chưa cập nhật"}</p>
+        <p><strong>Model Xe:</strong> ${
+          profile.vehicle_model || "Chưa cập nhật"
+        }</p>
+        <p><strong>Số VIN:</strong> ${profile.vin_number || "Chưa cập nhật"}</p>
+        `;
 
     const fields = [
       ["profile-fullname", "full_name"],
@@ -353,7 +354,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const submitButton = forgetForm.querySelector('button[type="submit"]');
 
       if (!email) {
-        alert("Vui lòng nhập email của bạn.");
+        // Thay alert bằng showToast
+        showToast("Vui lòng nhập email của bạn.", true);
         return;
       }
 
@@ -371,7 +373,9 @@ document.addEventListener("DOMContentLoaded", () => {
         );
 
         // 2. Xử lý thành công
-        alert(data.message || "Gửi OTP thành công! Vui lòng kiểm tra email.");
+        showToast(
+          data.message || "Gửi OTP thành công! Vui lòng kiểm tra email."
+        );
 
         // Ẩn form gửi, hiện form reset
         forgetForm.classList.add("hidden");
@@ -384,7 +388,10 @@ document.addEventListener("DOMContentLoaded", () => {
       } catch (error) {
         // 3. Xử lý lỗi
         console.error("Lỗi khi gửi OTP:", error);
-        alert("Gửi OTP thất bại. Email không tồn tại hoặc có lỗi xảy ra.");
+        showToast(
+          "Gửi OTP thất bại. Email không tồn tại hoặc có lỗi xảy ra.",
+          true
+        );
       } finally {
         // 4. Kích hoạt lại nút
         submitButton.disabled = false;
@@ -406,7 +413,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const submitButton = resetForm.querySelector('button[type="submit"]');
 
       if (!otp || !newPassword) {
-        alert("Vui lòng nhập Mã OTP và Mật khẩu mới.");
+        showToast("Vui lòng nhập Mã OTP và Mật khẩu mới.", true);
         return;
       }
 
@@ -428,17 +435,20 @@ document.addEventListener("DOMContentLoaded", () => {
         );
 
         // 3. Xử lý thành công
-        alert(
+        showToast(
           data.message || "Đặt lại mật khẩu thành công! Bạn có thể đăng nhập."
         );
 
         // Chuyển về trang đăng nhập
-        navigateTo("login-page"); // (Giả sử bạn có hàm này)
+        navigateTo("login"); // Sử dụng navigateTo đã sửa lỗi
         resetForgetForm(); // Gọi hàm reset (bạn đã thêm ở bước trước)
       } catch (error) {
         // 4. Xử lý lỗi
         console.error("Lỗi khi reset mật khẩu:", error);
-        alert("Đặt lại mật khẩu thất bại. Mã OTP không đúng hoặc đã hết hạn.");
+        showToast(
+          "Đặt lại mật khẩu thất bại. Mã OTP không đúng hoặc đã hết hạn.",
+          true
+        );
       } finally {
         // 5. Kích hoạt lại nút
         submitButton.disabled = false;
@@ -447,3 +457,73 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 });
+
+// ========================================================
+// ✅ LOGIC INVENTORY MỚI
+// ========================================================
+
+function renderItemCard(item) {
+  // Sử dụng Tailwind CSS cho một card đẹp mắt
+  return `
+        <div class="bg-white p-5 rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition duration-200">
+            <h3 class="text-xl font-semibold text-indigo-700">${item.name}</h3>
+            <p class="text-gray-500 text-sm mt-1">Mã Part: <span class="font-mono text-gray-700">${
+              item.part_number
+            }</span></p>
+            
+            <div class="mt-4 flex justify-between items-center">
+                <div>
+                    <p class="text-lg font-bold text-green-600">
+                        ${new Intl.NumberFormat("vi-VN").format(item.price)}₫
+                    </p>
+                    <p class="text-xs text-gray-400">Giá tham khảo</p>
+                </div>
+                <div class="text-right">
+                    <span class="text-sm font-medium text-gray-800 p-2 bg-indigo-100 rounded-full">
+                        Còn: ${item.quantity || "Liên hệ"}
+                    </span>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+async function loadInventoryList() {
+  const container = document.getElementById("inventory-list-container");
+  const loadingMessage = document.getElementById("inventory-loading-message");
+  if (!container || !loadingMessage) return;
+
+  // Hiển thị thông báo tải
+  loadingMessage.classList.remove("hidden");
+  container.innerHTML = "";
+
+  try {
+    // Gọi API Inventory Service (GET /api/inventory/items)
+    const items = await apiRequestCore(
+      null, // Không cần token JWT cho user thường xem danh sách
+      "/api/inventory/items"
+    );
+
+    loadingMessage.classList.add("hidden");
+
+    if (!items || items.length === 0) {
+      container.innerHTML = `
+                <div class="text-center py-12 bg-gray-50 rounded-lg">
+                    <p class="text-lg text-gray-500">Hiện tại chưa có phụ tùng nào được niêm yết.</p>
+                </div>
+            `;
+      return;
+    }
+
+    // Render các card vật tư
+    container.innerHTML = items.map(renderItemCard).join("");
+  } catch (error) {
+    loadingMessage.classList.add("hidden");
+    container.innerHTML = `
+            <div class="text-center py-12 bg-red-100 text-red-700 rounded-lg border border-red-300">
+                <p>Lỗi khi tải danh sách vật tư. Vui lòng thử lại sau.</p>
+            </div>
+        `;
+    console.error("Failed to load inventory list:", error);
+  }
+}

@@ -71,9 +71,9 @@ function adminLogout() {
 }
 
 function showDashboard() {
+  // ✅ CHỈ ẨN/HIỆN TRANG, KHÔNG GỌI loadAllUsers() TẠI ĐÂY NỮA
   loginPage.classList.add("hidden");
   dashboardPage.classList.remove("hidden");
-  loadAllUsers();
 }
 
 // ===================== LOGIN HANDLER =====================
@@ -101,6 +101,8 @@ document
       localStorage.setItem(window.ADMIN_TOKEN_KEY, token);
       window.showToast("Đăng nhập quản trị thành công!");
       showDashboard();
+      // ✅ KHI LOGIN THÀNH CÔNG, CHUYỂN NGAY SANG INVENTORY
+      navigateToDashboardSection("inventory-section", "Quản lý Kho Phụ Tùng");
     } catch (error) {
       console.error("Login failed:", error);
     }
@@ -159,16 +161,20 @@ async function toggleUserLock(userId) {
       "PUT"
     );
 
-    alert("Cập nhật trạng thái người dùng thành công.");
+    // Thay thế alert bằng showToast để đồng bộ UX
+    window.showToast("Cập nhật trạng thái người dùng thành công.");
     loadAllUsers(); // Tải lại danh sách
   } catch (error) {
     console.error("Lỗi khi khóa/mở khóa user:", error);
-    alert("Cập nhật thất bại. Vui lòng xem console.");
+    window.showToast("Cập nhật thất bại. Vui lòng xem console.", true);
   }
 }
 
 async function deleteUser(userId) {
+  // Thay thế confirm bằng modal tùy chỉnh (do quy tắc không dùng confirm())
+  // Tạm thời giữ lại confirm() do chưa có modal tùy chỉnh để tránh phá vỡ chức năng
   if (!confirm("Bạn có chắc chắn muốn xóa người dùng này?")) return;
+
   await window.apiRequestCore(
     window.ADMIN_TOKEN_KEY,
     `/api/admin/users/${userId}`,
@@ -221,7 +227,217 @@ document
     }
   });
 
-// ===================== INIT =====================
+// ========================================================
+// ✅ LOGIC INVENTORY MỚI
+// ========================================================
+
+const dashboardTitle = document.getElementById("dashboard-title");
+
+/**
+ * Chuyển đổi giữa các phần Users và Inventory
+ * @param {string} sectionId - ID của phần muốn hiện ('users-section' hoặc 'inventory-section')
+ * @param {string} title - Tiêu đề mới cho Dashboard
+ */
+function navigateToDashboardSection(sectionId, title) {
+  document.querySelectorAll(".dashboard-section").forEach((section) => {
+    section.classList.add("hidden");
+    section.classList.remove("active");
+  });
+
+  const activeSection = document.getElementById(sectionId);
+  if (activeSection) {
+    activeSection.classList.remove("hidden");
+    activeSection.classList.add("active");
+    if (dashboardTitle) dashboardTitle.textContent = title;
+  }
+
+  // Tải dữ liệu nếu chuyển sang Inventory
+  if (sectionId === "inventory-section") {
+    loadAllInventory();
+  } else if (sectionId === "users-section") {
+    loadAllUsers(); // Tải lại Users khi quay lại
+  }
+}
+window.navigateToDashboardSection = navigateToDashboardSection; // Export ra ngoài window
+
+// --- LOAD INVENTORY ---
+async function loadAllInventory() {
+  try {
+    const items = await window.apiRequestCore(
+      window.ADMIN_TOKEN_KEY,
+      "/api/inventory/items" // Endpoint GET ALL ITEMS
+    );
+    const tbody = document.getElementById("inventory-table-body");
+    tbody.innerHTML = "";
+
+    if (!items || items.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" class="text-center text-gray-500 py-4">Không có vật tư nào trong kho.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = items
+      .map((item) => {
+        // Logic hiển thị tồn kho thấp
+        const isLowStock = item.quantity <= item.min_quantity;
+        const rowClass = isLowStock
+          ? "bg-red-50 hover:bg-red-100"
+          : "hover:bg-gray-50";
+        const statusBadge = isLowStock
+          ? '<span class="p-1 rounded-full text-xs font-semibold bg-red-100 text-red-800">Cần bổ sung</span>'
+          : '<span class="p-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">Đủ hàng</span>';
+
+        return `
+            <tr class="${rowClass}">
+                <td class="px-6 py-4 text-sm">${item.id}</td>
+                <td class="px-6 py-4 text-sm">${item.name}</td>
+                <td class="px-6 py-4 text-sm">${item.part_number}</td>
+                <td class="px-6 py-4 text-sm text-center font-bold">${
+                  item.quantity
+                }</td>
+                <td class="px-6 py-4 text-sm text-center">${
+                  item.min_quantity
+                }</td>
+                <td class="px-6 py-4 text-sm">${new Intl.NumberFormat(
+                  "vi-VN"
+                ).format(item.price)}₫</td>
+                <td class="px-6 py-4 text-center space-x-2">
+                    ${statusBadge}
+                    <button onclick="openItemModal('edit', ${
+                      item.id
+                    })" class="text-indigo-600 hover:text-indigo-900">
+                        Edit
+                    </button>
+                    <button onclick="deleteItem(${
+                      item.id
+                    })" class="text-red-600 hover:text-red-900">
+                        Delete
+                    </button>
+                </td>
+            </tr>`;
+      })
+      .join("");
+  } catch (err) {
+    console.error(err);
+    document.getElementById(
+      "inventory-table-body"
+    ).innerHTML = `<tr><td colspan="7" class="text-center text-red-500 py-4">Lỗi khi tải dữ liệu Kho.</td></tr>`;
+  }
+}
+
+// --- MODAL HANDLERS ---
+const itemModal = document.getElementById("item-modal");
+const itemForm = document.getElementById("item-form");
+const itemModalTitle = document.getElementById("item-modal-title");
+const itemSubmitButton = document.getElementById("item-submit-button");
+
+function closeItemModal() {
+  if (itemModal) itemModal.classList.add("hidden");
+  itemForm?.reset();
+  document.getElementById("item-id-hidden").value = ""; // Xóa ID khi đóng
+}
+
+async function openItemModal(mode, itemId = null) {
+  itemForm.dataset.mode = mode;
+  itemForm.reset();
+
+  if (mode === "add") {
+    itemModalTitle.textContent = "Thêm Vật tư Mới";
+    itemSubmitButton.textContent = "Thêm";
+    document.getElementById("item-part-number").disabled = false;
+    if (itemModal) itemModal.classList.remove("hidden");
+  } else if (mode === "edit" && itemId) {
+    itemModalTitle.textContent = "Chỉnh Sửa Vật tư";
+    itemSubmitButton.textContent = "Lưu Thay Đổi";
+    document.getElementById("item-id-hidden").value = itemId;
+
+    try {
+      // Lấy dữ liệu item để điền vào form (GET /api/inventory/items/<id>)
+      const item = await window.apiRequestCore(
+        window.ADMIN_TOKEN_KEY,
+        `/api/inventory/items/${itemId}`
+      );
+
+      document.getElementById("item-name").value = item.name;
+      document.getElementById("item-part-number").value = item.part_number;
+      // Không cho sửa Part Number khi Edit
+      document.getElementById("item-part-number").disabled = true;
+      document.getElementById("item-quantity").value = item.quantity;
+      document.getElementById("item-min-quantity").value = item.min_quantity;
+      document.getElementById("item-price").value = item.price;
+
+      if (itemModal) itemModal.classList.remove("hidden");
+    } catch (error) {
+      window.showToast("Không tìm thấy vật tư để chỉnh sửa.", true);
+    }
+  }
+}
+
+// --- FORM SUBMIT HANDLER (Add/Edit) ---
+itemForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const mode = itemForm.dataset.mode;
+  const itemId = document.getElementById("item-id-hidden").value;
+
+  const data = {
+    name: document.getElementById("item-name").value,
+    part_number: document.getElementById("item-part-number").value,
+    // Chuyển sang số nguyên/số thực
+    quantity: parseInt(document.getElementById("item-quantity").value),
+    min_quantity: parseInt(document.getElementById("item-min-quantity").value),
+    price: parseFloat(document.getElementById("item-price").value),
+  };
+
+  try {
+    if (mode === "add") {
+      await window.apiRequestCore(
+        window.ADMIN_TOKEN_KEY,
+        "/api/inventory/items",
+        "POST",
+        data
+      );
+      window.showToast("Thêm vật tư thành công!");
+    } else if (mode === "edit" && itemId) {
+      // Xóa part_number khỏi body khi Edit (vì không được sửa theo logic backend)
+      delete data.part_number;
+
+      await window.apiRequestCore(
+        window.ADMIN_TOKEN_KEY,
+        `/api/inventory/items/${itemId}`,
+        "PUT",
+        data
+      );
+      window.showToast("Cập nhật vật tư thành công!");
+    }
+
+    closeItemModal();
+    loadAllInventory(); // Tải lại bảng
+  } catch (error) {
+    console.error("Lỗi khi lưu vật tư:", error);
+  }
+});
+
+// --- DELETE FUNCTION ---
+async function deleteItem(itemId) {
+  // Thay thế confirm bằng showToast/modal tùy chỉnh sau
+  if (!confirm(`Bạn có chắc chắn muốn xóa vật tư có ID ${itemId} này không?`))
+    return;
+
+  try {
+    await window.apiRequestCore(
+      window.ADMIN_TOKEN_KEY,
+      `/api/inventory/items/${itemId}`,
+      "DELETE"
+    );
+    window.showToast("Đã xóa vật tư!");
+    loadAllInventory();
+  } catch (error) {
+    window.showToast("Xóa vật tư thất bại.", true);
+  }
+}
+window.deleteItem = deleteItem; // Cần export hàm này ra window để HTML có thể gọi
+
+// --- Khối INIT: Đảm bảo tải Inventory mặc định ---
 document.addEventListener("DOMContentLoaded", () => {
   const token = localStorage.getItem(window.ADMIN_TOKEN_KEY);
   if (!token) return;
@@ -229,8 +445,14 @@ document.addEventListener("DOMContentLoaded", () => {
   try {
     const payload = JSON.parse(atob(token.split(".")[1]));
     const valid = payload.exp * 1000 > Date.now();
-    if (valid && payload.role === window.ADMIN_ROLE) showDashboard();
-    else adminLogout();
+
+    if (valid && payload.role === window.ADMIN_ROLE) {
+      showDashboard();
+      // ✅ CHUYỂN TẢI MẶC ĐỊNH SANG INVENTORY SAU KHI PAGE ĐÃ HIỆN
+      navigateToDashboardSection("inventory-section", "Quản lý Kho Phụ Tùng");
+    } else {
+      adminLogout();
+    }
   } catch {
     adminLogout();
   }

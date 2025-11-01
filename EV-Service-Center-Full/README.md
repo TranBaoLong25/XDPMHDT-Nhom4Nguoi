@@ -22,9 +22,7 @@ docker-compose exec user-service flask db upgrade
 <!-- inventory-service -->
 
 docker-compose exec inventory-service flask db init
-
 docker-compose exec inventory-service flask db migrate -m "Initial inventory service tables"
-
 docker-compose exec inventory-service flask db upgrade
 
 <!-- tạo tài khoản admin(có hàm trong user-service/app.py) -->
