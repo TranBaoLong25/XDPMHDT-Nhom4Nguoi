@@ -1,5 +1,5 @@
 services:
-  # ===================== DATABASE (Postgres) =====================
+  # ===================== DATABASE USER (Postgres) =====================
   db-user:
     image: postgres:14-alpine
     container_name: user_db
@@ -8,7 +8,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
     ports:
-      - "5433:5432" # Vẫn giữ để debug CSDL
+      - "5433:5432" # Dành để debug CSDL User
     volumes:
       - user_data:/var/lib/postgresql/data
     networks:
@@ -19,12 +19,32 @@ services:
       timeout: 5s
       retries: 5
 
+  # ===================== DATABASE INVENTORY (Postgres) =====================
+  db-inventory:
+    image: postgres:14-alpine
+    container_name: inventory_db
+    environment:
+      - POSTGRES_USER=ev_user
+      - POSTGRES_PASSWORD=ev_pass
+      - POSTGRES_DB=ev_inventory_db
+    ports:
+      - "5434:5432" # Dành để debug CSDL Inventory
+    volumes:
+      - inventory_data:/var/lib/postgresql/data
+    networks:
+      - ev_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ev_user -d ev_inventory_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   # ===================== REDIS CACHE =====================
   redis:
     image: redis:alpine
     container_name: redis_cache
     ports:
-      - "6379:6379" # Vẫn giữ để debug Redis
+      - "6379:6379"
     networks:
       - ev_network
 
@@ -36,11 +56,9 @@ services:
     volumes:
       - ./services/user-service:/app
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@user_db:5432/${POSTGRES_DB}
-      - REDIS_URL=redis://${REDIS_HOST}:6379
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-user:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://redis:6379
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      # ... các biến env khác ...
-    # KHÔNG cần 'ports' nữa vì chỉ Nginx mới gọi nó
     expose:
       - "5000"
     depends_on:
@@ -51,14 +69,31 @@ services:
     networks:
       - ev_network
 
+  # ===================== INVENTORY SERVICE (Backend) =====================
+  inventory-service:
+    build: ./services/inventory-service
+    container_name: inventory-service
+    command: gunicorn --bind 0.0.0.0:5003 "app:create_app()"
+    volumes:
+      - ./services/inventory-service:/app
+    environment:
+      - DATABASE_URL=postgresql://ev_user:ev_pass@db-inventory:5432/ev_inventory_db
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+    expose:
+      - "5003"
+    depends_on:
+      db-inventory:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - ev_network
+
   # ===================== FRONTEND SERVICE =====================
   frontend:
     build: ./frontend
     container_name: frontend_server
-    # ⛔ BỎ 'ports' đi, không cần truy cập trực tiếp cổng 8080 nữa
-    # ports:
-    #   - "8080:80"
-    # ✅ Dùng 'expose' để Nginx thấy port 80 (port nội bộ của frontend)
     expose:
       - "80"
     networks:
@@ -74,7 +109,8 @@ services:
       - "80:80" # <-- CỔNG DUY NHẤT bạn sẽ truy cập
     depends_on:
       - user-service
-      - frontend # Nginx cần frontend chạy trước
+      - inventory-service
+      - frontend
     networks:
       - ev_network
 
@@ -82,5 +118,7 @@ services:
 networks:
   ev_network:
     driver: bridge
+
 volumes:
   user_data:
+  inventory_data:

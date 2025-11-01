@@ -14,43 +14,17 @@ docker-compose up -d --build
 <!-- db upgrade: áp dụng migration vào database. -->
 <!-- auction-service  -->
 
-docker-compose exec auction-service flask db init
-docker-compose exec auction-service flask db migrate -m "Initial auction service tables"
-docker-compose exec auction-service flask db upgrade
-
-<!-- transaction-service -->
-
-docker-compose exec transaction-service flask db init
-docker-compose exec transaction-service flask db migrate -m "Initial transaction service tables"
-docker-compose exec transaction-service flask db upgrade
-
  <!-- user-service -->
 
 docker-compose exec user-service flask db init
 docker-compose exec user-service flask db migrate -m "Initial user service tables"
 docker-compose exec user-service flask db upgrade
 
-<!-- listing-service -->
+<!-- inventory-service -->
 
-docker-compose exec listing-service flask db init
-docker-compose exec listing-service flask db migrate -m "Initial listing service tables"
-docker-compose exec listing-service flask db upgrade
-
-<!-- review-service -->
-
-docker-compose exec review-service flask db init
-docker-compose exec review-service flask db migrate -m "Initial review service tables"
-docker-compose exec review-service flask db upgrade
-
-<!-- report-service -->
-
-docker-compose exec report-service flask db init
-docker-compose exec report-service flask db migrate -m "Initial report service tables"
-docker-compose exec report-service flask db upgrade
-
-docker-compose exec ai-pricing-service flask db init
-docker-compose exec ai-pricing-service flask db migrate -m "Initial ai pricing service tables"
-docker-compose exec ai-pricing-service flask db upgrade
+docker-compose exec inventory-service flask db init
+docker-compose exec inventory-service flask db migrate -m "Initial inventory service tables"
+docker-compose exec inventory-service flask db upgrade
 
 <!-- tạo tài khoản admin(có hàm trong user-service/app.py) -->
 
