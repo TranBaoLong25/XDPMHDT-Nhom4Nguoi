@@ -1,6 +1,9 @@
 # services/inventory-service/app.py
 import os
+<<<<<<< HEAD
 from models.inventory_model import Inventory
+=======
+>>>>>>> 9a57403 ( cap nhat them)
 from flask import Flask, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS

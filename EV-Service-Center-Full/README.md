@@ -12,7 +12,10 @@ docker-compose up -d --build
 <!-- db init: khởi tạo thư mục migration. -->
 <!-- db migrate: tạo file migration (các thay đổi bảng). -->
 <!-- db upgrade: áp dụng migration vào database. -->
+<<<<<<< HEAD
 <!-- auction-service  -->
+=======
+>>>>>>> 9a57403 ( cap nhat them)
 
  <!-- user-service -->
 
@@ -23,7 +26,11 @@ docker-compose exec user-service flask db upgrade
 <!-- inventory-service -->
 
 docker-compose exec inventory-service flask db init
+<<<<<<< HEAD
 docker-compose exec inventory-service flask db migrate -m "Initial inventory service tables"
+=======
+docker-compose exec inventory-service flask db migrate -m "Initial inventory-service tables"
+>>>>>>> 9a57403 ( cap nhat them)
 docker-compose exec inventory-service flask db upgrade
 
 <!-- tạo tài khoản admin(có hàm trong user-service/app.py) -->
