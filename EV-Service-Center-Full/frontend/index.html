@@ -14,8 +14,7 @@
   </head>
 
   <body class="bg-gray-100 text-gray-800 font-['Inter']">
-    <!-- KHỐI NAVIGATION -->
-<nav class="bg-white shadow-md sticky top-0 z-50">
+    <nav class="bg-white shadow-md sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
             <a
@@ -25,7 +24,6 @@
             >
                 EV-Service
             </a>
-            <!-- BẮT ĐẦU KHỐI THAY THẾ -->
             <div class="hidden md:block">
                 <div class="ml-10 flex items-baseline space-x-4">
                     <a
@@ -44,15 +42,12 @@
                     </a>
                 </div>
             </div>
-            <!-- KẾT THÚC KHỐI THAY THẾ -->
             <div id="nav-auth-links" class="flex items-center"></div>
         </div>
     </div>
 </nav>
 
-    <!-- 🧩 MAIN CONTENT -->
     <main id="app-container" class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-      <!-- HOME PAGE -->
       <div id="home-page" class="page hidden">
         <div class="text-center p-12 bg-white rounded-lg shadow">
           <h1 class="text-4xl font-bold text-gray-900">
@@ -70,7 +65,6 @@
         </div>
       </div>
 
-      <!-- LOGIN PAGE -->
       <div id="login-page" class="page active">
         <div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg">
           <h2 class="text-2xl font-bold text-center mb-6">Đăng Nhập</h2>
@@ -132,7 +126,6 @@
         </div>
       </div>
 
-      <!-- REGISTER PAGE -->
       <div id="register-page" class="page hidden">
         <div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg">
           <h2 class="text-2xl font-bold text-center mb-6">Đăng Ký Tài Khoản</h2>
@@ -202,7 +195,6 @@
         </div>
       </div>
 
-      <!-- FORGET PASSWORD PAGE -->
       <div id="forget-password-page" class="page hidden">
         <div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg">
           <h2 class="text-2xl font-bold text-center mb-6">Quên Mật Khẩu</h2>
@@ -277,7 +269,6 @@
           </p>
         </div>
       </div>
-<!-- PROFILE PAGE -->
 <div id="profile-page" class="page hidden">
     <h2 class="text-3xl font-bold mb-6 text-gray-900">Hồ Sơ Cá Nhân</h2>
 
@@ -408,7 +399,53 @@
     </div>
 </div>
 
-    <!-- SPINNER -->
+<div id="invoice-history-page" class="page hidden">
+    <h2 class="text-3xl font-bold mb-6 text-gray-900">Lịch Sử Hóa Đơn</h2>
+
+    <div id="invoice-list-container" class="space-y-4">
+        <div class="bg-white p-6 rounded-lg shadow-md text-gray-500">Đang tải lịch sử hóa đơn...</div>
+    </div>
+</div>
+
+<div
+    id="invoice-detail-modal"
+    class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center hidden z-40"
+>
+    <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-2xl">
+        <h3 class="text-2xl font-bold mb-4 text-gray-800">Chi Tiết Hóa Đơn #<span id="invoice-detail-id"></span></h3>
+        <div id="invoice-detail-content" class="space-y-3">
+            <p><strong>Ngày tạo:</strong> <span id="invoice-detail-date"></span></p>
+            <p><strong>Trạng thái:</strong> <span id="invoice-detail-status" class="font-bold"></span></p>
+            <p><strong>Tổng tiền:</strong> <span id="invoice-detail-total" class="text-xl font-bold text-red-600"></span></p>
+            
+            <h4 class="text-lg font-semibold mt-4 border-t pt-3">Danh sách Mục</h4>
+            <div class="bg-gray-50 p-3 rounded-lg">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Mô tả</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">SL</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Đơn giá</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Thành tiền</th>
+                        </tr>
+                    </thead>
+                    <tbody id="invoice-items-table-body" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="flex justify-end mt-6">
+            <button
+                onclick="closeInvoiceDetailModal()"
+                class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
+            >
+                Đóng
+            </button>
+        </div>
+    </div>
+</div>
+
     <div
       id="loading-spinner"
       class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50"
@@ -418,20 +455,16 @@
       ></div>
     </div>
     
-    <!-- ✅ VỊ TRÍ CHÈN Inventory List Page -->
     <div id="inventory-list-page" class="page hidden">
         <h2 class="text-3xl font-bold mb-6 text-gray-900">Vật Tư & Phụ Tùng Hiện Có</h2>
         <p class="text-gray-600 mb-6">Danh sách các phụ tùng có sẵn tại trung tâm dịch vụ.</p>
 
         <div id="inventory-list-container" class="space-y-4">
-            <!-- Dữ liệu vật tư sẽ được chèn vào đây bằng JavaScript -->
             <div class="text-center py-8 bg-white rounded-lg shadow-md" id="inventory-loading-message">
                 Đang tải danh sách vật tư...
             </div>
         </div>
     </div>
-    <!-- JS -->
-
     <script src="scripts.js"></script>
   </body>
 </html>

@@ -96,7 +96,7 @@ window.apiRequestCore = async function (
 // ===================== NAVIGATION LOGIC =====================
 
 /**
- * Chuyển đổi giữa các phần Users, Inventory và Bookings
+ * Chuyển đổi giữa các phần Users, Inventory, Bookings và Invoices
  */
 function navigateToDashboardSection(sectionId, title) {
   document.querySelectorAll(".dashboard-section").forEach((section) => {
@@ -120,6 +120,10 @@ function navigateToDashboardSection(sectionId, title) {
   // ✅ KÍCH HOẠT LOGIC BOOKING
   else if (sectionId === "bookings-section") {
     loadAllBookings();
+  }
+  // ✅ KÍCH HOẠT LOGIC INVOICE
+  else if (sectionId === "invoices-section") {
+    loadAllInvoices();
   }
 }
 window.navigateToDashboardSection = navigateToDashboardSection;
@@ -628,3 +632,305 @@ document.addEventListener("DOMContentLoaded", () => {
     adminLogout();
   }
 });
+
+// ========================================================
+// ✅ LOGIC INVOICE MANAGEMENT
+// ========================================================
+
+// Hàm Helper: Định dạng tiền tệ
+function formatCurrency(amount) {
+  return new Intl.NumberFormat("vi-VN").format(amount) + "₫";
+}
+
+// Hàm Helper: Định dạng trạng thái Hóa đơn
+function formatInvoiceStatus(status) {
+  switch (status) {
+    case "pending":
+      return { text: "Chờ thanh toán", class: "bg-yellow-100 text-yellow-800" };
+    case "issued":
+      return { text: "Đã xuất", class: "bg-blue-100 text-blue-800" };
+    case "paid":
+      return { text: "Đã thanh toán", class: "bg-green-100 text-green-800" };
+    case "canceled":
+      return { text: "Đã hủy", class: "bg-red-100 text-red-800" };
+    default:
+      return { text: status, class: "bg-gray-100 text-gray-800" };
+  }
+}
+
+// 1. Tải tất cả hóa đơn
+async function loadAllInvoices() {
+  const tbody = document.getElementById("invoices-table-body");
+  if (!tbody) return;
+  tbody.innerHTML =
+    '<tr><td colspan="6" class="text-center text-gray-500 py-4">Đang tải dữ liệu...</td></tr>';
+
+  try {
+    const invoices = await window.apiRequestCore(
+      window.ADMIN_TOKEN_KEY,
+      "/api/invoices/", // Endpoint GET ALL INVOICES
+      "GET"
+    );
+
+    if (!invoices || invoices.length === 0) {
+      tbody.innerHTML =
+        '<tr><td colspan="6" class="text-center text-gray-500 py-4">Không có hóa đơn nào.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = invoices
+      .map((invoice) => {
+        const statusInfo = formatInvoiceStatus(invoice.status);
+        const date = new Date(invoice.created_at).toLocaleDateString("vi-VN");
+
+        return `
+                    <tr id="invoice-row-${invoice.id}" class="hover:bg-gray-50">
+                        <td class="px-6 py-4 text-sm">${invoice.id}</td>
+                        <td class="px-6 py-4 text-sm">${invoice.booking_id}</td>
+                        <td class="px-6 py-4 text-sm">${invoice.user_id}</td>
+                        <td class="px-6 py-4 text-sm font-semibold text-red-600">${formatCurrency(
+                          invoice.total_amount
+                        )}</td>
+                        <td class="px-6 py-4 text-sm">
+                            <select 
+                                class="status-select border rounded p-1 text-xs ${
+                                  statusInfo.class
+                                }" 
+                                data-invoice-id="${invoice.id}" 
+                                onchange="updateInvoiceStatus(${
+                                  invoice.id
+                                }, this.value)">
+                                <option value="issued" ${
+                                  invoice.status === "issued" ? "selected" : ""
+                                }>Đã xuất</option>
+                                <option value="pending" ${
+                                  invoice.status === "pending" ? "selected" : ""
+                                }>Chờ thanh toán</option>
+                                <option value="paid" ${
+                                  invoice.status === "paid" ? "selected" : ""
+                                }>Đã thanh toán</option>
+                                <option value="canceled" ${
+                                  invoice.status === "canceled"
+                                    ? "selected"
+                                    : ""
+                                }>Đã hủy</option>
+                            </select>
+                        </td>
+                        <td class="px-6 py-4 text-center space-x-2">
+                            <button onclick="showAdminInvoiceDetails(${
+                              invoice.id
+                            })" class="text-indigo-600 hover:text-indigo-900">
+                                Xem Chi Tiết
+                            </button>
+                            </td>
+                    </tr>
+                `;
+      })
+      .join("");
+  } catch (err) {
+    console.error(err);
+    tbody.innerHTML =
+      '<tr><td colspan="6" class="text-center text-red-500 py-4">Lỗi khi tải dữ liệu Hóa Đơn.</td></tr>';
+  }
+}
+window.loadAllInvoices = loadAllInvoices;
+
+// 2. Cập nhật trạng thái hóa đơn
+async function updateInvoiceStatus(invoiceId, newStatus) {
+  if (
+    !confirm(
+      `Bạn có chắc muốn cập nhật trạng thái của Hóa Đơn ${invoiceId} thành ${newStatus.toUpperCase()}?`
+    )
+  ) {
+    loadAllInvoices(); // Tải lại để revert nếu người dùng hủy
+    return;
+  }
+
+  try {
+    await window.apiRequestCore(
+      window.ADMIN_TOKEN_KEY,
+      `/api/invoices/${invoiceId}/status`,
+      "PUT",
+      { status: newStatus }
+    );
+    window.showToast("Cập nhật trạng thái thành công!");
+    loadAllInvoices(); // Tải lại bảng để cập nhật màu sắc/hiển thị
+  } catch (error) {
+    // Toast đã được xử lý trong apiRequestCore
+    loadAllInvoices(); // Tải lại để reset trạng thái
+    console.error("Lỗi cập nhật trạng thái hóa đơn:", error);
+  }
+}
+window.updateInvoiceStatus = updateInvoiceStatus;
+
+// 3. Logic Tạo Hóa Đơn (Từ Booking)
+const createInvoiceModal = document.getElementById("create-invoice-modal");
+const partsInputContainer = document.getElementById("parts-input-container");
+
+function closeCreateInvoiceModal() {
+  if (createInvoiceModal) createInvoiceModal.classList.add("hidden");
+  document.getElementById("create-invoice-form")?.reset();
+  partsInputContainer.innerHTML = ""; // Clear parts inputs
+}
+window.closeCreateInvoiceModal = closeCreateInvoiceModal;
+
+function openCreateInvoiceModal() {
+  if (createInvoiceModal) createInvoiceModal.classList.remove("hidden");
+  // Thêm một input phụ tùng mặc định
+  if (partsInputContainer.children.length === 0) {
+    addPartInput();
+  }
+}
+window.openCreateInvoiceModal = openCreateInvoiceModal;
+
+function addPartInput() {
+  const count = partsInputContainer.children.length + 1;
+  const partHtml = `
+        <div class="flex space-x-2 part-input-group" data-id="${count}">
+            <input
+                type="number"
+                placeholder="Item ID"
+                class="w-1/4 px-3 py-2 border rounded-md shadow-sm"
+                name="item_id"
+                required
+                min="1"
+            />
+            <input
+                type="number"
+                placeholder="Số lượng"
+                class="w-1/4 px-3 py-2 border rounded-md shadow-sm"
+                name="quantity"
+                required
+                min="1"
+                value="1"
+            />
+            <span class="w-2/4 text-sm text-gray-500 flex items-center">
+                (Phụ tùng ${count})
+            </span>
+            <button type="button" onclick="removePartInput(${count})" class="text-red-500 hover:text-red-700">
+                &times;
+            </button>
+        </div>
+    `;
+  partsInputContainer.insertAdjacentHTML("beforeend", partHtml);
+}
+window.addPartInput = addPartInput;
+
+function removePartInput(id) {
+  const element = document.querySelector(`.part-input-group[data-id="${id}"]`);
+  if (element) element.remove();
+}
+
+document
+  .getElementById("create-invoice-form")
+  ?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const bookingId = parseInt(
+      document.getElementById("invoice-booking-id").value
+    );
+
+    // Lấy dữ liệu phụ tùng
+    const partsData = [];
+    const groups = document.querySelectorAll(
+      "#parts-input-container .part-input-group"
+    );
+
+    groups.forEach((group) => {
+      const itemId = parseInt(
+        group.querySelector('input[name="item_id"]')?.value
+      );
+      const quantity = parseInt(
+        group.querySelector('input[name="quantity"]')?.value
+      );
+
+      if (itemId && quantity && quantity > 0) {
+        partsData.push({
+          item_id: itemId,
+          quantity: quantity,
+        });
+      }
+    });
+
+    try {
+      const data = await window.apiRequestCore(
+        window.ADMIN_TOKEN_KEY,
+        "/api/invoices/",
+        "POST",
+        {
+          booking_id: bookingId,
+          parts_data: partsData,
+        }
+      );
+
+      window.showToast(data.message || "Tạo hóa đơn thành công!");
+      closeCreateInvoiceModal();
+      loadAllInvoices();
+    } catch (error) {
+      console.error("Lỗi khi tạo hóa đơn:", error);
+    }
+  });
+
+// 4. Logic Xem Chi Tiết Hóa Đơn (Admin)
+const adminInvoiceDetailModal = document.getElementById(
+  "admin-invoice-detail-modal"
+);
+
+function closeAdminInvoiceDetailModal() {
+  if (adminInvoiceDetailModal) adminInvoiceDetailModal.classList.add("hidden");
+}
+window.closeAdminInvoiceDetailModal = closeAdminInvoiceDetailModal; // Export ra window
+
+async function showAdminInvoiceDetails(invoiceId) {
+  try {
+    // API cho Admin cho phép lấy chi tiết (có items)
+    const detail = await window.apiRequestCore(
+      window.ADMIN_TOKEN_KEY,
+      `/api/invoices/${invoiceId}`,
+      "GET"
+    );
+
+    if (!detail) throw new Error("Không tìm thấy chi tiết hóa đơn.");
+
+    // 1. Cập nhật header/footer
+    const statusInfo = formatInvoiceStatus(detail.status);
+    const date = new Date(detail.created_at).toLocaleString("vi-VN");
+
+    document.getElementById("admin-invoice-detail-id").textContent = detail.id;
+    document.getElementById("admin-invoice-detail-date").textContent = date;
+    document.getElementById("admin-invoice-detail-status").textContent =
+      statusInfo.text;
+    document.getElementById(
+      "admin-invoice-detail-status"
+    ).className = `font-bold ${statusInfo.class} p-1 rounded`;
+    document.getElementById("admin-invoice-detail-total").textContent =
+      formatCurrency(detail.total_amount);
+
+    // 2. Cập nhật danh sách items
+    const tbody = document.getElementById("admin-invoice-items-table-body");
+    tbody.innerHTML = detail.items
+      .map(
+        (item) => `
+            <tr>
+                <td class="px-3 py-2 text-sm text-gray-900">${
+                  item.description
+                }</td>
+                <td class="px-3 py-2 text-sm text-right">${item.quantity}</td>
+                <td class="px-3 py-2 text-sm text-right">${formatCurrency(
+                  item.unit_price
+                )}</td>
+                <td class="px-3 py-2 text-sm text-right font-medium">${formatCurrency(
+                  item.sub_total
+                )}</td>
+            </tr>
+        `
+      )
+      .join("");
+
+    if (adminInvoiceDetailModal)
+      adminInvoiceDetailModal.classList.remove("hidden");
+  } catch (error) {
+    console.error("Lỗi khi tải chi tiết hóa đơn:", error);
+  }
+}
+window.showAdminInvoiceDetails = showAdminInvoiceDetails; // Export ra window

@@ -42,8 +42,12 @@ def create_app():
         db.create_all()
 
     # ===== ĐĂNG KÝ BLUEPRINTS (Controllers) =====
+    
     from controllers.booking_controller import booking_bp 
+    from controllers.internal_controller import internal_bp # <-- THÊM DÒNG NÀY
+    
     app.register_blueprint(booking_bp) 
+    app.register_blueprint(internal_bp) # <-- VÀ DÒNG NÀY 
 
     # ===== HEALTH CHECK =====
     @app.route("/health", methods=["GET"])

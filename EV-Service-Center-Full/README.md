@@ -33,6 +33,12 @@ docker-compose exec booking-service flask db init
 docker-compose exec booking-service flask db migrate -m "Initial booking service tables"
 docker-compose exec booking-service flask db upgrade
 
+<!-- finance-service -->
+
+docker-compose exec finance-service flask db init
+docker-compose exec finance-service flask db migrate -m "Initial finance service tables"
+docker-compose exec finance-service flask db upgrade
+
 <!-- tạo tài khoản admin(có hàm trong user-service/app.py) -->
 
 docker-compose exec user-service flask create-admin admin1 kyu764904@gmail.com 12345

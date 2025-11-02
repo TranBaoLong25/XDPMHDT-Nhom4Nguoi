@@ -37,6 +37,7 @@ function updateNav() {
   navAuthLinks.innerHTML = token
     ? `
         <a href="#" onclick="navigateTo('booking')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Đặt Lịch</a> 
+        <a href="#" onclick="navigateTo('invoice-history')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Hóa Đơn</a> 
         <a href="#" onclick="navigateTo('profile')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Hồ Sơ</a>
         <a href="#" onclick="logout()" class="ml-4 bg-red-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-red-600">Đăng Xuất</a>
         `
@@ -159,10 +160,13 @@ function navigateTo(pageId) {
   if (pageId === "profile") loadProfileDetails(); // ✅ Trigger tải Profile và Lịch sử
   if (pageId === "forget-password") resetForgetForm?.();
 
-  // Tải dữ liệu khi chuyển trang
+  // Tải dữ liệu tùy thuộc vào section
   if (pageId === "inventory-list") loadInventoryList();
   if (pageId === "booking") {
     loadMyBookings(); // Tải lịch hẹn cho trang đặt lịch
+  }
+  if (pageId === "invoice-history") {
+    loadInvoiceHistory(); // Tải lịch sử hóa đơn
   }
 
   // Gọi updateNav sau khi điều hướng
@@ -723,3 +727,162 @@ async function loadMyBookings() {
     console.error("Lỗi khi tải lịch hẹn:", error);
   }
 }
+
+// ========================================================
+// ✅ LOGIC CHỨC NĂNG (INVOICE - USER)
+// ========================================================
+
+// Helper: Định dạng trạng thái Hóa đơn
+function formatInvoiceStatus(status) {
+  switch (status) {
+    case "pending":
+      return { text: "Chờ thanh toán", class: "bg-yellow-100 text-yellow-800" };
+    case "issued":
+      return { text: "Đã xuất", class: "bg-blue-100 text-blue-800" };
+    case "paid":
+      return { text: "Đã thanh toán", class: "bg-green-100 text-green-800" };
+    case "canceled":
+      return { text: "Đã hủy", class: "bg-red-100 text-red-800" };
+    default:
+      return { text: status, class: "bg-gray-100 text-gray-800" };
+  }
+}
+
+// Helper: Định dạng tiền tệ
+function formatCurrency(amount) {
+  return new Intl.NumberFormat("vi-VN").format(amount) + "₫";
+}
+
+// --- TẢI DANH SÁCH HÓA ĐƠN ---
+
+async function loadInvoiceHistory() {
+  const container = document.getElementById("invoice-list-container");
+  if (!container) return;
+
+  container.innerHTML =
+    '<div class="bg-white p-6 rounded-lg shadow-md text-center text-gray-500">Đang tải lịch sử hóa đơn...</div>';
+
+  try {
+    const invoices = await apiRequestCore(
+      TOKEN_KEY,
+      "/api/invoices/my", // Endpoint GET MY INVOICES
+      "GET"
+    );
+
+    if (!invoices || invoices.length === 0) {
+      container.innerHTML =
+        '<div class="bg-white p-6 rounded-lg shadow-md text-center text-gray-500">Bạn chưa có hóa đơn nào.</div>';
+      return;
+    }
+
+    container.innerHTML = invoices.map(renderInvoiceCard).join("");
+  } catch (error) {
+    container.innerHTML = `
+            <div class="text-center py-8 bg-red-100 text-red-700 rounded-lg border border-red-300">
+                <p>Lỗi khi tải lịch sử hóa đơn. Vui lòng thử lại sau.</p>
+            </div>
+        `;
+    console.error("Failed to load invoice history:", error);
+  }
+}
+
+function renderInvoiceCard(invoice) {
+  const statusInfo = formatInvoiceStatus(invoice.status);
+  const date = new Date(invoice.created_at).toLocaleDateString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+
+  return `
+        <div class="bg-white p-5 rounded-lg shadow-md border-l-4 border-indigo-500 flex justify-between items-center hover:shadow-lg transition duration-200">
+            <div>
+                <h3 class="text-xl font-bold text-gray-800">Hóa Đơn #${
+                  invoice.id
+                }</h3>
+                <p class="text-sm text-gray-500 mt-1">Lịch hẹn ID: ${
+                  invoice.booking_id
+                } | Ngày tạo: ${date}</p>
+                <p class="text-2xl font-bold ${
+                  invoice.status === "paid" ? "text-green-600" : "text-red-600"
+                } mt-2">
+                    ${formatCurrency(invoice.total_amount)}
+                </p>
+            </div>
+            <div class="text-right space-y-2">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                  statusInfo.class
+                }">
+                    ${statusInfo.text}
+                </span>
+                <button 
+                    onclick="showInvoiceDetails(${invoice.id})" 
+                    class="block w-full bg-indigo-500 text-white text-sm font-medium py-2 px-4 rounded-lg hover:bg-indigo-600 transition"
+                >
+                    Xem Chi Tiết
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+// --- LOGIC MODAL CHI TIẾT ---
+
+const invoiceDetailModal = document.getElementById("invoice-detail-modal");
+
+function closeInvoiceDetailModal() {
+  if (invoiceDetailModal) invoiceDetailModal.classList.add("hidden");
+}
+window.closeInvoiceDetailModal = closeInvoiceDetailModal; // Export ra window
+
+async function showInvoiceDetails(invoiceId) {
+  try {
+    const detail = await apiRequestCore(
+      TOKEN_KEY,
+      `/api/invoices/${invoiceId}`,
+      "GET"
+    );
+
+    if (!detail) throw new Error("Không tìm thấy chi tiết hóa đơn.");
+
+    // 1. Cập nhật header/footer
+    const statusInfo = formatInvoiceStatus(detail.status);
+    const date = new Date(detail.created_at).toLocaleString("vi-VN");
+
+    document.getElementById("invoice-detail-id").textContent = detail.id;
+    document.getElementById("invoice-detail-date").textContent = date;
+    document.getElementById("invoice-detail-status").textContent =
+      statusInfo.text;
+    document.getElementById(
+      "invoice-detail-status"
+    ).className = `font-bold ${statusInfo.class} p-1 rounded`;
+    document.getElementById("invoice-detail-total").textContent =
+      formatCurrency(detail.total_amount);
+
+    // 2. Cập nhật danh sách items
+    const tbody = document.getElementById("invoice-items-table-body");
+    tbody.innerHTML = detail.items
+      .map(
+        (item) => `
+            <tr>
+                <td class="px-3 py-2 text-sm text-gray-900">${
+                  item.description
+                }</td>
+                <td class="px-3 py-2 text-sm text-right">${item.quantity}</td>
+                <td class="px-3 py-2 text-sm text-right">${formatCurrency(
+                  item.unit_price
+                )}</td>
+                <td class="px-3 py-2 text-sm text-right font-medium">${formatCurrency(
+                  item.sub_total
+                )}</td>
+            </tr>
+        `
+      )
+      .join("");
+
+    if (invoiceDetailModal) invoiceDetailModal.classList.remove("hidden");
+  } catch (error) {
+    console.error("Lỗi khi tải chi tiết hóa đơn:", error);
+  }
+}
+window.showInvoiceDetails = showInvoiceDetails; // Export ra window
