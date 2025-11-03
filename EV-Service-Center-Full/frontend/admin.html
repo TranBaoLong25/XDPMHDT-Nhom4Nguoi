@@ -126,6 +126,12 @@
               Bảo Trì
             </button>
             <button
+              onclick="navigateToDashboardSection('payment-history-section', 'Lịch Sử Thanh Toán')"
+              class="text-gray-600 hover:text-indigo-600 font-medium"
+            >
+              Thanh Toán
+            </button>
+            <button
               onclick="adminLogout()"
               class="bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600"
             >
@@ -263,6 +269,137 @@
           </div>
         </div>
 
+        <div id="bookings-section" class="dashboard-section hidden">
+          <h2 class="text-xl font-semibold mb-4">Danh sách Lịch Hẹn</h2>
+          <div class="flex justify-end mb-4">
+            <button
+              onclick="loadAllBookings()"
+              class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 shadow"
+            >
+              Tải lại Danh sách Lịch Hẹn
+            </button>
+          </div>
+          <div class="bg-white shadow rounded-lg overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    ID
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Khách hàng (ID)
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Thời gian
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Dịch vụ
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    KTV/Trạm
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Trạng thái
+                  </th>
+                  <th
+                    class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody
+                id="bookings-table-body"
+                class="bg-white divide-y divide-gray-200"
+              >
+                <tr>
+                  <td colspan="7" class="text-center py-4 text-gray-500">
+                    Đang tải dữ liệu...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="invoices-section" class="dashboard-section hidden">
+          <h2 class="text-xl font-semibold mb-4">Danh sách Hóa Đơn</h2>
+          <div class="flex justify-between items-center mb-4">
+            <button
+              onclick="loadAllInvoices()"
+              class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 shadow"
+            >
+              Tải lại Danh sách Hóa Đơn
+            </button>
+            <button
+              onclick="openCreateInvoiceModal()"
+              class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 shadow"
+            >
+              + Tạo Hóa Đơn Mới (Từ Booking)
+            </button>
+          </div>
+          <div class="bg-white shadow rounded-lg overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    ID
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Booking ID
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Khách hàng (ID)
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Tổng tiền
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Trạng thái
+                  </th>
+                  <th
+                    class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody
+                id="invoices-table-body"
+                class="bg-white divide-y divide-gray-200"
+              >
+                <tr>
+                  <td colspan="6" class="text-center py-4 text-gray-500">
+                    Đang tải dữ liệu...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <div id="maintenance-section" class="dashboard-section hidden">
           <h2 class="text-xl font-semibold mb-4">
             Danh sách Công Việc Bảo Trì
@@ -335,150 +472,85 @@
             </table>
           </div>
         </div>
+
+        <div id="payment-history-section" class="dashboard-section hidden">
+          <h2 class="text-xl font-semibold mb-4">
+            Lịch Sử Giao Dịch Thanh Toán
+          </h2>
+          <div class="flex justify-end items-center mb-4">
+            <button
+              onclick="loadAllPaymentHistory()"
+              class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 shadow"
+            >
+              Tải lại Lịch sử Giao dịch
+            </button>
+          </div>
+          <div class="bg-white shadow rounded-lg overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    ID GD
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    HD ID
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    User ID
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Số Tiền
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Method
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    PG ID
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Trạng thái
+                  </th>
+                </tr>
+              </thead>
+              <tbody
+                id="payment-history-table-body"
+                class="bg-white divide-y divide-gray-200"
+              >
+                <tr>
+                  <td colspan="7" class="text-center py-4 text-gray-500">
+                    Đang tải dữ liệu...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </main>
     </div>
 
-    <div id="bookings-section" class="dashboard-section hidden">
-      <!-- ... (Giữ nguyên phần bookings-section) ... -->
-      <h2 class="text-xl font-semibold mb-4">Danh sách Lịch Hẹn</h2>
-      <div class="flex justify-end mb-4">
-        <button
-          onclick="loadAllBookings()"
-          class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 shadow"
-        >
-          Tải lại Danh sách Lịch Hẹn
-        </button>
-      </div>
-      <div class="bg-white shadow rounded-lg overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
-            <tr>
-              <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                ID
-              </th>
-              <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Khách hàng (ID)
-              </th>
-              <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Thời gian
-              </th>
-              <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Dịch vụ
-              </th>
-              <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                KTV/Trạm
-              </th>
-              <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Trạng thái
-              </th>
-              <th
-                class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody
-            id="bookings-table-body"
-            class="bg-white divide-y divide-gray-200"
-          >
-            <tr>
-              <td colspan="7" class="text-center py-4 text-gray-500">
-                Đang tải dữ liệu...
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-    <div id="invoices-section" class="dashboard-section hidden">
-      <!-- ... (Giữ nguyên phần invoices-section) ... -->
-      <h2 class="text-xl font-semibold mb-4">Danh sách Hóa Đơn</h2>
-      <div class="flex justify-between items-center mb-4">
-        <button
-          onclick="loadAllInvoices()"
-          class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 shadow"
-        >
-          Tải lại Danh sách Hóa Đơn
-        </button>
-        <button
-          onclick="openCreateInvoiceModal()"
-          class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 shadow"
-        >
-          + Tạo Hóa Đơn Mới (Từ Booking)
-        </button>
-      </div>
-      <div class="bg-white shadow rounded-lg overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
-            <tr>
-              <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                ID
-              </th>
-              <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Booking ID
-              </th>
-              <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Khách hàng (ID)
-              </th>
-              <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Tổng tiền
-              </th>
-              <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Trạng thái
-              </th>
-              <th
-                class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody
-            id="invoices-table-body"
-            class="bg-white divide-y divide-gray-200"
-          >
-            <tr>
-              <td colspan="6" class="text-center py-4 text-gray-500">
-                Đang tải dữ liệu...
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
     <div
       id="loading-spinner"
-      class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50"
+      class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 hidden"
     >
       <div
         class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-white"
       ></div>
     </div>
 
-    <!-- MODAL TẠO CÔNG VIỆC BẢO TRÌ MỚI -->
     <div
       id="create-task-modal"
       class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center hidden z-40"

@@ -29,12 +29,37 @@ function showToast(message, isError = false) {
 }
 window.showToast = showToast;
 
+// Helper: Định dạng tiền tệ
+function formatCurrency(amount) {
+  return new Intl.NumberFormat("vi-VN").format(amount) + "₫";
+}
+
+// Helper: Định dạng trạng thái Hóa đơn
+function formatInvoiceStatus(status) {
+  switch (status) {
+    case "pending":
+      return { text: "Chờ thanh toán", class: "bg-yellow-100 text-yellow-800" };
+    case "issued":
+      return { text: "Đã xuất", class: "bg-blue-100 text-blue-800" };
+    case "paid":
+      return { text: "Đã thanh toán", class: "bg-green-100 text-green-800" };
+    case "canceled":
+      return { text: "Đã hủy", class: "bg-red-100 text-red-800" };
+    case "success":
+      return { text: "Thành công", class: "bg-green-100 text-green-800" };
+    case "failed":
+      return { text: "Thất bại", class: "bg-red-100 text-red-800" };
+    default:
+      return { text: status, class: "bg-gray-100 text-gray-800" };
+  }
+}
+
 // --- AUTH & NAVIGATION HELPERS (Hoisted/Đưa ra ngoài phạm vi) ---
 function updateNav() {
   const token = localStorage.getItem(TOKEN_KEY);
   if (!navAuthLinks) return;
 
-  // ✅ BỔ SUNG NÚT 'CÔNG VIỆC' CHO NGƯỜI DÙNG ĐÃ ĐĂNG NHẬP
+  // ✅ BỔ SUNG NÚT 'CÔNG VIỆC' VÀ 'HÓA ĐƠN' CHO NGƯỜI DÙNG ĐÃ ĐĂNG NHẬP
   navAuthLinks.innerHTML = token
     ? `
         <a href="#" onclick="navigateTo('booking')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Đặt Lịch</a> 
@@ -168,7 +193,8 @@ function navigateTo(pageId) {
     loadMyBookings(); // Tải lịch hẹn cho trang đặt lịch
   }
   if (pageId === "invoice-history") {
-    loadInvoiceHistory(); // Tải lịch sử hóa đơn
+    // Khi vào trang hóa đơn, mặc định hiển thị tab Hóa đơn
+    showHistory("invoices", document.getElementById("tab-invoices"));
   }
   // ✅ TẢI CÔNG VIỆC BẢO TRÌ
   if (pageId === "my-tasks") {
@@ -556,7 +582,7 @@ function renderItemCard(item) {
         <div class="mt-4 flex justify-between items-center">
             <div>
                 <p class="text-lg font-bold text-green-600">
-                    ${new Intl.NumberFormat("vi-VN").format(item.price)}₫
+                    ${formatCurrency(item.price)}
                 </p>
                 <p class="text-xs text-gray-400">Giá tham khảo</p>
             </div>
@@ -822,7 +848,7 @@ function renderTaskCard(task) {
                 <p class="text-xs text-gray-400 mt-2">Ngày khởi tạo: ${date}</p>
             </div>
             <div class="text-right space-y-2">
-                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
                   statusInfo.class
                 }">
                     Trạng thái: ${statusInfo.text}
@@ -844,31 +870,53 @@ function renderTaskCard(task) {
 // ========================================================
 // ✅ LOGIC CHỨC NĂNG (INVOICE - USER)
 // ========================================================
-// ... (Giữ nguyên logic Invoice)
-// Helper: Định dạng trạng thái Hóa đơn
-function formatInvoiceStatus(status) {
-  switch (status) {
-    case "pending":
-      return { text: "Chờ thanh toán", class: "bg-yellow-100 text-yellow-800" };
-    case "issued":
-      return { text: "Đã xuất", class: "bg-blue-100 text-blue-800" };
-    case "paid":
-      return { text: "Đã thanh toán", class: "bg-green-100 text-green-800" };
-    case "canceled":
-      return { text: "Đã hủy", class: "bg-red-100 text-red-800" };
-    default:
-      return { text: status, class: "bg-gray-100 text-gray-800" };
+
+// --- Tab Navigation Logic (MỚI) ---
+function showHistory(type, element) {
+  // Cập nhật style của tabs
+  document
+    .querySelectorAll('#invoice-history-page a[id^="tab-"]')
+    .forEach((tab) => {
+      tab.classList.remove(
+        "bg-white",
+        "text-indigo-600",
+        "border-l",
+        "border-t",
+        "border-r"
+      );
+      tab.classList.add("bg-gray-100", "text-gray-500", "hover:text-gray-700");
+    });
+
+  element.classList.add(
+    "bg-white",
+    "text-indigo-600",
+    "border-l",
+    "border-t",
+    "border-r"
+  );
+  element.classList.remove(
+    "bg-gray-100",
+    "text-gray-500",
+    "hover:text-gray-700"
+  );
+
+  // Ẩn/Hiện nội dung
+  document.querySelectorAll(".history-content").forEach((content) => {
+    content.classList.add("hidden");
+  });
+  document.getElementById(`history-content-${type}`).classList.remove("hidden");
+
+  // Tải dữ liệu tương ứng
+  if (type === "invoices") {
+    loadMyInvoicesList();
+  } else if (type === "payments") {
+    loadMyPaymentHistoryList();
   }
 }
+window.showHistory = showHistory;
 
-// Helper: Định dạng tiền tệ
-function formatCurrency(amount) {
-  return new Intl.NumberFormat("vi-VN").format(amount) + "₫";
-}
-
-// --- TẢI DANH SÁCH HÓA ĐƠN ---
-
-async function loadInvoiceHistory() {
+// --- TẢI DANH SÁCH HÓA ĐƠN (Invoice List) ---
+async function loadMyInvoicesList() {
   const container = document.getElementById("invoice-list-container");
   if (!container) return;
 
@@ -891,14 +939,48 @@ async function loadInvoiceHistory() {
     container.innerHTML = invoices.map(renderInvoiceCard).join("");
   } catch (error) {
     container.innerHTML = `
-            <div class="text-center py-8 bg-red-100 text-red-700 rounded-lg border border-red-300">
-                <p>Lỗi khi tải lịch sử hóa đơn. Vui lòng thử lại sau.</p>
-            </div>
-        `;
+              <div class="text-center py-8 bg-red-100 text-red-700 rounded-lg border border-red-300">
+                  <p>Lỗi khi tải lịch sử hóa đơn. Vui lòng thử lại sau.</p>
+              </div>
+          `;
     console.error("Failed to load invoice history:", error);
   }
 }
 
+// --- TẢI DANH SÁCH GIAO DỊCH (Payment History List) ---
+async function loadMyPaymentHistoryList() {
+  const container = document.getElementById("payment-history-list-container");
+  if (!container) return;
+
+  container.innerHTML =
+    '<div class="bg-white p-6 rounded-lg shadow-md text-center text-gray-500">Đang tải lịch sử giao dịch...</div>';
+
+  try {
+    const history = await apiRequestCore(
+      TOKEN_KEY,
+      "/api/payments/history/my", // Endpoint GET MY HISTORY
+      "GET"
+    );
+
+    if (!history || history.length === 0) {
+      container.innerHTML =
+        '<div class="bg-white p-6 rounded-lg shadow-md text-center text-gray-500">Bạn chưa có giao dịch thanh toán nào.</div>';
+      return;
+    }
+
+    // Sử dụng lại hàm renderPaymentCard đã định nghĩa
+    container.innerHTML = history.map(renderPaymentCard).join("");
+  } catch (error) {
+    container.innerHTML = `
+              <div class="text-center py-8 bg-red-100 text-red-700 rounded-lg border border-red-300">
+                  <p>Lỗi khi tải lịch sử giao dịch. Vui lòng thử lại sau.</p>
+              </div>
+          `;
+    console.error("Failed to load payment history:", error);
+  }
+}
+
+// --- Render Invoice Card (ĐÃ SỬA NÚT THANH TOÁN) ---
 function renderInvoiceCard(invoice) {
   const statusInfo = formatInvoiceStatus(invoice.status);
   const date = new Date(invoice.created_at).toLocaleDateString("vi-VN", {
@@ -906,6 +988,16 @@ function renderInvoiceCard(invoice) {
     month: "2-digit",
     year: "numeric",
   });
+
+  const isPaid = invoice.status === "paid";
+  const payButton = isPaid
+    ? '<span class="block w-full text-sm text-center text-green-600 font-bold py-2">ĐÃ THANH TOÁN</span>'
+    : `<button 
+          onclick="showPaymentModal(${invoice.id}, ${invoice.total_amount}, '${invoice.status}')" 
+          class="block w-full bg-green-500 text-white text-sm font-medium py-2 px-4 rounded-lg hover:bg-green-600 transition"
+        >
+          Thanh Toán Ngay
+        </button>`;
 
   return `
         <div class="bg-white p-5 rounded-lg shadow-md border-l-4 border-indigo-500 flex justify-between items-center hover:shadow-lg transition duration-200">
@@ -917,7 +1009,7 @@ function renderInvoiceCard(invoice) {
                   invoice.booking_id
                 } | Ngày tạo: ${date}</p>
                 <p class="text-2xl font-bold ${
-                  invoice.status === "paid" ? "text-green-600" : "text-red-600"
+                  isPaid ? "text-green-600" : "text-red-600"
                 } mt-2">
                     ${formatCurrency(invoice.total_amount)}
                 </p>
@@ -934,9 +1026,49 @@ function renderInvoiceCard(invoice) {
                 >
                     Xem Chi Tiết
                 </button>
+                ${payButton}
             </div>
         </div>
     `;
+}
+
+// --- Render Payment Card ---
+function renderPaymentCard(transaction) {
+  const statusInfo = formatInvoiceStatus(transaction.status);
+  const date = new Date(transaction.created_at).toLocaleString("vi-VN", {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+
+  return `
+          <div class="bg-white p-5 rounded-lg shadow-md border-l-4 border-indigo-500 flex justify-between items-center hover:shadow-lg transition duration-200">
+              <div>
+                  <h3 class="text-xl font-bold text-gray-800">Giao dịch #${
+                    transaction.id
+                  }</h3>
+                  <p class="text-sm text-gray-500 mt-1">Hóa đơn ID: ${
+                    transaction.invoice_id
+                  } | Ngày: ${date}</p>
+                  <p class="text-sm text-gray-500 mt-1">Phương thức: ${transaction.method.toUpperCase()} | PG ID: ${
+    transaction.pg_transaction_id
+  }</p>
+                  <p class="text-2xl font-bold ${
+                    transaction.status === "success"
+                      ? "text-green-600"
+                      : "text-red-600"
+                  } mt-2">
+                      ${formatCurrency(transaction.amount)}
+                  </p>
+              </div>
+              <div class="text-right space-y-2">
+                  <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                    statusInfo.class
+                  }">
+                      ${statusInfo.text}
+                  </span>
+              </div>
+          </div>
+      `;
 }
 
 // --- LOGIC MODAL CHI TIẾT ---
@@ -999,3 +1131,142 @@ async function showInvoiceDetails(invoiceId) {
   }
 }
 window.showInvoiceDetails = showInvoiceDetails; // Export ra window
+
+// --- PAYMENT HANDLERS ---
+window.currentTransaction = null;
+
+function showPaymentModal(invoiceId, amount, status) {
+  if (status === "paid") {
+    showToast("Hóa đơn này đã được thanh toán.", true);
+    return;
+  }
+
+  // Reset và hiển thị modal
+  document.getElementById("payment-modal").classList.remove("hidden");
+  document
+    .getElementById("payment-method-selection")
+    .classList.remove("hidden");
+  document.getElementById("payment-details-container").classList.add("hidden");
+  document.getElementById("qr-code-display").classList.add("hidden");
+  document.getElementById("bank-info-display").classList.add("hidden");
+
+  // Cập nhật thông tin hóa đơn
+  document.getElementById("payment-invoice-id").textContent = invoiceId;
+  document.getElementById("payment-amount").textContent =
+    formatCurrency(amount);
+
+  // Gán tạm invoiceId cho modal
+  document.getElementById("payment-modal").dataset.invoiceId = invoiceId;
+}
+window.showPaymentModal = showPaymentModal;
+
+function closePaymentModal() {
+  document.getElementById("payment-modal").classList.add("hidden");
+  window.currentTransaction = null;
+  showHistory("invoices", document.getElementById("tab-invoices")); // Quay lại tab Hóa đơn và tải lại
+}
+window.closePaymentModal = closePaymentModal;
+
+async function processPayment(method) {
+  const invoiceId = document.getElementById("payment-modal").dataset.invoiceId;
+
+  try {
+    // 1. Gọi Finance Service để tạo giao dịch
+    // LƯU Ý: Phải truyền amount đi cùng request để tránh deadlock
+    const amount = parseFloat(
+      document
+        .getElementById("payment-amount")
+        .textContent.replace(/[^0-9,.]/g, "")
+        .replace(",", ".")
+    );
+
+    const response = await apiRequestCore(
+      TOKEN_KEY,
+      `/api/invoices/${invoiceId}/pay`,
+      "POST",
+      { method, amount } // ✅ ĐÃ SỬA: Truyền cả amount và method
+    );
+
+    showToast(response.message || "Đang chờ thanh toán...");
+    window.currentTransaction = response.transaction;
+
+    // Lỗi: payment_data là chuỗi JSON, cần parse
+    const rawDetails = response.transaction.payment_data;
+    const details = JSON.parse(rawDetails);
+
+    // 2. Cập nhật UI
+    document.getElementById("payment-method-selection").classList.add("hidden");
+    document
+      .getElementById("payment-details-container")
+      .classList.remove("hidden");
+    document.getElementById("payment-detail-title").textContent =
+      method === "momo_qr"
+        ? "Quét Mã QR Momo"
+        : "Thông Tin Chuyển Khoản Ngân Hàng";
+
+    // ✅ Dòng 1222: Hiển thị Mã Giao Dịch thống nhất
+    const testCodeToDisplay =
+      details.test_code || response.transaction.pg_transaction_id;
+    document.getElementById("test-code-display").textContent =
+      testCodeToDisplay;
+
+    if (method === "momo_qr") {
+      document.getElementById("bank-info-display").classList.add("hidden");
+      document.getElementById("qr-code-display").classList.remove("hidden");
+
+      // ✅ Dòng 1228: Gán URL từ backend (chứa ảnh cá nhân của bạn)
+      document.getElementById("qr-image").src =
+        details.qr_code_url ||
+        "https://via.placeholder.com/150?text=QR+Code+Error";
+
+      document.getElementById("payment-note-qr").textContent =
+        details.payment_text;
+    } else if (method === "bank_transfer") {
+      document.getElementById("qr-code-display").classList.add("hidden");
+      document.getElementById("bank-info-display").classList.remove("hidden");
+      document.getElementById("bank-name").textContent = details.bank_name;
+      document.getElementById("account-name").textContent =
+        details.account_name;
+      document.getElementById("account-number").textContent =
+        details.account_number;
+      document.getElementById("amount-bank").textContent = formatCurrency(
+        details.amount
+      );
+      document.getElementById("payment-note-bank").textContent = details.note;
+    }
+  } catch (error) {
+    console.error("Lỗi khi tạo giao dịch thanh toán:", error);
+  }
+}
+window.processPayment = processPayment;
+
+async function simulatePaymentSuccess() {
+  if (!window.currentTransaction) {
+    showToast("Lỗi mô phỏng: Không có giao dịch đang chờ.", true);
+    return;
+  }
+
+  // FIX: Lấy PG ID từ object đã parse
+  const pgTransactionId = window.currentTransaction.pg_transaction_id;
+
+  if (
+    !confirm(
+      "Bạn có chắc chắn muốn mô phỏng giao dịch thành công? Hành động này sẽ cập nhật hóa đơn thành 'paid'."
+    )
+  )
+    return;
+
+  try {
+    // Gọi Mock Webhook API (Endpoint public của Payment Service)
+    await apiRequestCore(null, "/api/payments/webhook", "POST", {
+      pg_transaction_id: pgTransactionId,
+      status: "success",
+    });
+
+    showToast("✅ Mô phỏng thanh toán thành công! Hóa đơn đã được cập nhật.");
+    closePaymentModal();
+  } catch (error) {
+    console.error("Lỗi mô phỏng webhook:", error);
+  }
+}
+window.simulatePaymentSuccess = simulatePaymentSuccess;

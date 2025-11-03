@@ -121,3 +121,27 @@ def update_invoice_status_route(invoice_id):
         "message": f"Cập nhật trạng thái hóa đơn thành '{new_status}' thành công.", 
         "invoice": serialize_invoice(invoice)
     }), 200
+# 6. USER: INITIATE INVOICE PAYMENT (POST /api/invoices/<id>/pay) <--- THÊM KHỐI NÀY
+@invoice_bp.route("/<int:invoice_id>/pay", methods=["POST"])
+@jwt_required()
+def initiate_invoice_payment_route(invoice_id):
+    data = request.json
+    payment_method = data.get("method")
+    
+    if not payment_method:
+        return jsonify({"error": "Thiếu phương thức thanh toán (method)."}), 400
+
+    current_user_id = get_jwt_identity()
+    
+    # 1. Gọi Finance Service logic (sẽ gọi tiếp Payment Service)
+    transaction_data, error = service.initiate_payment(invoice_id, payment_method, int(current_user_id))
+    
+    if error:
+        return jsonify({"error": error}), 400
+
+    # 2. Trả về thông tin giao dịch để Frontend hiển thị QR/Bank details
+    return jsonify({
+        "message": "Giao dịch đã được tạo. Vui lòng hoàn tất thanh toán.", 
+        "transaction": transaction_data
+    }), 200
+

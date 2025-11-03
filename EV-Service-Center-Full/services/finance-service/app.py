@@ -41,7 +41,6 @@ def create_app():
     CORS(app)
     
     # ⚠️ THÊM CHECK MÔI TRƯỜNG: Chỉ chạy logic chờ DB khi đang chạy Gunicorn (Production)
-    # Lệnh CLI như 'flask db init' sẽ bỏ qua bước này.
     is_running_gunicorn = os.environ.get('GUNICORN_ENV') == 'true'
     
     # Chỉ ngủ 2s khi chạy Gunicorn để DNS ổn định
@@ -58,25 +57,37 @@ def create_app():
 
 
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
-    app.config["INTERNAL_SERVICE_TOKEN"] = os.getenv("INTERNAL_SERVICE_TOKEN")
+    
+    # FIX: Làm sạch JWT_SECRET_KEY
+    jwt_secret = os.getenv("JWT_SECRET_KEY")
+    if jwt_secret:
+        app.config["JWT_SECRET_KEY"] = jwt_secret.strip()
+
+    # FIX: Làm sạch INTERNAL_SERVICE_TOKEN
+    internal_token = os.getenv("INTERNAL_SERVICE_TOKEN")
+    if internal_token:
+        app.config["INTERNAL_SERVICE_TOKEN"] = internal_token.strip() # <--- DÒNG SỬA
+        
     app.config["BOOKING_SERVICE_URL"] = os.getenv("BOOKING_SERVICE_URL")
     app.config["INVENTORY_SERVICE_URL"] = os.getenv("INVENTORY_SERVICE_URL")
+    app.config["PAYMENT_SERVICE_URL"] = os.getenv("PAYMENT_SERVICE_URL")
     
     # ===== KHỞI TẠO EXTENSIONS =====
     db.init_app(app)
-    # ... (Các phần khác giữ nguyên) ...
-
     jwt.init_app(app)
     migrate.init_app(app, db, directory='migrations', version_table='alembic_version_finance')
 
     # ===== IMPORT MODELS & TẠO TABLES =====
     with app.app_context():
         from models.finance_model import Invoice, InvoiceItem 
+        db.create_all()
 
     # ===== ĐĂNG KÝ BLUEPRINTS (Controllers) =====
     from controllers.finance_controller import invoice_bp
+    from controllers.internal_controller import internal_bp
+    
     app.register_blueprint(invoice_bp) 
+    app.register_blueprint(internal_bp)
 
     # ===== HEALTH CHECK =====
     @app.route("/health", methods=["GET"])

@@ -45,6 +45,12 @@ docker-compose exec maintenance-service flask db init
 docker-compose exec maintenance-service flask db migrate -m "Initial maintenance service tables"
 docker-compose exec maintenance-service flask db upgrade
 
+<!-- Payment-service -->
+
+docker-compose exec payment-service flask db init
+docker-compose exec payment-service flask db migrate -m "Initial payment service tables"
+docker-compose exec payment-service flask db upgrade
+
 <!-- tạo tài khoản admin(có hàm trong user-service/app.py) -->
 
 docker-compose exec user-service flask create-admin admin1 kyu764904@gmail.com 12345

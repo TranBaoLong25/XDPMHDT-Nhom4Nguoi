@@ -1,9 +1,9 @@
-# File: services/finance-service/services/finance_service.py
 import os
 import requests
 from flask import current_app
 from app import db
 from models.finance_model import Invoice, InvoiceItem 
+from sqlalchemy import desc # Cần import cho các hàm history (bị thiếu)
 
 class FinanceService:
     """Service xử lý logic nghiệp vụ Tài chính và Hóa đơn"""
@@ -36,30 +36,68 @@ class FinanceService:
                 return None, error_msg
         except requests.exceptions.RequestException as e:
             return None, f"Lỗi kết nối Service: {str(e)}"
+    
+    @staticmethod
+    def _call_payment_service(endpoint, method="POST", json_data=None):
+        """Hàm nội bộ gọi Payment Service"""
+        payment_url = current_app.config.get("PAYMENT_SERVICE_URL")
+        # Sử dụng _call_internal_api để tự động thêm X-Internal-Token
+        return FinanceService._call_internal_api(payment_url, endpoint, method, json_data)
 
     @staticmethod
     def _get_booking_details(booking_id):
         """Lấy chi tiết Booking từ Booking Service"""
         booking_url = current_app.config.get("BOOKING_SERVICE_URL")
-        # Endpoint NỘI BỘ mới (đã được bảo vệ bằng X-Internal-Token)
         return FinanceService._call_internal_api(booking_url, f"/internal/bookings/items/{booking_id}")
     
     @staticmethod
     def _get_inventory_item(item_id):
         """Lấy chi tiết Vật tư từ Inventory Service"""
         inventory_url = current_app.config.get("INVENTORY_SERVICE_URL")
-        # Endpoint GET BY ID (đã được bảo vệ bằng Internal Token)
         return FinanceService._call_internal_api(inventory_url, f"/api/inventory/items/{item_id}")
 
     @staticmethod
     def _update_inventory_quantity(item_id, new_quantity):
-        """Cập nhật tồn kho bằng cách gọi PUT Inventory Service (đã được bảo vệ Admin)"""
+        """Cập nhật tồn kho bằng cách gọi PUT Inventory Service (dùng Internal Token)"""
         inventory_url = current_app.config.get("INVENTORY_SERVICE_URL")
         endpoint = f"/api/inventory/items/{item_id}"
-        
-        # Dùng phương thức PUT để cập nhật
         return FinanceService._call_internal_api(inventory_url, endpoint, "PUT", {"quantity": new_quantity})
 
+    @staticmethod
+    def initiate_payment(invoice_id, method, user_id):
+        """Bắt đầu thanh toán, gọi Payment Service để tạo giao dịch"""
+        
+        invoice_data, error = FinanceService.get_invoice_with_items(invoice_id)
+        if error:
+            return None, "Không tìm thấy Hóa đơn."
+            
+        if invoice_data.get('status') == 'paid':
+             return None, "Hóa đơn này đã được thanh toán."
+
+        # ✅ SỬA: Lấy số tiền từ invoice_data
+        amount = invoice_data.get('total_amount')
+
+        # 1. Gọi Payment Service để tạo giao dịch
+        data = {
+            "invoice_id": invoice_id,
+            "method": method,
+            "user_id": user_id,
+            "amount": amount # ✅ ĐÃ THÊM: Truyền số tiền đi để phá vỡ deadlock
+        }
+
+        # 2. Gọi Payment Service API
+        payment_transaction, error = FinanceService._call_payment_service(
+            "/api/payments/create", 
+            "POST", 
+            data
+        )
+
+        if error:
+            # Đảm bảo trả về chuỗi thông báo lỗi
+            return None, error.get('error') if isinstance(error, dict) else error 
+
+        # Trả về thông tin giao dịch, bao gồm dữ liệu thanh toán (QR/Bank)
+        return payment_transaction, None
 
     @staticmethod
     def create_invoice_from_booking(booking_id, parts_data):
@@ -161,7 +199,6 @@ class FinanceService:
     
     @staticmethod
     def get_invoice_with_items(invoice_id):
-        # ... (giữ nguyên logic) ...
         invoice = Invoice.query.get(invoice_id)
         if not invoice:
             return None, "Không tìm thấy Hóa đơn."
@@ -174,12 +211,10 @@ class FinanceService:
 
     @staticmethod
     def get_all_invoices():
-        # ... (giữ nguyên logic) ...
         return Invoice.query.order_by(Invoice.created_at.desc()).all()
     
     @staticmethod
     def get_invoices_by_user(user_id):
-        # ... (giữ nguyên logic) ...
         try:
             user_id_int = int(user_id)
         except ValueError:
@@ -189,7 +224,6 @@ class FinanceService:
 
     @staticmethod
     def update_invoice_status(invoice_id, new_status):
-        # ... (giữ nguyên logic) ...
         invoice = Invoice.query.get(invoice_id)
         if not invoice:
             return None, "Không tìm thấy Hóa đơn."

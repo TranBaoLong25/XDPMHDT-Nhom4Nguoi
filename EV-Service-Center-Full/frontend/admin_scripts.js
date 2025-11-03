@@ -20,6 +20,27 @@ window.hideLoading = function () {
   document.getElementById("loading-spinner")?.classList.add("hidden");
 };
 
+// --- Helper: Định dạng tiền tệ (BỔ SUNG) ---
+function formatCurrency(amount) {
+  return new Intl.NumberFormat("vi-VN").format(amount) + "₫";
+}
+
+// --- Helper: Định dạng trạng thái thanh toán (BỔ SUNG) ---
+function formatPaymentStatus(status) {
+  switch (status) {
+    case "pending":
+      return { text: "Chờ thanh toán", class: "bg-yellow-100 text-yellow-800" };
+    case "success":
+      return { text: "Thành công", class: "bg-green-100 text-green-800" };
+    case "failed":
+      return { text: "Thất bại", class: "bg-red-100 text-red-800" };
+    case "expired":
+      return { text: "Hết hạn", class: "bg-gray-100 text-gray-800" };
+    default:
+      return { text: status, class: "bg-gray-100 text-gray-800" };
+  }
+}
+
 // ===================== ADMIN CORE FUNCTIONS =====================
 const loginPage = document.getElementById("admin-login-page");
 const dashboardPage = document.getElementById("dashboard");
@@ -96,7 +117,7 @@ window.apiRequestCore = async function (
 // ===================== NAVIGATION LOGIC =====================
 
 /**
- * Chuyển đổi giữa các phần Users, Inventory, Bookings, Invoices và Maintenance
+ * Chuyển đổi giữa các phần Users, Inventory, Bookings, Invoices, Maintenance và Payment History
  */
 function navigateToDashboardSection(sectionId, title) {
   document.querySelectorAll(".dashboard-section").forEach((section) => {
@@ -124,6 +145,10 @@ function navigateToDashboardSection(sectionId, title) {
   // ✅ TẢI DỮ LIỆU MAINTENANCE
   else if (sectionId === "maintenance-section") {
     loadAllMaintenanceTasks();
+  }
+  // ✅ TẢI DỮ LIỆU PAYMENT HISTORY
+  else if (sectionId === "payment-history-section") {
+    loadAllPaymentHistory();
   }
 }
 window.navigateToDashboardSection = navigateToDashboardSection;
@@ -642,7 +667,77 @@ document
       console.error("Lỗi khi tạo công việc:", error);
     }
   });
+// ========================================================
+// ✅ LOGIC PAYMENT HISTORY MANAGEMENT (MỚI)
+// ========================================================
 
+/**
+ * Helper: Định dạng tiền tệ
+ */
+function formatCurrency(amount) {
+  return new Intl.NumberFormat("vi-VN").format(amount) + "₫";
+}
+
+// [DÁN LẠI ĐỊNH NGHĨA formatPaymentStatus CHO RÕ RÀNG TRONG BẢN CUỐI CÙNG]
+// function formatPaymentStatus(status) { ... }
+// Đã được định nghĩa ở trên, chỉ giữ lại định nghĩa này thôi.
+
+/**
+ * 1. Tải tất cả lịch sử thanh toán (Admin)
+ */
+async function loadAllPaymentHistory() {
+  const tbody = document.getElementById("payment-history-table-body");
+  if (!tbody) return;
+  tbody.innerHTML =
+    '<tr><td colspan="7" class="text-center text-gray-500 py-4">Đang tải dữ liệu...</td></tr>';
+
+  try {
+    const history = await window.apiRequestCore(
+      window.ADMIN_TOKEN_KEY,
+      "/api/payments/history/all", // Endpoint GET ALL PAYMENT HISTORY
+      "GET"
+    );
+
+    if (!history || history.length === 0) {
+      tbody.innerHTML =
+        '<tr><td colspan="7" class="text-center text-gray-500 py-4">Không có giao dịch nào.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = history
+      .map((t) => {
+        const statusInfo = formatPaymentStatus(t.status);
+
+        return `
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 text-sm font-semibold">${t.id}</td>
+                        <td class="px-6 py-4 text-sm">${t.invoice_id}</td>
+                        <td class="px-6 py-4 text-sm">${t.user_id}</td>
+                        <td class="px-6 py-4 text-sm font-bold text-red-600">${formatCurrency(
+                          t.amount
+                        )}</td>
+                        <td class="px-6 py-4 text-sm uppercase">${t.method}</td>
+                        <td class="px-6 py-4 text-sm font-mono">${
+                          t.pg_transaction_id
+                        }</td>
+                        <td class="px-6 py-4 text-sm">
+                            <span class="p-1 rounded-full text-xs font-semibold ${
+                              statusInfo.class
+                            }">
+                                ${statusInfo.text}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+      })
+      .join("");
+  } catch (err) {
+    console.error(err);
+    tbody.innerHTML =
+      '<tr><td colspan="7" class="text-center text-red-500 py-4">Lỗi khi tải dữ liệu Lịch sử Thanh toán.</td></tr>';
+  }
+}
+window.loadAllPaymentHistory = loadAllPaymentHistory;
 // ========================================================
 // LOGIC BOOKING MANAGEMENT
 // ... (GIỮ NGUYÊN HOẶC KHÔNG DÁN LẠI NẾU KHÔNG CÓ THAY ĐỔI)
@@ -804,7 +899,6 @@ window.deleteBooking = deleteBooking; // Export ra window cho HTML gọi
 
 // ========================================================
 // LOGIC INVOICE MANAGEMENT
-// ... (GIỮ NGUYÊN HOẶC KHÔNG DÁN LẠI NẾU KHÔNG CÓ THAY ĐỔI)
 // ========================================================
 // Hàm Helper: Định dạng tiền tệ
 function formatCurrency(amount) {
