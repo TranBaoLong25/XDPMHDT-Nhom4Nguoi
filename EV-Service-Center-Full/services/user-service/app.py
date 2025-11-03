@@ -1,6 +1,6 @@
 # File: services/user-service/app.py
 import os
-from flask import Flask
+from flask import Flask, jsonify # <-- THÊM jsonify VÀO IMPORT
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
@@ -62,7 +62,7 @@ def create_app():
     app.register_blueprint(api_bp)
     app.register_blueprint(internal_bp)
 
-    # ===== CLI COMMAND: Tạo Admin =====
+    # ===== CLI COMMAND: Tạo Admin (Đặt ở đây) =====
     @app.cli.command("create-admin")
     @click.argument("username")
     @click.argument("email")
@@ -87,8 +87,13 @@ def create_app():
                 print(f"❌ Lỗi khi tạo admin: {error}")
             else:
                 print(f"✅ Tài khoản admin '{username}' đã được tạo thành công.")
+    
+    # ===== HEALTH CHECK (Đặt ở CUỐI CÙNG) =====
+    @app.route("/health", methods=["GET"])
+    def health_check():
+        return jsonify({"status": "User Service is running!"}), 200
 
-    return app
+    return app # <--- ĐẢM BẢO LỆNH RETURN Ở CUỐI CÙNG
 
 
 # ===== CHẠY APP (CHỈ KHI CHẠY TRỰC TIẾP) =====

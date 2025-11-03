@@ -34,9 +34,11 @@ function updateNav() {
   const token = localStorage.getItem(TOKEN_KEY);
   if (!navAuthLinks) return;
 
+  // ✅ BỔ SUNG NÚT 'CÔNG VIỆC' CHO NGƯỜI DÙNG ĐÃ ĐĂNG NHẬP
   navAuthLinks.innerHTML = token
     ? `
         <a href="#" onclick="navigateTo('booking')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Đặt Lịch</a> 
+        <a href="#" onclick="navigateTo('my-tasks')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Công Việc</a> 
         <a href="#" onclick="navigateTo('invoice-history')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Hóa Đơn</a> 
         <a href="#" onclick="navigateTo('profile')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Hồ Sơ</a>
         <a href="#" onclick="logout()" class="ml-4 bg-red-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-red-600">Đăng Xuất</a>
@@ -167,6 +169,10 @@ function navigateTo(pageId) {
   }
   if (pageId === "invoice-history") {
     loadInvoiceHistory(); // Tải lịch sử hóa đơn
+  }
+  // ✅ TẢI CÔNG VIỆC BẢO TRÌ
+  if (pageId === "my-tasks") {
+    loadMyTasks();
   }
 
   // Gọi updateNav sau khi điều hướng
@@ -729,9 +735,116 @@ async function loadMyBookings() {
 }
 
 // ========================================================
-// ✅ LOGIC CHỨC NĂNG (INVOICE - USER)
+// ✅ LOGIC CHỨC NĂNG (MY TASKS - USER)
 // ========================================================
 
+/**
+ * Helper: Định dạng trạng thái công việc (Tương tự Admin)
+ */
+function formatMaintenanceStatus(status) {
+  switch (status) {
+    case "pending":
+      return { text: "Chờ thực hiện", class: "bg-yellow-100 text-yellow-800" };
+    case "in_progress":
+      return { text: "Đang tiến hành", class: "bg-blue-100 text-blue-800" };
+    case "completed":
+      return { text: "Hoàn thành", class: "bg-green-100 text-green-800" };
+    case "failed":
+      return { text: "Thất bại/Hủy", class: "bg-red-100 text-red-800" };
+    default:
+      return { text: status, class: "bg-gray-100 text-gray-800" };
+  }
+}
+
+/**
+ * Tải danh sách công việc bảo trì của người dùng hiện tại
+ */
+async function loadMyTasks() {
+  const container = document.getElementById("my-tasks-list-container");
+  if (!container) return;
+
+  container.innerHTML =
+    '<div class="bg-white p-6 rounded-lg shadow-md text-center text-gray-500">Đang tải danh sách công việc...</div>';
+
+  try {
+    const tasks = await apiRequestCore(
+      TOKEN_KEY,
+      "/api/maintenance/my-tasks", // Endpoint GET MY TASKS
+      "GET"
+    );
+
+    if (!tasks || tasks.length === 0) {
+      container.innerHTML =
+        '<div class="bg-white p-6 rounded-lg shadow-md text-center text-gray-500">Bạn chưa có công việc bảo trì nào.</div>';
+      return;
+    }
+
+    container.innerHTML = tasks.map(renderTaskCard).join("");
+  } catch (error) {
+    container.innerHTML = `
+            <div class="text-center py-8 bg-red-100 text-red-700 rounded-lg border border-red-300">
+                <p>Lỗi khi tải danh sách công việc. Vui lòng thử lại sau.</p>
+            </div>
+        `;
+    console.error("Failed to load my tasks:", error);
+  }
+}
+window.loadMyTasks = loadMyTasks;
+
+function renderTaskCard(task) {
+  const statusInfo = formatMaintenanceStatus(task.status);
+  const date = new Date(task.created_at).toLocaleDateString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+
+  return `
+        <div class="bg-white p-5 rounded-lg shadow-md border-l-4 border-${
+          statusInfo.class.includes("green")
+            ? "green-500"
+            : statusInfo.class.includes("blue")
+            ? "blue-500"
+            : statusInfo.class.includes("yellow")
+            ? "yellow-500"
+            : "red-500"
+        } flex justify-between items-center">
+            <div>
+                <h3 class="text-xl font-bold text-gray-800">${
+                  task.description
+                }</h3>
+                <p class="text-sm text-gray-500 mt-1">Booking ID: ${
+                  task.booking_id
+                } | Task ID: ${task.id} | KTV ID: ${task.technician_id}</p>
+                <p class="text-sm text-gray-600 mt-1">VIN Xe: <span class="font-mono text-indigo-700">${
+                  task.vehicle_vin
+                }</span></p>
+                <p class="text-xs text-gray-400 mt-2">Ngày khởi tạo: ${date}</p>
+            </div>
+            <div class="text-right space-y-2">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                  statusInfo.class
+                }">
+                    Trạng thái: ${statusInfo.text}
+                </span>
+                <p class="text-sm text-gray-500">
+                    ${
+                      task.status === "completed"
+                        ? "Hoàn thành!"
+                        : task.status === "pending"
+                        ? "Công việc chờ được xử lý."
+                        : "Đang được tiến hành..."
+                    }
+                </p>
+            </div>
+        </div>
+    `;
+}
+
+// ========================================================
+// ✅ LOGIC CHỨC NĂNG (INVOICE - USER)
+// ========================================================
+// ... (Giữ nguyên logic Invoice)
 // Helper: Định dạng trạng thái Hóa đơn
 function formatInvoiceStatus(status) {
   switch (status) {

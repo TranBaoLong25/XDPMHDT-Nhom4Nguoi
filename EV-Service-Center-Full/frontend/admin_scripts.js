@@ -96,7 +96,7 @@ window.apiRequestCore = async function (
 // ===================== NAVIGATION LOGIC =====================
 
 /**
- * Chuyển đổi giữa các phần Users, Inventory, Bookings và Invoices
+ * Chuyển đổi giữa các phần Users, Inventory, Bookings, Invoices và Maintenance
  */
 function navigateToDashboardSection(sectionId, title) {
   document.querySelectorAll(".dashboard-section").forEach((section) => {
@@ -116,14 +116,14 @@ function navigateToDashboardSection(sectionId, title) {
     loadAllInventory();
   } else if (sectionId === "users-section") {
     loadAllUsers();
-  }
-  // ✅ KÍCH HOẠT LOGIC BOOKING
-  else if (sectionId === "bookings-section") {
+  } else if (sectionId === "bookings-section") {
     loadAllBookings();
-  }
-  // ✅ KÍCH HOẠT LOGIC INVOICE
-  else if (sectionId === "invoices-section") {
+  } else if (sectionId === "invoices-section") {
     loadAllInvoices();
+  }
+  // ✅ TẢI DỮ LIỆU MAINTENANCE
+  else if (sectionId === "maintenance-section") {
+    loadAllMaintenanceTasks();
   }
 }
 window.navigateToDashboardSection = navigateToDashboardSection;
@@ -454,9 +454,199 @@ async function deleteItem(itemId) {
 window.deleteItem = deleteItem; // Cần export hàm này ra window để HTML có thể gọi
 
 // ========================================================
-// ✅ LOGIC BOOKING MANAGEMENT
+// ✅ LOGIC MAINTENANCE MANAGEMENT (MỚI)
 // ========================================================
 
+/**
+ * Helper: Định dạng trạng thái công việc
+ */
+function formatMaintenanceStatus(status) {
+  switch (status) {
+    case "pending":
+      return { text: "Chờ thực hiện", class: "bg-yellow-100 text-yellow-800" };
+    case "in_progress":
+      return { text: "Đang tiến hành", class: "bg-blue-100 text-blue-800" };
+    case "completed":
+      return { text: "Hoàn thành", class: "bg-green-100 text-green-800" };
+    case "failed":
+      return { text: "Thất bại/Hủy", class: "bg-red-100 text-red-800" };
+    default:
+      return { text: status, class: "bg-gray-100 text-gray-800" };
+  }
+}
+
+/**
+ * 1. Tải tất cả công việc bảo trì
+ */
+async function loadAllMaintenanceTasks() {
+  const tbody = document.getElementById("maintenance-table-body");
+  if (!tbody) return;
+  tbody.innerHTML =
+    '<tr><td colspan="7" class="text-center text-gray-500 py-4">Đang tải dữ liệu...</td></tr>';
+
+  try {
+    const tasks = await window.apiRequestCore(
+      window.ADMIN_TOKEN_KEY,
+      "/api/maintenance/tasks", // Endpoint GET ALL TASKS
+      "GET"
+    );
+
+    if (!tasks || tasks.length === 0) {
+      tbody.innerHTML =
+        '<tr><td colspan="7" class="text-center text-gray-500 py-4">Không có công việc bảo trì nào.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = tasks
+      .map((task) => {
+        const statusInfo = formatMaintenanceStatus(task.status);
+        const disabled =
+          task.status === "completed" || task.status === "failed"
+            ? "disabled"
+            : "";
+
+        return `
+                    <tr id="maintenance-row-${task.id}">
+                        <td class="px-6 py-4 text-sm">${task.id}</td>
+                        <td class="px-6 py-4 text-sm">${task.booking_id}</td>
+                        <td class="px-6 py-4 text-sm">${task.description}</td>
+                        <td class="px-6 py-4 text-sm font-mono">${
+                          task.vehicle_vin
+                        }</td>
+                        <td class="px-6 py-4 text-sm">KTV ID: ${
+                          task.technician_id
+                        }</td>
+                        <td class="px-6 py-4 text-sm">
+                            <select 
+                                class="status-select border rounded p-1 text-xs ${
+                                  statusInfo.class
+                                }" 
+                                data-task-id="${task.id}" 
+                                onchange="updateTaskStatus(${
+                                  task.id
+                                }, this.value)"
+                                ${disabled}>
+                                <option value="pending" ${
+                                  task.status === "pending" ? "selected" : ""
+                                }>Chờ thực hiện</option>
+                                <option value="in_progress" ${
+                                  task.status === "in_progress"
+                                    ? "selected"
+                                    : ""
+                                }>Đang tiến hành</option>
+                                <option value="completed" ${
+                                  task.status === "completed" ? "selected" : ""
+                                }>Hoàn thành</option>
+                                <option value="failed" ${
+                                  task.status === "failed" ? "selected" : ""
+                                }>Thất bại/Hủy</option>
+                            </select>
+                        </td>
+                        <td class="px-6 py-4 text-center space-x-2">
+                            ${
+                              disabled
+                                ? '<span class="text-gray-400">Đã khóa</span>'
+                                : "<button onclick=\"if(confirm('Chuyển trạng thái sang hoàn thành?')) updateTaskStatus(" +
+                                  task.id +
+                                  ', \'completed\')" class="text-green-600 hover:text-green-900">Hoàn Thành</button>'
+                            }
+                        </td>
+                    </tr>
+                `;
+      })
+      .join("");
+  } catch (err) {
+    console.error(err);
+    tbody.innerHTML =
+      '<tr><td colspan="7" class="text-center text-red-500 py-4">Lỗi khi tải dữ liệu Công việc Bảo trì.</td></tr>';
+  }
+}
+window.loadAllMaintenanceTasks = loadAllMaintenanceTasks;
+
+/**
+ * 2. Cập nhật trạng thái công việc
+ */
+async function updateTaskStatus(taskId, newStatus) {
+  if (
+    !confirm(
+      `Bạn có chắc muốn cập nhật trạng thái của Công việc ${taskId} thành ${newStatus.toUpperCase()}?`
+    )
+  ) {
+    loadAllMaintenanceTasks(); // Tải lại để revert nếu người dùng hủy
+    return;
+  }
+
+  try {
+    await window.apiRequestCore(
+      window.ADMIN_TOKEN_KEY,
+      `/api/maintenance/tasks/${taskId}/status`,
+      "PUT",
+      { status: newStatus }
+    );
+    window.showToast("Cập nhật trạng thái công việc thành công!");
+    loadAllMaintenanceTasks(); // Tải lại bảng
+  } catch (error) {
+    // Toast đã được xử lý trong apiRequestCore
+    loadAllMaintenanceTasks(); // Tải lại để reset trạng thái
+    console.error("Lỗi cập nhật trạng thái công việc:", error);
+  }
+}
+window.updateTaskStatus = updateTaskStatus;
+
+// --- MODAL TẠO TASK HANDLERS ---
+const createTaskModal = document.getElementById("create-task-modal");
+
+function closeCreateTaskModal() {
+  if (createTaskModal) createTaskModal.classList.add("hidden");
+  document.getElementById("create-task-form")?.reset();
+}
+window.closeCreateTaskModal = closeCreateTaskModal;
+
+function openCreateTaskModal() {
+  if (createTaskModal) createTaskModal.classList.remove("hidden");
+}
+window.openCreateTaskModal = openCreateTaskModal;
+
+document
+  .getElementById("create-task-form")
+  ?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const bookingId = parseInt(
+      document.getElementById("task-booking-id")?.value
+    );
+    const technicianId = parseInt(
+      document.getElementById("task-technician-id")?.value
+    );
+
+    if (isNaN(bookingId) || isNaN(technicianId)) {
+      window.showToast("Booking ID và Technician ID phải là số hợp lệ.", true);
+      return;
+    }
+
+    try {
+      const data = await window.apiRequestCore(
+        window.ADMIN_TOKEN_KEY,
+        "/api/maintenance/tasks",
+        "POST",
+        {
+          booking_id: bookingId,
+          technician_id: technicianId,
+        }
+      );
+
+      window.showToast(data.message || "Tạo công việc thành công!");
+      closeCreateTaskModal();
+      loadAllMaintenanceTasks();
+    } catch (error) {
+      console.error("Lỗi khi tạo công việc:", error);
+    }
+  });
+
+// ========================================================
+// LOGIC BOOKING MANAGEMENT
+// ... (GIỮ NGUYÊN HOẶC KHÔNG DÁN LẠI NẾU KHÔNG CÓ THAY ĐỔI)
+// ========================================================
 // Hàm Helper: Định dạng trạng thái hiển thị
 function formatBookingStatus(status) {
   switch (status) {
@@ -612,31 +802,10 @@ async function deleteBooking(bookingId) {
 }
 window.deleteBooking = deleteBooking; // Export ra window cho HTML gọi
 
-// --- Khối INIT: Đảm bảo tải Inventory mặc định ---
-document.addEventListener("DOMContentLoaded", () => {
-  const token = localStorage.getItem(window.ADMIN_TOKEN_KEY);
-  if (!token) return;
-
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    const valid = payload.exp * 1000 > Date.now();
-
-    if (valid && payload.role === window.ADMIN_ROLE) {
-      showDashboard();
-      // CHUYỂN TẢI MẶC ĐỊNH SANG INVENTORY SAU KHI PAGE ĐÃ HIỆN
-      navigateToDashboardSection("inventory-section", "Quản lý Kho Phụ Tùng");
-    } else {
-      adminLogout();
-    }
-  } catch {
-    adminLogout();
-  }
-});
-
 // ========================================================
-// ✅ LOGIC INVOICE MANAGEMENT
+// LOGIC INVOICE MANAGEMENT
+// ... (GIỮ NGUYÊN HOẶC KHÔNG DÁN LẠI NẾU KHÔNG CÓ THAY ĐỔI)
 // ========================================================
-
 // Hàm Helper: Định dạng tiền tệ
 function formatCurrency(amount) {
   return new Intl.NumberFormat("vi-VN").format(amount) + "₫";
@@ -934,3 +1103,24 @@ async function showAdminInvoiceDetails(invoiceId) {
   }
 }
 window.showAdminInvoiceDetails = showAdminInvoiceDetails; // Export ra window
+
+// --- Khối INIT: Đảm bảo tải Inventory mặc định ---
+document.addEventListener("DOMContentLoaded", () => {
+  const token = localStorage.getItem(window.ADMIN_TOKEN_KEY);
+  if (!token) return;
+
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    const valid = payload.exp * 1000 > Date.now();
+
+    if (valid && payload.role === window.ADMIN_ROLE) {
+      showDashboard();
+      // CHUYỂN TẢI MẶC ĐỊNH SANG INVENTORY SAU KHI PAGE ĐÃ HIỆN
+      navigateToDashboardSection("inventory-section", "Quản lý Kho Phụ Tùng");
+    } else {
+      adminLogout();
+    }
+  } catch {
+    adminLogout();
+  }
+});

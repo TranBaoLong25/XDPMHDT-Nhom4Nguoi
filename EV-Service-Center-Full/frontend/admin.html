@@ -120,6 +120,12 @@
               Hóa Đơn
             </button>
             <button
+              onclick="navigateToDashboardSection('maintenance-section', 'Quản lý Công Việc Bảo Trì')"
+              class="text-gray-600 hover:text-indigo-600 font-medium"
+            >
+              Bảo Trì
+            </button>
+            <button
               onclick="adminLogout()"
               class="bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600"
             >
@@ -256,10 +262,84 @@
             </table>
           </div>
         </div>
+
+        <div id="maintenance-section" class="dashboard-section hidden">
+          <h2 class="text-xl font-semibold mb-4">
+            Danh sách Công Việc Bảo Trì
+          </h2>
+          <div class="flex justify-between items-center mb-4">
+            <button
+              onclick="loadAllMaintenanceTasks()"
+              class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 shadow"
+            >
+              Tải lại Danh sách Công việc
+            </button>
+            <button
+              onclick="openCreateTaskModal()"
+              class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 shadow"
+            >
+              + Tạo Công Việc Mới (Từ Booking)
+            </button>
+          </div>
+          <div class="bg-white shadow rounded-lg overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Task ID
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Booking ID
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Mô tả
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    VIN Xe
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    KTV
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Trạng thái
+                  </th>
+                  <th
+                    class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody
+                id="maintenance-table-body"
+                class="bg-white divide-y divide-gray-200"
+              >
+                <tr>
+                  <td colspan="7" class="text-center py-4 text-gray-500">
+                    Đang tải dữ liệu...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </main>
     </div>
 
     <div id="bookings-section" class="dashboard-section hidden">
+      <!-- ... (Giữ nguyên phần bookings-section) ... -->
       <h2 class="text-xl font-semibold mb-4">Danh sách Lịch Hẹn</h2>
       <div class="flex justify-end mb-4">
         <button
@@ -324,6 +404,7 @@
       </div>
     </div>
     <div id="invoices-section" class="dashboard-section hidden">
+      <!-- ... (Giữ nguyên phần invoices-section) ... -->
       <h2 class="text-xl font-semibold mb-4">Danh sách Hóa Đơn</h2>
       <div class="flex justify-between items-center mb-4">
         <button
@@ -395,6 +476,63 @@
       <div
         class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-white"
       ></div>
+    </div>
+
+    <!-- MODAL TẠO CÔNG VIỆC BẢO TRÌ MỚI -->
+    <div
+      id="create-task-modal"
+      class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center hidden z-40"
+    >
+      <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
+        <h3 class="text-xl font-bold mb-6 text-gray-800">
+          Tạo Công Việc Bảo Trì (Task)
+        </h3>
+        <form id="create-task-form">
+          <div class="mb-4">
+            <label
+              for="task-booking-id"
+              class="block text-sm font-medium text-gray-700"
+              >ID Lịch Hẹn (Booking ID)</label
+            >
+            <input
+              type="number"
+              id="task-booking-id"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+              required
+              min="1"
+            />
+          </div>
+          <div class="mb-6">
+            <label
+              for="task-technician-id"
+              class="block text-sm font-medium text-gray-700"
+              >ID Kỹ Thuật Viên</label
+            >
+            <input
+              type="number"
+              id="task-technician-id"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+              required
+              min="1"
+            />
+          </div>
+          <div class="flex justify-end space-x-4 mt-8">
+            <button
+              type="button"
+              onclick="closeCreateTaskModal()"
+              class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            >
+              Tạo Task
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
 
     <div
