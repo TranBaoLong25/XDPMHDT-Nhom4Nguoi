@@ -259,6 +259,23 @@ services:
       # finance-service đã được loại bỏ khỏi depends_on để phá vỡ chu kỳ
     networks:
       - ev_network
+  notification-service:
+    build: ./services/notification-service
+    container_name: notification-service
+    command: gunicorn --bind 0.0.0.0:8005 "app:create_app()"
+    volumes:
+      - ./services/notification-service:/app
+    environment:
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN}
+      - REDIS_HOST=redis
+    expose:
+      - "8005"
+    depends_on:
+      redis:
+        condition: service_started
+    networks:
+      - ev_network
   # ===================== FRONTEND SERVICE =====================
   frontend:
     build: ./frontend
@@ -289,6 +306,7 @@ services:
       - finance-service
       - maintenance-service
       - payment-service
+      - notification-service
     networks:
       - ev_network
 # ===================== NETWORKS & VOLUMES =====================
