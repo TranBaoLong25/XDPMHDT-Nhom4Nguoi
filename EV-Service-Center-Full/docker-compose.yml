@@ -274,6 +274,12 @@ services:
     depends_on:
       redis:
         condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import sys,urllib.request as u;\ntry:\n r=u.urlopen('http://127.0.0.1:8005/api/notifications/health', timeout=5);\n sys.exit(0 if r.getcode()==200 else 1)\nexcept Exception:\n sys.exit(1)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - ev_network
   # ===================== FRONTEND SERVICE =====================
