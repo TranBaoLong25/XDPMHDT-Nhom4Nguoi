@@ -112,3 +112,58 @@ class MaintenanceService:
         except Exception as e:
             db.session.rollback()
             return None, f"Lỗi khi cập nhật trạng thái: {str(e)}"
+    @staticmethod
+    def _notify_maintenance_started(maintenance_record):
+        """Thông báo bắt đầu bảo dưỡng"""
+        from notification_helper import NotificationHelper
+        
+        return NotificationHelper.send_notification(
+            user_id=maintenance_record.customer_id,
+            notification_type="booking_status",
+            title="🔧 Bắt đầu bảo dưỡng",
+            message=f"Xe của bạn đã được tiếp nhận và bắt đầu quá trình bảo dưỡng.",
+            channel="in_app",
+            priority="medium",
+            related_entity_type="maintenance",
+            related_entity_id=maintenance_record.id
+        )
+    
+    @staticmethod
+    def _notify_maintenance_in_progress(maintenance_record, stage):
+        """Thông báo tiến độ bảo dưỡng"""
+        from notification_helper import NotificationHelper
+        
+        stages = {
+            "inspection": "Đang kiểm tra tổng thể",
+            "repair": "Đang sửa chữa",
+            "testing": "Đang kiểm tra cuối cùng",
+            "cleaning": "Đang vệ sinh xe"
+        }
+        
+        return NotificationHelper.send_notification(
+            user_id=maintenance_record.customer_id,
+            notification_type="booking_status",
+            title="🔄 Cập nhật tiến độ",
+            message=f"Xe của bạn: {stages.get(stage, stage)}",
+            channel="in_app",
+            priority="low",
+            related_entity_type="maintenance",
+            related_entity_id=maintenance_record.id,
+            metadata={"stage": stage}
+        )
+    
+    @staticmethod
+    def _notify_maintenance_completed(maintenance_record):
+        """Thông báo hoàn tất bảo dưỡng"""
+        from notification_helper import NotificationHelper
+        
+        return NotificationHelper.send_notification(
+            user_id=maintenance_record.customer_id,
+            notification_type="booking_status",
+            title="✅ Hoàn tất bảo dưỡng",
+            message="Xe của bạn đã được bảo dưỡng xong và sẵn sàng để nhận. Vui lòng đến trung tâm để nhận xe!",
+            channel="in_app",
+            priority="high",
+            related_entity_type="maintenance",
+            related_entity_id=maintenance_record.id
+        )

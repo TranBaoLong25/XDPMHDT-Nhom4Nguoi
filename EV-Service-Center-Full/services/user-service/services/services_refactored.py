@@ -253,3 +253,7 @@ class ProfileService:
             "vehicle_model": profile.vehicle_model,
             "vin_number": profile.vin_number
         }, None
+    @staticmethod
+    def get_all_admins():
+        """Lấy tất cả admin users"""
+        return User.query.filter_by(role="admin").all()

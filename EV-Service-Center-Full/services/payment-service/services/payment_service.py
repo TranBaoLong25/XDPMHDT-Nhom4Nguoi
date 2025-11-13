@@ -176,3 +176,51 @@ class PaymentService:
     def get_all_history():
         """Lấy tất cả lịch sử giao dịch (Admin)"""
         return PaymentTransaction.query.order_by(desc(PaymentTransaction.created_at)).all()
+    @staticmethod
+    def _notify_payment_success(payment):
+        """Thông báo thanh toán thành công"""
+        from notification_helper import NotificationHelper
+        
+        return NotificationHelper.send_notification(
+            user_id=payment.user_id,
+            notification_type="payment",
+            title="✅ Thanh toán thành công",
+            message=f"Thanh toán {payment.amount:,.0f} VNĐ cho hóa đơn #{payment.invoice_id} đã được xử lý thành công.",
+            channel="in_app",
+            priority="high",
+            related_entity_type="payment",
+            related_entity_id=payment.id,
+            metadata={
+                "amount": payment.amount,
+                "invoice_id": payment.invoice_id,
+                "payment_method": payment.payment_method
+            }
+        )
+    
+    @staticmethod
+    def _notify_payment_failed(payment):
+        """Thông báo thanh toán thất bại"""
+        from notification_helper import NotificationHelper
+        
+        return NotificationHelper.send_notification(
+            user_id=payment.user_id,
+            notification_type="payment",
+            title="❌ Thanh toán thất bại",
+            message=f"Thanh toán {payment.amount:,.0f} VNĐ không thành công. Vui lòng thử lại hoặc liên hệ hỗ trợ.",
+            channel="in_app",
+            priority="high",
+            related_entity_type="payment",
+            related_entity_id=payment.id
+        )
+    
+    @staticmethod
+    def process_payment(data):
+        # ... existing payment processing code ...
+        
+        # ✅ THÊM: Gửi notification dựa trên kết quả
+        if payment.status == "success": # type: ignore
+            PaymentService._notify_payment_success(payment) # type: ignore
+        elif payment.status == "failed": # type: ignore
+            PaymentService._notify_payment_failed(payment) # type: ignore
+        
+        return payment, None # type: ignore

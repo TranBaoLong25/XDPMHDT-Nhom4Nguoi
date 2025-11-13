@@ -239,3 +239,38 @@ class FinanceService:
         except Exception as e:
             db.session.rollback()
             return None, f"Lỗi khi cập nhật trạng thái: {str(e)}"
+    @staticmethod
+    def _notify_invoice_created(invoice):
+        """Thông báo hóa đơn mới"""
+        from notification_helper import NotificationHelper
+        
+        return NotificationHelper.send_notification(
+            user_id=invoice.customer_id,
+            notification_type="payment",
+            title="📄 Hóa đơn mới",
+            message=f"Hóa đơn #{invoice.id} với số tiền {invoice.total_amount:,.0f} VNĐ đã được tạo. Vui lòng thanh toán.",
+            channel="in_app",
+            priority="high",
+            related_entity_type="invoice",
+            related_entity_id=invoice.id,
+            metadata={
+                "amount": invoice.total_amount,
+                "due_date": invoice.due_date.isoformat() if invoice.due_date else None
+            }
+        )
+    
+    @staticmethod
+    def _notify_invoice_overdue(invoice):
+        """Thông báo hóa đơn quá hạn"""
+        from notification_helper import NotificationHelper
+        
+        return NotificationHelper.send_notification(
+            user_id=invoice.customer_id,
+            notification_type="payment",
+            title="⚠️ Hóa đơn quá hạn",
+            message=f"Hóa đơn #{invoice.id} với số tiền {invoice.total_amount:,.0f} VNĐ đã quá hạn thanh toán. Vui lòng thanh toán ngay!",
+            channel="in_app",
+            priority="urgent",
+            related_entity_type="invoice",
+            related_entity_id=invoice.id
+        )
