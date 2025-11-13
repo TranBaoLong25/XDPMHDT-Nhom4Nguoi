@@ -32,6 +32,11 @@ def create_app():
     migrate.init_app(app, db, directory='migrations', version_table='alembic_version_notification')
 
     # ===== IMPORT MODELS & CREATE TABLES =====
+    # Add src directory to path for imports
+    src_dir = os.path.join(os.path.dirname(__file__), 'src')
+    if src_dir not in sys.path:
+        sys.path.insert(0, src_dir)
+
     with app.app_context():
         from models.notification_model import Notification
         db.create_all()

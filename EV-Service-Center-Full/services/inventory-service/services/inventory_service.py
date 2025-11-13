@@ -1,8 +1,8 @@
 # File: services/inventory-service/services/inventory_service.py
-from fastapi import requests
+import requests
+import os
 from app import db
-from models.inventory_model import Inventory # Giả định import model từ thư mục models
-from services.user_service.services_refactored import get_all_admin  # Giả định hàm lấy admin từ User Service
+from models.inventory_model import Inventory
 class InventoryService:
     """Service xử lý logic nghiệp vụ liên quan đến Inventory"""
 

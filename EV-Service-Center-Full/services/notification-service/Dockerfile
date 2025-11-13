@@ -7,7 +7,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
 
 EXPOSE 8005
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8005", "app:create_app()"]
+# Sử dụng wsgi.py làm entry point
+CMD ["gunicorn", "--bind", "0.0.0.0:8005", "wsgi:application"]

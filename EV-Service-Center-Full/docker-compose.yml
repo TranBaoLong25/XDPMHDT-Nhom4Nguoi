@@ -290,11 +290,10 @@ services:
   notification-service:
     build: ./services/notification-service
     container_name: notification-service
-    command: gunicorn --bind 0.0.0.0:8005 "app:create_app()"
+    command: gunicorn --bind 0.0.0.0:8005 wsgi:application
     volumes:
       - ./services/notification-service:/app
     environment:
-      
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-notification:5432/ev_notification_db
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN}
@@ -309,7 +308,7 @@ services:
       redis:
         condition: service_started
     networks:
-      - ev_network  
+      - ev_network
     restart: unless-stopped
 
   # ===================== FRONTEND SERVICE =====================
@@ -330,16 +329,25 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - user-service
-      - frontend
-      - inventory-service
-      - booking-service
-      - finance-service
-      - maintenance-service
-      - payment-service
-      - notification-service
+      user-service:
+        condition: service_started
+      frontend:
+        condition: service_started
+      inventory-service:
+        condition: service_started
+      booking-service:
+        condition: service_started
+      finance-service:
+        condition: service_started
+      maintenance-service:
+        condition: service_started
+      payment-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
     networks:
-      - ev_network  
+      - ev_network
+    restart: on-failure  
 
 # ===================== NETWORKS & VOLUMES =====================
 networks:

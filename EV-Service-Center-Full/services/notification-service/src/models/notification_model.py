@@ -39,7 +39,8 @@ class Notification(db.Model):
     
     related_entity_type = db.Column(db.String(50), nullable=True)
     related_entity_id = db.Column(db.Integer, nullable=True)
-    metadata = db.Column(db.Text, nullable=True)
+    # Đổi tên 'metadata' thành 'extra_data' vì 'metadata' là reserved keyword của SQLAlchemy
+    extra_data = db.Column(db.Text, nullable=True)
     
     scheduled_at = db.Column(db.DateTime, nullable=True)
     sent_at = db.Column(db.DateTime, nullable=True)
@@ -60,7 +61,7 @@ class Notification(db.Model):
             "priority": str(self.priority),
             "related_entity_type": self.related_entity_type,
             "related_entity_id": self.related_entity_id,
-            "metadata": self.metadata,
+            "extra_data": self.extra_data,  # Đã đổi tên từ metadata
             "scheduled_at": self.scheduled_at.isoformat() if self.scheduled_at else None,
             "sent_at": self.sent_at.isoformat() if self.sent_at else None,
             "read_at": self.read_at.isoformat() if self.read_at else None,

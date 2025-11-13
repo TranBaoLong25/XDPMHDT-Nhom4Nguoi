@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-# XDPMHDT-Nhom4Nguoi
 README.md – EV Service Center Maintenance Management System
 🚗 1. Giới thiệu
 
@@ -95,6 +93,4 @@ Backend: PHP / Python (Flask / Django) hoặc Node.js.
 Database: MySQL / PostgreSQL.
 
 Triển khai: Docker / Local Server.
-=======
-# ev
->>>>>>> ae13515715b8cd07d9fb52bd1df4914e0f1e07f3
+

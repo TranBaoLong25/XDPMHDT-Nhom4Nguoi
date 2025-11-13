@@ -70,8 +70,9 @@ window.apiRequestCore = async function (
   method = "GET",
   body = null
 ) {
-  // API_BASE_URL không được định nghĩa trong file này, dùng window.location.origin
-  const url = `${window.location.origin}${endpoint}`;
+  // API Gateway chạy trên http://localhost (port 80)
+  const API_BASE_URL = "http://localhost";
+  const url = `${API_BASE_URL}${endpoint}`;
   const token = tokenKey ? localStorage.getItem(tokenKey) : null;
 
   const options = {
@@ -149,6 +150,10 @@ function navigateToDashboardSection(sectionId, title) {
   // ✅ TẢI DỮ LIỆU PAYMENT HISTORY
   else if (sectionId === "payment-history-section") {
     loadAllPaymentHistory();
+  }
+  // ✅ TẢI DỮ LIỆU NOTIFICATIONS
+  else if (sectionId === "notifications-section") {
+    loadAllNotificationsAdmin();
   }
 }
 window.navigateToDashboardSection = navigateToDashboardSection;
@@ -1197,6 +1202,283 @@ async function showAdminInvoiceDetails(invoiceId) {
   }
 }
 window.showAdminInvoiceDetails = showAdminInvoiceDetails; // Export ra window
+
+// ========================================================
+// ✅ LOGIC NOTIFICATION MANAGEMENT (MỚI)
+// ========================================================
+
+/**
+ * Helper: Định dạng priority notification
+ */
+function formatNotificationPriority(priority) {
+  switch (priority) {
+    case "low":
+      return { text: "Low", class: "bg-green-100 text-green-800" };
+    case "medium":
+      return { text: "Medium", class: "bg-yellow-100 text-yellow-800" };
+    case "high":
+      return { text: "High", class: "bg-orange-100 text-orange-800" };
+    case "urgent":
+      return { text: "Urgent", class: "bg-red-100 text-red-800" };
+    default:
+      return { text: priority, class: "bg-gray-100 text-gray-800" };
+  }
+}
+
+/**
+ * Helper: Định dạng status notification
+ */
+function formatNotificationStatus(status) {
+  switch (status) {
+    case "pending":
+      return { text: "Chờ gửi", class: "bg-yellow-100 text-yellow-800" };
+    case "sent":
+      return { text: "Đã gửi", class: "bg-blue-100 text-blue-800" };
+    case "read":
+      return { text: "Đã đọc", class: "bg-green-100 text-green-800" };
+    case "failed":
+      return { text: "Thất bại", class: "bg-red-100 text-red-800" };
+    default:
+      return { text: status, class: "bg-gray-100 text-gray-800" };
+  }
+}
+
+/**
+ * 1. Tải tất cả notifications (Admin)
+ */
+async function loadAllNotificationsAdmin() {
+  const tbody = document.getElementById("notifications-table-body");
+  if (!tbody) return;
+  tbody.innerHTML =
+    '<tr><td colspan="7" class="text-center text-gray-500 py-4">Đang tải dữ liệu...</td></tr>';
+
+  try {
+    const notifications = await window.apiRequestCore(
+      window.ADMIN_TOKEN_KEY,
+      "/api/notifications/admin/all",
+      "GET"
+    );
+
+    if (!notifications || notifications.length === 0) {
+      tbody.innerHTML =
+        '<tr><td colspan="7" class="text-center text-gray-500 py-4">Không có notification nào.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = notifications
+      .map((notif) => {
+        const priorityInfo = formatNotificationPriority(notif.priority);
+        const statusInfo = formatNotificationStatus(notif.status);
+        const isUnread = !notif.read_at;
+
+        return `
+                    <tr id="notification-row-${notif.id}" class="${
+          isUnread ? "bg-blue-50" : ""
+        }">
+                        <td class="px-6 py-4 text-sm font-semibold">${
+                          notif.id
+                        }</td>
+                        <td class="px-6 py-4 text-sm">${notif.user_id}</td>
+                        <td class="px-6 py-4 text-sm">
+                            <span class="px-2 py-1 text-xs font-semibold rounded ${
+                              notif.notification_type === "booking"
+                                ? "bg-indigo-100 text-indigo-800"
+                                : notif.notification_type === "maintenance"
+                                ? "bg-purple-100 text-purple-800"
+                                : notif.notification_type === "payment"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-gray-100 text-gray-800"
+                            }">
+                                ${notif.notification_type}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-sm max-w-xs truncate">${
+                          notif.title
+                        }</td>
+                        <td class="px-6 py-4 text-sm">
+                            <span class="px-2 py-1 text-xs font-semibold rounded ${
+                              priorityInfo.class
+                            }">
+                                ${priorityInfo.text}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-sm">
+                            <span class="px-2 py-1 text-xs font-semibold rounded ${
+                              statusInfo.class
+                            }">
+                                ${statusInfo.text}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-center space-x-2">
+                            <button onclick="viewNotificationDetail(${
+                              notif.id
+                            })" class="text-indigo-600 hover:text-indigo-900">
+                                Xem
+                            </button>
+                        </td>
+                    </tr>
+                `;
+      })
+      .join("");
+  } catch (err) {
+    console.error(err);
+    tbody.innerHTML =
+      '<tr><td colspan="7" class="text-center text-red-500 py-4">Lỗi khi tải dữ liệu Notifications.</td></tr>';
+  }
+}
+window.loadAllNotificationsAdmin = loadAllNotificationsAdmin;
+
+/**
+ * 2. Modal tạo notification
+ */
+const createNotificationModal = document.getElementById(
+  "create-notification-modal"
+);
+
+function closeCreateNotificationModal() {
+  if (createNotificationModal)
+    createNotificationModal.classList.add("hidden");
+  document.getElementById("create-notification-form")?.reset();
+}
+window.closeCreateNotificationModal = closeCreateNotificationModal;
+
+function openCreateNotificationModal() {
+  if (createNotificationModal)
+    createNotificationModal.classList.remove("hidden");
+}
+window.openCreateNotificationModal = openCreateNotificationModal;
+
+document
+  .getElementById("create-notification-form")
+  ?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const userId = parseInt(document.getElementById("notif-user-id")?.value);
+    const type = document.getElementById("notif-type")?.value;
+    const title = document.getElementById("notif-title")?.value;
+    const message = document.getElementById("notif-message")?.value;
+    const priority = document.getElementById("notif-priority")?.value;
+
+    if (isNaN(userId)) {
+      window.showToast("User ID phải là số hợp lệ.", true);
+      return;
+    }
+
+    try {
+      // Sử dụng internal API endpoint
+      const internalToken = prompt(
+        "Nhập INTERNAL_SERVICE_TOKEN từ .env file:",
+        "Bearer eyJhbGci..."
+      );
+      if (!internalToken) {
+        window.showToast("Cần INTERNAL_SERVICE_TOKEN để tạo notification.", true);
+        return;
+      }
+
+      const response = await fetch(
+        "http://localhost/internal/notifications/create",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Internal-Token": internalToken,
+          },
+          body: JSON.stringify({
+            user_id: userId,
+            notification_type: type,
+            title: title,
+            message: message,
+            priority: priority,
+            channel: "in_app",
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+        window.showToast(data.message || "Tạo notification thành công!");
+        closeCreateNotificationModal();
+        loadAllNotificationsAdmin();
+      } else {
+        window.showToast(
+          data.error || "Lỗi khi tạo notification",
+          true
+        );
+      }
+    } catch (error) {
+      console.error("Lỗi khi tạo notification:", error);
+      window.showToast("Lỗi khi tạo notification: " + error.message, true);
+    }
+  });
+
+/**
+ * 3. Xem chi tiết notification
+ */
+const viewNotificationModal = document.getElementById(
+  "view-notification-modal"
+);
+
+function closeViewNotificationModal() {
+  if (viewNotificationModal) viewNotificationModal.classList.add("hidden");
+}
+window.closeViewNotificationModal = closeViewNotificationModal;
+
+async function viewNotificationDetail(notifId) {
+  try {
+    // Get all notifications và tìm notification cần xem
+    const notifications = await window.apiRequestCore(
+      window.ADMIN_TOKEN_KEY,
+      "/api/notifications/admin/all",
+      "GET"
+    );
+
+    const notif = notifications.find((n) => n.id === notifId);
+    if (!notif) {
+      window.showToast("Không tìm thấy notification.", true);
+      return;
+    }
+
+    // Fill dữ liệu vào modal
+    document.getElementById("notif-detail-id").textContent = notif.id;
+    document.getElementById("notif-detail-user-id").textContent =
+      notif.user_id;
+    document.getElementById("notif-detail-type").textContent =
+      notif.notification_type;
+
+    const priorityInfo = formatNotificationPriority(notif.priority);
+    const statusInfo = formatNotificationStatus(notif.status);
+
+    document.getElementById("notif-detail-priority").innerHTML = `
+            <span class="px-2 py-1 text-xs font-semibold rounded ${priorityInfo.class}">
+                ${priorityInfo.text}
+            </span>
+        `;
+
+    document.getElementById("notif-detail-status").innerHTML = `
+            <span class="px-2 py-1 text-xs font-semibold rounded ${statusInfo.class}">
+                ${statusInfo.text}
+            </span>
+        `;
+
+    document.getElementById("notif-detail-title").textContent = notif.title;
+    document.getElementById("notif-detail-message").textContent =
+      notif.message;
+    document.getElementById("notif-detail-created").textContent = new Date(
+      notif.created_at
+    ).toLocaleString("vi-VN");
+    document.getElementById("notif-detail-read-at").textContent = notif.read_at
+      ? new Date(notif.read_at).toLocaleString("vi-VN")
+      : "Chưa đọc";
+
+    if (viewNotificationModal)
+      viewNotificationModal.classList.remove("hidden");
+  } catch (error) {
+    console.error("Lỗi khi xem chi tiết notification:", error);
+    window.showToast("Lỗi khi xem chi tiết notification.", true);
+  }
+}
+window.viewNotificationDetail = viewNotificationDetail;
 
 // --- Khối INIT: Đảm bảo tải Inventory mặc định ---
 document.addEventListener("DOMContentLoaded", () => {

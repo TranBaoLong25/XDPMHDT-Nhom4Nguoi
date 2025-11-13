@@ -2,7 +2,13 @@ import json
 from datetime import datetime
 from flask import current_app
 
+# Import db from root app.py
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from app import db
+
+# Import model from same package
 from models.notification_model import Notification
 
 class NotificationService:
@@ -16,6 +22,13 @@ class NotificationService:
             return None, "Missing required fields: user_id, title, message"
         
         try:
+            # Chuyển 'metadata' từ request thành 'extra_data' cho model
+            extra_data_value = None
+            if data.get("metadata"):
+                extra_data_value = json.dumps(data.get("metadata"))
+            elif data.get("extra_data"):
+                extra_data_value = json.dumps(data.get("extra_data")) if isinstance(data.get("extra_data"), dict) else data.get("extra_data")
+
             notification = Notification(
                 user_id=data["user_id"],
                 notification_type=data.get("notification_type", "system"),
@@ -25,7 +38,7 @@ class NotificationService:
                 priority=data.get("priority", "medium"),
                 related_entity_type=data.get("related_entity_type"),
                 related_entity_id=data.get("related_entity_id"),
-                metadata=json.dumps(data.get("metadata")) if data.get("metadata") else None,
+                extra_data=extra_data_value,
                 scheduled_at=datetime.fromisoformat(data["scheduled_at"]) if data.get("scheduled_at") else None
             )
             
