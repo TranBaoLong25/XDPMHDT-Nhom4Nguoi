@@ -369,13 +369,22 @@ document.getElementById("login-form")?.addEventListener("submit", async (e) => {
     if (data?.access_token) {
       localStorage.setItem(TOKEN_KEY, data.access_token);
       showToast("Đăng nhập thành công!");
-      updateNav();
 
       const token = data.access_token;
       const payload = JSON.parse(atob(token.split(".")[1]));
       currentUserId = payload.sub;
 
-      navigateTo("home");
+      // Redirect based on role
+      if (payload.role === "admin") {
+        window.location.href = "/admin.html";
+      } else if (payload.role === "technician") {
+        // Save token for technician page
+        localStorage.setItem("tech_access_token", data.access_token);
+        window.location.href = "/technician.html";
+      } else {
+        updateNav();
+        navigateTo("home");
+      }
     }
   } catch (error) {
     console.error("Login failed:", error);

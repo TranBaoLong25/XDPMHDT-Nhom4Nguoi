@@ -56,9 +56,15 @@ class MaintenanceService:
     @staticmethod
     def create_task_from_booking(booking_id, technician_id):
         """Tạo Maintenance Task mới từ một Booking ID"""
-        
-        if MaintenanceTask.query.filter_by(booking_id=booking_id).first():
-            return None, "Công việc cho Booking này đã tồn tại."
+
+        # Kiểm tra nếu KTV này đã có task cho booking này rồi
+        existing_task = MaintenanceTask.query.filter_by(
+            booking_id=booking_id,
+            user_id=technician_id
+        ).first()
+
+        if existing_task:
+            return None, "Kỹ thuật viên này đã được phân công cho Booking này rồi."
 
         # 1. Lấy chi tiết Booking (lấy user_id và service_type)
         booking_data, error = MaintenanceService._get_booking_details(booking_id)

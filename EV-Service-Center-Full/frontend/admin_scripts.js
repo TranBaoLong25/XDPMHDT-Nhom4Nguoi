@@ -539,8 +539,8 @@ async function loadAllMaintenanceTasks() {
             : "";
 
         return `
-                    <tr id="maintenance-row-${task.id}">
-                        <td class="px-6 py-4 text-sm">${task.id}</td>
+                    <tr id="maintenance-row-${task.task_id}">
+                        <td class="px-6 py-4 text-sm">${task.task_id}</td>
                         <td class="px-6 py-4 text-sm">${task.booking_id}</td>
                         <td class="px-6 py-4 text-sm">${task.description}</td>
                         <td class="px-6 py-4 text-sm font-mono">${
@@ -550,13 +550,13 @@ async function loadAllMaintenanceTasks() {
                           task.technician_id
                         }</td>
                         <td class="px-6 py-4 text-sm">
-                            <select 
+                            <select
                                 class="status-select border rounded p-1 text-xs ${
                                   statusInfo.class
-                                }" 
-                                data-task-id="${task.id}" 
-                                onchange="updateTaskStatus(${
-                                  task.id
+                                }"
+                                data-task-id="${task.task_id}"
+                                onchange="updateMaintenanceTaskStatus(${
+                                  task.task_id
                                 }, this.value)"
                                 ${disabled}>
                                 <option value="pending" ${
@@ -579,8 +579,8 @@ async function loadAllMaintenanceTasks() {
                             ${
                               disabled
                                 ? '<span class="text-gray-400">Đã khóa</span>'
-                                : "<button onclick=\"if(confirm('Chuyển trạng thái sang hoàn thành?')) updateTaskStatus(" +
-                                  task.id +
+                                : "<button onclick=\"if(confirm('Chuyển trạng thái sang hoàn thành?')) updateMaintenanceTaskStatus(" +
+                                  task.task_id +
                                   ', \'completed\')" class="text-green-600 hover:text-green-900">Hoàn Thành</button>'
                             }
                         </td>
@@ -625,6 +625,7 @@ async function updateTaskStatus(taskId, newStatus) {
   }
 }
 window.updateTaskStatus = updateTaskStatus;
+window.updateMaintenanceTaskStatus = updateTaskStatus; // Alias for consistency
 
 // --- MODAL TẠO TASK HANDLERS ---
 const createTaskModal = document.getElementById("create-task-modal");
@@ -635,8 +636,110 @@ function closeCreateTaskModal() {
 }
 window.closeCreateTaskModal = closeCreateTaskModal;
 
-function openCreateTaskModal() {
-  if (createTaskModal) createTaskModal.classList.remove("hidden");
+// Fetch incomplete bookings for task assignment
+async function loadIncompleteBookings() {
+  try {
+    console.log("🔄 Loading incomplete bookings...");
+    const bookings = await window.apiRequestCore(
+      window.ADMIN_TOKEN_KEY,
+      "/api/bookings/items",
+      "GET"
+    );
+    console.log("✅ Bookings loaded:", bookings);
+
+    // Filter out completed and canceled bookings
+    const incompleteBookings = bookings.filter(
+      (booking) => booking.status !== "completed" && booking.status !== "canceled"
+    );
+    console.log("✅ Incomplete bookings:", incompleteBookings);
+
+    const select = document.getElementById("task-booking-id");
+    if (!select) {
+      console.error("❌ Select element 'task-booking-id' not found");
+      return;
+    }
+
+    // Clear existing options except first one
+    select.innerHTML = '<option value="">-- Chọn lịch hẹn --</option>';
+
+    // Populate with incomplete bookings
+    incompleteBookings.forEach((booking) => {
+      const option = document.createElement("option");
+      option.value = booking.id;
+      const date = new Date(booking.booking_date).toLocaleDateString("vi-VN");
+      option.textContent = `#${booking.id} - ${booking.service_type} - ${date} - ${booking.status}`;
+      select.appendChild(option);
+    });
+
+    if (incompleteBookings.length === 0) {
+      const option = document.createElement("option");
+      option.value = "";
+      option.textContent = "Không có lịch hẹn chưa hoàn thành";
+      option.disabled = true;
+      select.appendChild(option);
+    }
+  } catch (error) {
+    console.error("Error loading incomplete bookings:", error);
+    window.showToast("Không thể tải danh sách lịch hẹn", true);
+  }
+}
+
+// Fetch technicians for task assignment
+async function loadTechnicians() {
+  try {
+    console.log("🔄 Loading technicians...");
+    const users = await window.apiRequestCore(
+      window.ADMIN_TOKEN_KEY,
+      "/api/admin/users",
+      "GET"
+    );
+    console.log("✅ Users loaded:", users);
+
+    // Filter to only technicians
+    const technicians = users.filter((user) => user.role === "technician");
+    console.log("✅ Technicians:", technicians);
+
+    const select = document.getElementById("task-technician-id");
+    if (!select) {
+      console.error("❌ Select element 'task-technician-id' not found");
+      return;
+    }
+
+    // Clear existing options except first one
+    select.innerHTML = '<option value="">-- Chọn kỹ thuật viên --</option>';
+
+    // Populate with technicians
+    technicians.forEach((tech) => {
+      const option = document.createElement("option");
+      option.value = tech.user_id;
+      option.textContent = `#${tech.user_id} - ${tech.username} - ${tech.email}`;
+      select.appendChild(option);
+    });
+
+    if (technicians.length === 0) {
+      const option = document.createElement("option");
+      option.value = "";
+      option.textContent = "Không có kỹ thuật viên nào";
+      option.disabled = true;
+      select.appendChild(option);
+    }
+  } catch (error) {
+    console.error("Error loading technicians:", error);
+    window.showToast("Không thể tải danh sách kỹ thuật viên", true);
+  }
+}
+
+async function openCreateTaskModal() {
+  console.log("🚀 Opening create task modal...");
+  if (createTaskModal) {
+    createTaskModal.classList.remove("hidden");
+    // Load dropdown data when modal opens
+    console.log("📥 Loading dropdown data...");
+    await Promise.all([loadIncompleteBookings(), loadTechnicians()]);
+    console.log("✅ Dropdown data loaded successfully");
+  } else {
+    console.error("❌ createTaskModal element not found");
+  }
 }
 window.openCreateTaskModal = openCreateTaskModal;
 

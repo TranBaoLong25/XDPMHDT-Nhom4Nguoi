@@ -14,7 +14,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
 
     role = db.Column(
-        db.Enum("user", "admin", name="user_roles"),
+        db.Enum("user", "admin", "technician", name="user_roles"),
         nullable=False,
         default="user"
     )

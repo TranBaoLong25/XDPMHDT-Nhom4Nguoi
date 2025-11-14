@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kỹ Thuật Viên - EV Service Center</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" href="favicon.ico" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+
+  <body class="bg-gray-100 text-gray-800 font-['Inter']">
+    <!-- Header Navigation -->
+    <nav class="bg-white shadow-md sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+          <div class="flex items-center">
+            <span class="font-bold text-xl text-indigo-600">EV-Service - KTV</span>
+          </div>
+          <div class="hidden md:block">
+            <div class="ml-10 flex items-baseline space-x-4">
+              <a
+                href="#"
+                onclick="navigateToDashboardSection('work-list-section', 'Công Việc')"
+                class="text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+              >
+                Công Việc
+              </a>
+              <a
+                href="#"
+                onclick="navigateToDashboardSection('inventory-section', 'Kho Vật Tư')"
+                class="text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+              >
+                Kho Vật Tư
+              </a>
+            </div>
+          </div>
+          <div class="flex items-center space-x-4">
+            <span id="user-info" class="text-sm text-gray-600"></span>
+            <button
+              onclick="handleLogout()"
+              class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium"
+            >
+              Đăng Xuất
+            </button>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      <div id="dashboard-container">
+        <!-- Header -->
+        <div class="mb-6">
+          <h1 id="dashboard-title" class="text-3xl font-bold text-gray-900">
+            Danh Sách Công Việc
+          </h1>
+        </div>
+
+        <!-- ==================== CÔNG VIỆC SECTION ==================== -->
+        <div id="work-list-section" class="dashboard-section">
+          <div class="bg-white shadow rounded-lg overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200">
+              <h2 class="text-xl font-semibold">Lịch Hẹn Cần Xử Lý</h2>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Task ID</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Booking</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mô Tả</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ngày Tạo</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trạng Thái</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hành Động</th>
+                  </tr>
+                </thead>
+                <tbody id="work-list-tbody" class="bg-white divide-y divide-gray-200">
+                  <!-- Work items will be loaded here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== KHO VẬT TƯ SECTION ==================== -->
+        <div id="inventory-section" class="dashboard-section hidden">
+          <div class="bg-white shadow rounded-lg overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200">
+              <h2 class="text-xl font-semibold">Danh Sách Vật Tư & Phụ Tùng</h2>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mã PT</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tên Phụ Tùng</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Số Lượng</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tối Thiểu</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Giá</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trạng Thái</th>
+                  </tr>
+                </thead>
+                <tbody id="inventory-tbody" class="bg-white divide-y divide-gray-200">
+                  <!-- Inventory items will be loaded here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Toast Notification -->
+    <div
+      id="toast"
+      class="hidden fixed top-20 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50"
+    >
+      <p id="toast-message"></p>
+    </div>
+
+    <!-- Scripts -->
+    <script src="technician_scripts.js?v=1"></script>
+  </body>
+</html>

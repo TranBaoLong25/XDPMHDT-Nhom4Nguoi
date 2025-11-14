@@ -11,10 +11,10 @@ TASK_STATUSES = db.Enum(
 class MaintenanceTask(db.Model):
     __tablename__ = "maintenance_tasks"
 
-    id = db.Column(db.Integer, primary_key=True, index=True)
-    # Booking ID là external key, mỗi booking chỉ có thể có 1 task
-    booking_id = db.Column(db.Integer, unique=True, nullable=False, index=True) 
-    # User ID để dễ tra cứu
+    task_id = db.Column(db.Integer, primary_key=True, index=True)
+    # Booking ID là external key, 1 booking có thể có nhiều tasks (nhiều KTV)
+    booking_id = db.Column(db.Integer, nullable=False, index=True)
+    # User ID (technician) để dễ tra cứu
     user_id = db.Column(db.Integer, nullable=False, index=True) 
     # Thông tin xe (VIN) lấy từ Booking/User Profile
     vehicle_vin = db.Column(db.String(100), nullable=False)
@@ -37,7 +37,7 @@ class MaintenanceTask(db.Model):
     def to_dict(self):
         """Chuyển đổi đối tượng sang dictionary để trả về API"""
         return {
-            "id": self.id,
+            "task_id": self.task_id,
             "booking_id": self.booking_id,
             "user_id": self.user_id,
             "vehicle_vin": self.vehicle_vin,

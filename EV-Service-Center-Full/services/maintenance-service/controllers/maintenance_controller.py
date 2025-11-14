@@ -15,11 +15,14 @@ def admin_required():
             try:
                 verify_jwt_in_request()
                 claims = get_jwt()
+                print(f"🔍 JWT Claims: {claims}")  # Debug logging
                 if claims.get("role") == "admin":
                     return fn(*args, **kwargs)
                 else:
+                    print(f"❌ Role mismatch: {claims.get('role')} != admin")
                     return jsonify(error="Admins only!"), 403
-            except Exception:
+            except Exception as e:
+                print(f"❌ JWT Error: {str(e)}")  # Debug logging
                 return jsonify(error="Token invalid or missing."), 401
         return decorator
     return wrapper
@@ -90,23 +93,36 @@ def get_task_details_route(task_id):
 
     return jsonify(task.to_dict()), 200
 
-# 5. ADMIN: UPDATE STATUS (PUT /api/maintenance/tasks/<id>/status)
+# 5. ADMIN/TECHNICIAN: UPDATE STATUS (PUT /api/maintenance/tasks/<id>/status)
 @maintenance_bp.route("/tasks/<int:task_id>/status", methods=["PUT"])
 @jwt_required()
-@admin_required()
 def update_task_status_route(task_id):
     data = request.json
     new_status = data.get("status")
-    
+
     if not new_status:
         return jsonify({"error": "Missing 'status' field."}), 400
-    
+
+    # Check if user is admin or task owner
+    current_user_id = get_jwt_identity()
+    claims = get_jwt()
+    is_admin = claims.get("role") == "admin"
+
+    task = service.get_task_by_id(task_id)
+    if not task:
+        return jsonify({"error": "Không tìm thấy công việc."}), 404
+
+    is_owner = str(task.user_id) == str(current_user_id)
+
+    if not is_admin and not is_owner:
+        return jsonify({"error": "Bạn không có quyền cập nhật công việc này."}), 403
+
     task, error = service.update_task_status(task_id, new_status)
     if error:
         status_code = 404 if "Không tìm thấy" in error else 400
         return jsonify({"error": error}), status_code
-        
+
     return jsonify({
-        "message": f"Cập nhật trạng thái công việc thành '{new_status}' thành công.", 
+        "message": f"Cập nhật trạng thái công việc thành '{new_status}' thành công.",
         "task": task.to_dict()
     }), 200

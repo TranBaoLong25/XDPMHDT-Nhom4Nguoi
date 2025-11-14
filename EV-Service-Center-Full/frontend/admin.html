@@ -727,13 +727,13 @@
               class="block text-sm font-medium text-gray-700"
               >ID Lịch Hẹn (Booking ID)</label
             >
-            <input
-              type="number"
+            <select
               id="task-booking-id"
-              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
               required
-              min="1"
-            />
+            >
+              <option value="">-- Chọn lịch hẹn --</option>
+            </select>
           </div>
           <div class="mb-6">
             <label
@@ -741,13 +741,13 @@
               class="block text-sm font-medium text-gray-700"
               >ID Kỹ Thuật Viên</label
             >
-            <input
-              type="number"
+            <select
               id="task-technician-id"
-              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
               required
-              min="1"
-            />
+            >
+              <option value="">-- Chọn kỹ thuật viên --</option>
+            </select>
           </div>
           <div class="flex justify-end space-x-4 mt-8">
             <button
@@ -956,6 +956,7 @@
             >
               <option value="user">User</option>
               <option value="admin">Admin</option>
+              <option value="technician">Technician (KTV)</option>
             </select>
           </div>
           <div class="flex justify-end space-x-4 mt-8">
