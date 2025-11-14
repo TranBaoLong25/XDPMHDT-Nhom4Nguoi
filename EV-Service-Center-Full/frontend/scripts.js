@@ -49,6 +49,8 @@ function formatInvoiceStatus(status) {
       return { text: "Thành công", class: "bg-green-100 text-green-800" };
     case "failed":
       return { text: "Thất bại", class: "bg-red-100 text-red-800" };
+    case "expired":
+      return { text: "Đã Hủy", class: "bg-gray-100 text-gray-800" };
     default:
       return { text: status, class: "bg-gray-100 text-gray-800" };
   }
@@ -62,16 +64,45 @@ function updateNav() {
   // ✅ BỔ SUNG NÚT 'CÔNG VIỆC' VÀ 'HÓA ĐƠN' CHO NGƯỜI DÙNG ĐÃ ĐĂNG NHẬP
   navAuthLinks.innerHTML = token
     ? `
-        <a href="#" onclick="navigateTo('booking')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Đặt Lịch</a> 
-        <a href="#" onclick="navigateTo('my-tasks')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Công Việc</a> 
-        <a href="#" onclick="navigateTo('invoice-history')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Hóa Đơn</a> 
+        <a href="#" onclick="navigateTo('booking')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Đặt Lịch</a>
+        <a href="#" onclick="navigateTo('my-tasks')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Công Việc</a>
+        <a href="#" onclick="navigateTo('invoice-history')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Hóa Đơn</a>
         <a href="#" onclick="navigateTo('profile')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Hồ Sơ</a>
+
+        <!-- Notification Bell Icon -->
+        <div class="relative ml-4">
+          <button onclick="toggleNotificationDropdown()" class="relative text-gray-600 hover:text-indigo-600 focus:outline-none">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+            </svg>
+            <span id="notification-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">0</span>
+          </button>
+
+          <!-- Notification Dropdown -->
+          <div id="notification-dropdown" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
+            <div class="p-4 border-b border-gray-200">
+              <h3 class="font-semibold text-gray-800">Thông báo</h3>
+            </div>
+            <div id="notification-list" class="max-h-96 overflow-y-auto">
+              <div class="p-4 text-center text-gray-500">Đang tải...</div>
+            </div>
+            <div class="p-2 border-t border-gray-200 text-center">
+              <a href="#" onclick="markAllNotificationsAsRead()" class="text-sm text-indigo-600 hover:text-indigo-800">Đánh dấu tất cả đã đọc</a>
+            </div>
+          </div>
+        </div>
+
         <a href="#" onclick="logout()" class="ml-4 bg-red-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-red-600">Đăng Xuất</a>
         `
     : `
         <a href="#" onclick="navigateTo('login')" class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Đăng Nhập</a>
         <a href="#" onclick="navigateTo('register')" class="ml-4 bg-green-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-green-600">Đăng Ký</a>
         `;
+
+  // Load notifications if user is logged in
+  if (token) {
+    setTimeout(() => loadUserNotifications(), 500);
+  }
 }
 
 function logout() {
@@ -1270,3 +1301,144 @@ async function simulatePaymentSuccess() {
   }
 }
 window.simulatePaymentSuccess = simulatePaymentSuccess;
+
+// ===================== NOTIFICATION FUNCTIONS =====================
+
+// Toggle notification dropdown
+function toggleNotificationDropdown() {
+  const dropdown = document.getElementById("notification-dropdown");
+  if (dropdown) {
+    dropdown.classList.toggle("hidden");
+    if (!dropdown.classList.contains("hidden")) {
+      loadUserNotifications();
+    }
+  }
+}
+window.toggleNotificationDropdown = toggleNotificationDropdown;
+
+// Close dropdown when clicking outside
+document.addEventListener("click", function (event) {
+  const dropdown = document.getElementById("notification-dropdown");
+  const button = event.target.closest("button");
+  if (dropdown && !dropdown.contains(event.target) && !button?.onclick?.toString().includes("toggleNotificationDropdown")) {
+    dropdown.classList.add("hidden");
+  }
+});
+
+// Load user notifications
+async function loadUserNotifications() {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) return;
+
+  try {
+    const notificationList = document.getElementById("notification-list");
+    const badge = document.getElementById("notification-badge");
+
+    if (!notificationList) return;
+
+    // Call API to get user notifications
+    const notifications = await apiRequestCore(TOKEN_KEY, "/api/notifications/my-notifications", "GET");
+
+    // Count unread notifications
+    const unreadCount = notifications.filter(n => n.status !== "read").length;
+
+    // Update badge
+    if (badge) {
+      if (unreadCount > 0) {
+        badge.textContent = unreadCount > 99 ? "99+" : unreadCount;
+        badge.classList.remove("hidden");
+      } else {
+        badge.classList.add("hidden");
+      }
+    }
+
+    // Render notifications
+    if (notifications.length === 0) {
+      notificationList.innerHTML = '<div class="p-4 text-center text-gray-500">Không có thông báo nào</div>';
+      return;
+    }
+
+    notificationList.innerHTML = notifications.map(notif => {
+      const isUnread = notif.status !== "read";
+      const typeColors = {
+        booking_status: "text-blue-600",
+        payment: "text-green-600",
+        maintenance: "text-orange-600",
+        inventory_alert: "text-yellow-600",
+        reminder: "text-purple-600",
+        system: "text-gray-600"
+      };
+      const typeColor = typeColors[notif.notification_type] || "text-gray-600";
+
+      return `
+        <div onclick="markNotificationAsRead(${notif.id})"
+             class="p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer ${isUnread ? 'bg-blue-50' : ''}">
+          <div class="flex items-start">
+            <div class="flex-1">
+              <div class="flex items-center justify-between">
+                <h4 class="font-semibold text-sm ${typeColor}">${notif.title}</h4>
+                ${isUnread ? '<span class="w-2 h-2 bg-blue-500 rounded-full"></span>' : ''}
+              </div>
+              <p class="text-sm text-gray-600 mt-1">${notif.message}</p>
+              <p class="text-xs text-gray-400 mt-1">${formatDateTime(notif.created_at)}</p>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+  } catch (error) {
+    console.error("Error loading notifications:", error);
+    const notificationList = document.getElementById("notification-list");
+    if (notificationList) {
+      notificationList.innerHTML = '<div class="p-4 text-center text-red-500">Lỗi tải thông báo</div>';
+    }
+  }
+}
+window.loadUserNotifications = loadUserNotifications;
+
+// Mark notification as read
+async function markNotificationAsRead(notificationId) {
+  try {
+    await apiRequestCore(TOKEN_KEY, `/api/notifications/${notificationId}/read`, "PUT");
+    loadUserNotifications(); // Reload to update UI
+  } catch (error) {
+    console.error("Error marking notification as read:", error);
+  }
+}
+window.markNotificationAsRead = markNotificationAsRead;
+
+// Mark all notifications as read
+async function markAllNotificationsAsRead() {
+  try {
+    await apiRequestCore(TOKEN_KEY, "/api/notifications/read-all", "PUT");
+    showToast("Đã đánh dấu tất cả thông báo là đã đọc");
+    loadUserNotifications();
+  } catch (error) {
+    console.error("Error marking all notifications as read:", error);
+  }
+}
+window.markAllNotificationsAsRead = markAllNotificationsAsRead;
+
+// Helper function to format datetime
+function formatDateTime(dateString) {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diff = now - date;
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+
+  if (minutes < 1) return "Vừa xong";
+  if (minutes < 60) return `${minutes} phút trước`;
+  if (hours < 24) return `${hours} giờ trước`;
+  if (days < 7) return `${days} ngày trước`;
+
+  return date.toLocaleDateString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}

@@ -269,7 +269,7 @@ services:
   payment-service:
     build: ./services/payment-service
     container_name: payment-service
-    command: gunicorn --bind 0.0.0.0:8004 "app:create_app()"
+    command: gunicorn -c gunicorn_config.py "app:create_app()"
     volumes:
       - ./services/payment-service:/app
     environment:
@@ -277,6 +277,7 @@ services:
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN}
       - FINANCE_SERVICE_URL=http://finance-service:8002
+      - GUNICORN_ENV=true
     expose:
       - "8004"
     depends_on:

@@ -15,11 +15,14 @@ def admin_required():
             try:
                 verify_jwt_in_request()
                 claims = get_jwt()
+                print(f"✅ JWT Claims: {claims}")  # DEBUG
                 if claims.get("role") == "admin":
                     return fn(*args, **kwargs)
                 else:
+                    print(f"❌ Not admin role: {claims.get('role')}")  # DEBUG
                     return jsonify(error="Admins only!"), 403
-            except Exception:
+            except Exception as e:
+                print(f"❌ JWT Error: {type(e).__name__}: {str(e)}")  # DEBUG
                 return jsonify(error="Token invalid or missing."), 401
         return decorator
     return wrapper

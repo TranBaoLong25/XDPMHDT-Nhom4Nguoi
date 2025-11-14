@@ -227,8 +227,9 @@ class FinanceService:
         invoice = Invoice.query.get(invoice_id)
         if not invoice:
             return None, "Không tìm thấy Hóa đơn."
-        
-        valid_statuses = [str(s.value) for s in Invoice.status.type.enums]
+
+        # Valid invoice statuses defined in the model
+        valid_statuses = ["pending", "issued", "paid", "canceled"]
         if new_status not in valid_statuses:
             return None, f"Trạng thái '{new_status}' không hợp lệ. Phải là: {', '.join(valid_statuses)}"
         

@@ -1,6 +1,7 @@
 import requests
 import json
 import os # Import os để tạo random bytes
+from datetime import datetime, timedelta
 from flask import current_app, jsonify
 from app import db
 from models.payment_model import PaymentTransaction, PAYMENT_STATUSES
@@ -138,16 +139,16 @@ class PaymentService:
     @staticmethod
     def handle_pg_webhook(pg_transaction_id, final_status):
         """Xử lý Webhook giả lập từ Cổng Thanh toán"""
-        
+
         transaction = PaymentService.get_transaction_by_pg_id(pg_transaction_id)
         if not transaction:
             return None, "Không tìm thấy giao dịch với PG ID này."
-        
+
         if transaction.status == 'success':
             return transaction, "Giao dịch đã được xử lý thành công trước đó."
-        
-        from models.payment_model import PAYMENT_STATUSES
-        valid_statuses = [str(s.value) for s in PAYMENT_STATUSES.type.enums]
+
+        # Valid payment statuses defined in the model
+        valid_statuses = ["pending", "success", "failed", "expired"]
         if final_status not in valid_statuses:
             return None, "Trạng thái webhook không hợp lệ."
             
@@ -216,11 +217,42 @@ class PaymentService:
     @staticmethod
     def process_payment(data):
         # ... existing payment processing code ...
-        
+
         # ✅ THÊM: Gửi notification dựa trên kết quả
         if payment.status == "success": # type: ignore
             PaymentService._notify_payment_success(payment) # type: ignore
         elif payment.status == "failed": # type: ignore
             PaymentService._notify_payment_failed(payment) # type: ignore
-        
+
         return payment, None # type: ignore
+
+    @staticmethod
+    def expire_pending_transactions():
+        """
+        Tự động hủy các giao dịch pending quá 1 phút
+        Được gọi định kỳ bởi scheduler
+        """
+        try:
+            # Tính thời gian 1 phút trước
+            one_minute_ago = datetime.utcnow() - timedelta(minutes=1)
+
+            # Tìm tất cả giao dịch pending quá 1 phút
+            expired_transactions = PaymentTransaction.query.filter(
+                PaymentTransaction.status == 'pending',
+                PaymentTransaction.created_at < one_minute_ago
+            ).all()
+
+            expired_count = 0
+            for transaction in expired_transactions:
+                transaction.status = 'expired'
+                expired_count += 1
+
+            if expired_count > 0:
+                db.session.commit()
+                current_app.logger.info(f"✅ Đã hủy {expired_count} giao dịch quá hạn")
+
+            return expired_count
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"❌ Lỗi khi hủy giao dịch quá hạn: {str(e)}")
+            return 0

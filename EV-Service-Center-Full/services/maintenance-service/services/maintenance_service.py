@@ -101,7 +101,8 @@ class MaintenanceService:
         if not task:
             return None, "Không tìm thấy Công việc bảo trì."
 
-        valid_statuses = [str(s.value) for s in MaintenanceTask.status.type.enums]
+        # Valid maintenance task statuses defined in the model
+        valid_statuses = ["pending", "in_progress", "completed", "failed"]
         if new_status not in valid_statuses:
             return None, f"Trạng thái '{new_status}' không hợp lệ. Phải là: {', '.join(valid_statuses)}"
         

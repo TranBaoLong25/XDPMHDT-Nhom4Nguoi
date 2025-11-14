@@ -23,6 +23,7 @@ def create_app():
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
+    app.config["JWT_COOKIE_CSRF_PROTECT"] = False  # Disable CSRF for JWT
     app.config["INTERNAL_SERVICE_TOKEN"] = os.getenv("INTERNAL_SERVICE_TOKEN")
     app.config["BOOKING_SERVICE_URL"] = os.getenv("BOOKING_SERVICE_URL")
     app.config["USER_SERVICE_URL"] = os.getenv("USER_SERVICE_URL")

@@ -50,8 +50,8 @@ def create_app():
 
     # ===== ĐĂNG KÝ BLUEPRINTS (Controllers) =====
     from controllers.payment_controller import payment_bp
-    
-    app.register_blueprint(payment_bp) 
+
+    app.register_blueprint(payment_bp)
 
     # ===== HEALTH CHECK =====
     @app.route("/health", methods=["GET"])

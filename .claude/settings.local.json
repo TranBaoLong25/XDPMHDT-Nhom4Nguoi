@@ -5,7 +5,12 @@
       "Bash(curl:*)",
       "Bash(python -m json.tool:*)",
       "Bash(docker-compose logs:*)",
-      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc2MzAzMDM3MiwianRpIjoiY2U5Y2Y1ZTktNDcyZC00MWIzLTgyZjEtZDFkZDMyNGFmOWIzIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjMiLCJuYmYiOjE3NjMwMzAzNzIsImNzcmYiOiI4ZGYxNTJhOC02ZmU1LTRhNWItYmE4NS0yMjc0OTE1MWJlODIiLCJleHAiOjE3NjM2MzUxNzIsInJvbGUiOiJhZG1pbiJ9.X4RIH0yGNv0VDPDyNRJ8shQflo0ILO2oedhiJrk9T9Q\")"
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc2MzAzMDM3MiwianRpIjoiY2U5Y2Y1ZTktNDcyZC00MWIzLTgyZjEtZDFkZDMyNGFmOWIzIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjMiLCJuYmYiOjE3NjMwMzAzNzIsImNzcmYiOiI4ZGYxNTJhOC02ZmU1LTRhNWItYmE4NS0yMjc0OTE1MWJlODIiLCJleHAiOjE3NjM2MzUxNzIsInJvbGUiOiJhZG1pbiJ9.X4RIH0yGNv0VDPDyNRJ8shQflo0ILO2oedhiJrk9T9Q\")",
+      "Bash(docker ps:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker inspect:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker-compose restart:*)"
     ],
     "deny": [],
     "ask": []

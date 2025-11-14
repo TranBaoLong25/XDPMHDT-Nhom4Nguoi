@@ -63,6 +63,9 @@ def create_app():
     if jwt_secret:
         app.config["JWT_SECRET_KEY"] = jwt_secret.strip()
 
+    # Disable CSRF protection for JWT
+    app.config["JWT_COOKIE_CSRF_PROTECT"] = False
+
     # FIX: Làm sạch INTERNAL_SERVICE_TOKEN
     internal_token = os.getenv("INTERNAL_SERVICE_TOKEN")
     if internal_token:

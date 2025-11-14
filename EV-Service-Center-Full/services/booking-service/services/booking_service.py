@@ -98,6 +98,13 @@ class BookingService:
             
             db.session.add(new_booking)
             db.session.commit()
+
+            # Send notification after successful booking
+            try:
+                BookingService._notify_booking_created(new_booking)
+            except Exception as e:
+                print(f"⚠️ Failed to send notification: {e}")
+
             return new_booking, None
         except Exception as e:
             db.session.rollback()
@@ -151,49 +158,16 @@ class BookingService:
         
         # Sắp xếp theo start_time để lịch sắp tới hiển thị trước
         return Booking.query.filter_by(user_id=user_id_int).order_by(Booking.start_time.desc()).all()
-    @staticmethod
-    def _send_booking_notification(booking):
-        """Send notification after booking creation"""
-        try:
-            url = "http://notification-service:8005/internal/notifications/create"
-            headers = {
-                "X-Internal-Token": os.getenv("INTERNAL_SERVICE_TOKEN"),
-                "Content-Type": "application/json"
-            }
-            data = {
-                "user_id": booking.user_id,
-                "notification_type": "booking_status",
-                "title": "Đặt lịch thành công! 🎉",
-                "message": f"Lịch hẹn {booking.service_type} của bạn đã được xác nhận.",
-                "channel": "in_app",
-                "priority": "high",
-                "related_entity_type": "booking",
-                "related_entity_id": booking.id
-            }
-            
-            response = requests.post(url, json=data, headers=headers, timeout=5)
-            return response.status_code == 201
-        except Exception as e:
-            # Log error but don't fail booking creation
-            print(f"Failed to send notification: {e}")
-            return False
-    
-    @staticmethod
-    def create_booking(data):
-        # ... existing booking creation code ...
-        
-        # After successful booking creation
-        if booking:
-            BookingService._send_booking_notification(booking)
-        
-        return booking, None
-
 # Hàm gửi thông báo khi tạo booking thành công
 
     @staticmethod
     def _notify_booking_created(booking):
         """Thông báo khi tạo booking thành công"""
-        from notification_helper import NotificationHelper
+        try:
+            from helpers.notification_helper import NotificationHelper
+        except ImportError:
+            print("⚠️ NotificationHelper not available, skipping notification")
+            return True, "Notification skipped"
         
         return NotificationHelper.send_notification(
             user_id=booking.user_id,
@@ -214,7 +188,11 @@ class BookingService:
     @staticmethod
     def _notify_booking_status_changed(booking, old_status, new_status):
         """Thông báo khi trạng thái booking thay đổi"""
-        from notification_helper import NotificationHelper
+        try:
+            from helpers.notification_helper import NotificationHelper
+        except ImportError:
+            print("⚠️ NotificationHelper not available, skipping notification")
+            return True, "Notification skipped"
         
         messages = {
             "confirmed": "✅ Lịch hẹn của bạn đã được xác nhận",
@@ -242,7 +220,11 @@ class BookingService:
     @staticmethod
     def _notify_booking_reminder(booking):
         """Nhắc nhở trước 24h (dùng với scheduled job)"""
-        from notification_helper import NotificationHelper
+        try:
+            from helpers.notification_helper import NotificationHelper
+        except ImportError:
+            print("⚠️ NotificationHelper not available, skipping notification")
+            return True, "Notification skipped"
         
         return NotificationHelper.send_notification(
             user_id=booking.user_id,
@@ -254,17 +236,6 @@ class BookingService:
             related_entity_type="booking",
             related_entity_id=booking.id
         )
-    
-    @staticmethod
-    def create_booking(data):
-        # ... existing booking creation code ...
-        
-        # ✅ THÊM: Gửi notification sau khi tạo thành công
-        if Booking:
-            BookingService._notify_booking_created(Booking)
-        
-        return Booking, None
-    
     @staticmethod
     def update_booking_status(booking_id, new_status):
         booking = BookingService.get_booking_by_id(booking_id)

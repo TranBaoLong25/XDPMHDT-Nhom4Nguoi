@@ -35,7 +35,7 @@ function formatPaymentStatus(status) {
     case "failed":
       return { text: "Thất bại", class: "bg-red-100 text-red-800" };
     case "expired":
-      return { text: "Hết hạn", class: "bg-gray-100 text-gray-800" };
+      return { text: "Hết Hạn", class: "bg-gray-100 text-gray-800" };
     default:
       return { text: status, class: "bg-gray-100 text-gray-800" };
   }
@@ -166,12 +166,15 @@ document
     const email_username = document.getElementById("admin-email").value;
     const password = document.getElementById("admin-password").value;
 
+    console.log("🔐 Login attempt:", { email_username, password: "***" });
+
     try {
       // Gọi API login (không dùng tokenKey)
       const data = await window.apiRequestCore(null, "/api/login", "POST", {
         email_username,
         password,
       });
+      console.log("✅ Login successful:", data);
       const token = data.access_token;
 
       const payload = JSON.parse(atob(token.split(".")[1]));
