@@ -1503,3 +1503,175 @@ document.addEventListener("DOMContentLoaded", () => {
     adminLogout();
   }
 });
+
+// ==================== BÁO CÁO FUNCTIONS ====================
+
+function switchReportTab(tabName) {
+  // Hide all tabs
+  document.querySelectorAll('.report-content').forEach(tab => tab.classList.add('hidden'));
+  document.querySelectorAll('.report-tab').forEach(tab => {
+    tab.classList.remove('border-indigo-600', 'text-indigo-600');
+    tab.classList.add('border-transparent', 'text-gray-500');
+  });
+
+  // Show selected tab
+  if (tabName === 'revenue') {
+    document.getElementById('revenue-report-tab').classList.remove('hidden');
+    document.getElementById('tab-revenue').classList.add('border-indigo-600', 'text-indigo-600');
+    loadRevenueReport();
+  } else if (tabName === 'inventory') {
+    document.getElementById('inventory-report-tab').classList.remove('hidden');
+    document.getElementById('tab-inventory').classList.add('border-indigo-600', 'text-indigo-600');
+    loadInventoryReport();
+  }
+}
+
+async function loadDashboardData() {
+  try {
+    const response = await apiRequestCore(
+      window.ADMIN_TOKEN_KEY,
+      "/api/reports/dashboard",
+      "GET"
+    );
+
+    // Update dashboard cards
+    const formatCurrency = (amount) => new Intl.NumberFormat('vi-VN').format(amount) + '₫';
+
+    document.getElementById('revenue-today').textContent = formatCurrency(response.revenue.today.total_revenue);
+    document.getElementById('transactions-today').textContent = `${response.revenue.today.transaction_count} giao dịch`;
+
+    document.getElementById('revenue-month').textContent = formatCurrency(response.revenue.month.total_revenue);
+    document.getElementById('transactions-month').textContent = `${response.revenue.month.transaction_count} giao dịch`;
+
+    document.getElementById('low-stock-count').textContent = response.inventory.low_stock_count;
+
+  } catch (error) {
+    console.error("Error loading dashboard:", error);
+    showToast("Lỗi khi tải dashboard", true);
+  }
+}
+
+async function loadRevenueReport() {
+  try {
+    const response = await apiRequestCore(
+      window.ADMIN_TOKEN_KEY,
+      "/api/reports/revenue",
+      "GET"
+    );
+
+    const formatCurrency = (amount) => new Intl.NumberFormat('vi-VN').format(amount) + '₫';
+
+    // Revenue details
+    const detailsHtml = `
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="text-center p-4 bg-gray-50 rounded">
+          <p class="text-sm text-gray-600">Tổng Doanh Thu</p>
+          <p class="text-2xl font-bold text-green-600">${formatCurrency(response.total_revenue)}</p>
+        </div>
+        <div class="text-center p-4 bg-gray-50 rounded">
+          <p class="text-sm text-gray-600">Số Giao Dịch</p>
+          <p class="text-2xl font-bold text-blue-600">${response.transaction_count}</p>
+        </div>
+        <div class="text-center p-4 bg-gray-50 rounded">
+          <p class="text-sm text-gray-600">Giá Trị TB</p>
+          <p class="text-2xl font-bold text-indigo-600">${formatCurrency(response.avg_transaction_value)}</p>
+        </div>
+      </div>
+    `;
+    document.getElementById('revenue-details-container').innerHTML = detailsHtml;
+
+    // Payment methods
+    let methodsHtml = '<div class="space-y-3">';
+    for (const [method, data] of Object.entries(response.payment_methods)) {
+      const methodName = method === 'bank_transfer' ? 'Chuyển Khoản' : method === 'momo_qr' ? 'MoMo QR' : method;
+      methodsHtml += `
+        <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
+          <div>
+            <p class="font-semibold">${methodName}</p>
+            <p class="text-sm text-gray-600">${data.count} giao dịch</p>
+          </div>
+          <p class="text-lg font-bold text-green-600">${formatCurrency(data.amount)}</p>
+        </div>
+      `;
+    }
+    methodsHtml += '</div>';
+    document.getElementById('payment-methods-container').innerHTML = methodsHtml || '<p class="text-gray-500">Chưa có dữ liệu</p>';
+
+  } catch (error) {
+    console.error("Error loading revenue report:", error);
+    showToast("Lỗi khi tải báo cáo doanh thu", true);
+  }
+}
+
+async function loadInventoryReport() {
+  try {
+    const response = await apiRequestCore(
+      window.ADMIN_TOKEN_KEY,
+      "/api/reports/inventory",
+      "GET"
+    );
+
+    const formatCurrency = (amount) => new Intl.NumberFormat('vi-VN').format(amount) + '₫';
+
+    // Overview
+    const overviewHtml = `
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="text-center p-4 bg-gray-50 rounded">
+          <p class="text-sm text-gray-600">Tổng Loại PT</p>
+          <p class="text-2xl font-bold text-blue-600">${response.total_parts}</p>
+        </div>
+        <div class="text-center p-4 bg-gray-50 rounded">
+          <p class="text-sm text-gray-600">Tổng Số Lượng</p>
+          <p class="text-2xl font-bold text-indigo-600">${response.total_quantity}</p>
+        </div>
+        <div class="text-center p-4 bg-gray-50 rounded">
+          <p class="text-sm text-gray-600">Giá Trị Kho</p>
+          <p class="text-2xl font-bold text-green-600">${formatCurrency(response.total_inventory_value)}</p>
+        </div>
+        <div class="text-center p-4 bg-gray-50 rounded">
+          <p class="text-sm text-gray-600">Sắp Hết Hàng</p>
+          <p class="text-2xl font-bold text-red-600">${response.low_stock_count}</p>
+        </div>
+      </div>
+    `;
+    document.getElementById('inventory-overview-container').innerHTML = overviewHtml;
+
+    // Low stock items
+    if (response.low_stock_parts.length > 0) {
+      let lowStockHtml = '<div class="space-y-2">';
+      response.low_stock_parts.forEach(part => {
+        lowStockHtml += `
+          <div class="flex justify-between items-center p-3 border border-red-200 bg-red-50 rounded">
+            <div>
+              <p class="font-semibold">${part.name}</p>
+              <p class="text-sm text-gray-600">SKU: ${part.sku}</p>
+            </div>
+            <div class="text-right">
+              <p class="text-lg font-bold text-red-600">Còn: ${part.quantity}</p>
+              <p class="text-sm text-gray-600">${formatCurrency(part.price)}/cái</p>
+            </div>
+          </div>
+        `;
+      });
+      lowStockHtml += '</div>';
+      document.getElementById('low-stock-container').innerHTML = lowStockHtml;
+    } else {
+      document.getElementById('low-stock-container').innerHTML = '<p class="text-green-600">✅ Tất cả phụ tùng đều đủ hàng</p>';
+    }
+
+  } catch (error) {
+    console.error("Error loading inventory report:", error);
+    showToast("Lỗi khi tải báo cáo kho", true);
+  }
+}
+
+// Hook vào navigateToDashboardSection để load data khi vào reports
+const originalNavigate = window.navigateToDashboardSection;
+window.navigateToDashboardSection = function(sectionId, title) {
+  originalNavigate(sectionId, title);
+
+  if (sectionId === 'reports-section') {
+    loadDashboardData();
+    switchReportTab('revenue');
+  }
+};

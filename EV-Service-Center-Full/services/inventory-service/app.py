@@ -23,7 +23,11 @@ def create_app():
     # Lấy DATABASE_URL từ file .env của service
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    # Bạn có thể thêm JWT_SECRET_KEY nếu cần bảo vệ các route nội bộ
+
+    # Internal Service Token cho API nội bộ
+    internal_token = os.getenv("INTERNAL_SERVICE_TOKEN")
+    if internal_token:
+        app.config["INTERNAL_SERVICE_TOKEN"] = internal_token.strip()
 
     # ===== KHỞI TẠO EXTENSIONS =====
     db.init_app(app)
@@ -40,10 +44,12 @@ def create_app():
 
     # ===== ĐĂNG KÝ BLUEPRINTS (Controllers) =====
     # Đảm bảo bạn đã viết file controllers/inventory_controller.py
-    from controllers.inventory_controller import inventory_bp 
-    
+    from controllers.inventory_controller import inventory_bp
+    from controllers.internal_controller import internal_bp
+
     # Đăng ký blueprint (route sẽ là /api/inventory/...)
-    app.register_blueprint(inventory_bp) 
+    app.register_blueprint(inventory_bp)
+    app.register_blueprint(internal_bp) 
 
     # ===== HEALTH CHECK =====
     @app.route("/health", methods=["GET"])

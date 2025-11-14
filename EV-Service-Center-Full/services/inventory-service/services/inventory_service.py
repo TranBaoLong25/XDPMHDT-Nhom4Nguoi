@@ -25,6 +25,11 @@ class InventoryService:
         return Inventory.query.all()
 
     @staticmethod
+    def get_all_parts():
+        """Alias cho get_all_items() - để tương thích với internal API"""
+        return InventoryService.get_all_items()
+
+    @staticmethod
     def get_low_stock_items(min_quantity=10):
         """Lấy các vật tư có tồn kho thấp hơn mức tối thiểu"""
         #

@@ -138,6 +138,12 @@
               Notifications
             </button>
             <button
+              onclick="navigateToDashboardSection('reports-section', 'Báo Cáo')"
+              class="text-gray-600 hover:text-indigo-600 font-medium"
+            >
+              Báo Cáo
+            </button>
+            <button
               onclick="adminLogout()"
               class="bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600"
             >
@@ -618,6 +624,82 @@
             </table>
           </div>
         </div>
+
+        <!-- ==================== BÁO CÁO SECTION ==================== -->
+        <div id="reports-section" class="dashboard-section hidden">
+          <h2 class="text-xl font-semibold mb-4">Báo Cáo & Thống Kê</h2>
+
+          <!-- Dashboard Cards -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <!-- Doanh Thu Hôm Nay -->
+            <div class="bg-gradient-to-r from-green-400 to-green-600 text-white p-6 rounded-lg shadow-lg">
+              <h3 class="text-lg font-semibold mb-2">Doanh Thu Hôm Nay</h3>
+              <p id="revenue-today" class="text-3xl font-bold">0₫</p>
+              <p id="transactions-today" class="text-sm opacity-90 mt-1">0 giao dịch</p>
+            </div>
+
+            <!-- Doanh Thu Tháng Này -->
+            <div class="bg-gradient-to-r from-blue-400 to-blue-600 text-white p-6 rounded-lg shadow-lg">
+              <h3 class="text-lg font-semibold mb-2">Doanh Thu Tháng Này</h3>
+              <p id="revenue-month" class="text-3xl font-bold">0₫</p>
+              <p id="transactions-month" class="text-sm opacity-90 mt-1">0 giao dịch</p>
+            </div>
+
+            <!-- Tình Trạng Kho -->
+            <div class="bg-gradient-to-r from-yellow-400 to-orange-600 text-white p-6 rounded-lg shadow-lg">
+              <h3 class="text-lg font-semibold mb-2">Cảnh Báo Kho</h3>
+              <p id="low-stock-count" class="text-3xl font-bold">0</p>
+              <p class="text-sm opacity-90 mt-1">phụ tùng sắp hết</p>
+            </div>
+          </div>
+
+          <!-- Tabs -->
+          <div class="mb-4 border-b border-gray-200">
+            <nav class="flex space-x-8">
+              <button onclick="switchReportTab('revenue')" id="tab-revenue" class="report-tab py-2 px-1 border-b-2 border-indigo-600 font-medium text-indigo-600">
+                Báo Cáo Doanh Thu
+              </button>
+              <button onclick="switchReportTab('inventory')" id="tab-inventory" class="report-tab py-2 px-1 border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700">
+                Báo Cáo Kho
+              </button>
+            </nav>
+          </div>
+
+          <!-- Báo Cáo Doanh Thu Tab -->
+          <div id="revenue-report-tab" class="report-content">
+            <div class="bg-white shadow rounded-lg p-6 mb-6">
+              <h3 class="text-lg font-semibold mb-4">Chi Tiết Doanh Thu</h3>
+              <div id="revenue-details-container">
+                <p class="text-gray-500">Đang tải dữ liệu...</p>
+              </div>
+            </div>
+
+            <div class="bg-white shadow rounded-lg p-6">
+              <h3 class="text-lg font-semibold mb-4">Phương Thức Thanh Toán</h3>
+              <div id="payment-methods-container">
+                <p class="text-gray-500">Đang tải dữ liệu...</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Báo Cáo Kho Tab -->
+          <div id="inventory-report-tab" class="report-content hidden">
+            <div class="bg-white shadow rounded-lg p-6 mb-6">
+              <h3 class="text-lg font-semibold mb-4">Tổng Quan Kho</h3>
+              <div id="inventory-overview-container">
+                <p class="text-gray-500">Đang tải dữ liệu...</p>
+              </div>
+            </div>
+
+            <div class="bg-white shadow rounded-lg p-6">
+              <h3 class="text-lg font-semibold mb-4 text-red-600">⚠️ Phụ Tùng Sắp Hết</h3>
+              <div id="low-stock-container">
+                <p class="text-gray-500">Đang tải dữ liệu...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </main>
     </div>
 

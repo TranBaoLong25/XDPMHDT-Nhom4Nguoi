@@ -312,6 +312,26 @@ services:
       - ev_network
     restart: unless-stopped
 
+  # ===================== REPORT SERVICE =====================
+  report-service:
+    build: ./services/report-service
+    container_name: report-service
+    command: gunicorn --bind 0.0.0.0:8006 wsgi:application
+    volumes:
+      - ./services/report-service:/app
+    environment:
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN}
+      - FINANCE_SERVICE_URL=http://finance-service:8002
+      - PAYMENT_SERVICE_URL=http://payment-service:8004
+      - INVENTORY_SERVICE_URL=http://inventory-service:8000
+      - BOOKING_SERVICE_URL=http://booking-service:8001
+      - MAINTENANCE_SERVICE_URL=http://maintenance-service:8003
+    expose:
+      - "8006"
+    networks:
+      - ev_network
+
   # ===================== FRONTEND SERVICE =====================
   frontend:
     build: ./frontend
