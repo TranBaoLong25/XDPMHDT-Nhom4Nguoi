@@ -124,7 +124,67 @@
       <p id="toast-message"></p>
     </div>
 
+    <!-- Modal Thêm Phụ Tùng -->
+    <div
+      id="add-parts-modal"
+      class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center hidden z-40"
+    >
+      <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-2xl">
+        <h3 class="text-xl font-bold mb-6 text-gray-800">
+          Thêm Phụ Tùng Đã Sử Dụng - Task #<span id="current-task-id"></span>
+        </h3>
+
+        <div class="mb-6">
+          <h4 class="text-lg font-semibold mb-3">Phụ Tùng Đã Thêm</h4>
+          <div id="added-parts-list" class="space-y-2 mb-4 max-h-40 overflow-y-auto">
+            <!-- Danh sách phụ tùng đã thêm -->
+          </div>
+        </div>
+
+        <form id="add-part-form" class="space-y-4">
+          <div>
+            <label for="part-item-id" class="block text-sm font-medium text-gray-700">Chọn Phụ Tùng</label>
+            <select
+              id="part-item-id"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
+              required
+            >
+              <option value="">-- Chọn phụ tùng --</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="part-quantity" class="block text-sm font-medium text-gray-700">Số Lượng</label>
+            <input
+              type="number"
+              id="part-quantity"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+              required
+              min="1"
+              value="1"
+            />
+          </div>
+
+          <div class="flex justify-end space-x-4 mt-6">
+            <button
+              type="button"
+              onclick="closeAddPartsModal()"
+              class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
+            >
+              Đóng
+            </button>
+            <button
+              type="submit"
+              class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            >
+              Thêm Phụ Tùng
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- Scripts -->
-    <script src="technician_scripts.js?v=1"></script>
+    <script src="technician_scripts.js?v=4"></script>
   </body>
 </html>

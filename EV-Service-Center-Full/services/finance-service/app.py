@@ -74,6 +74,7 @@ def create_app():
     app.config["BOOKING_SERVICE_URL"] = os.getenv("BOOKING_SERVICE_URL")
     app.config["INVENTORY_SERVICE_URL"] = os.getenv("INVENTORY_SERVICE_URL")
     app.config["PAYMENT_SERVICE_URL"] = os.getenv("PAYMENT_SERVICE_URL")
+    app.config["MAINTENANCE_SERVICE_URL"] = os.getenv("MAINTENANCE_SERVICE_URL")
     
     # ===== KHỞI TẠO EXTENSIONS =====
     db.init_app(app)

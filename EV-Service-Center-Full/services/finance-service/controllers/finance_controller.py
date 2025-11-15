@@ -48,14 +48,13 @@ def serialize_invoice(invoice, include_items=False):
 def create_invoice():
     data = request.json
     booking_id = data.get("booking_id")
-    parts_data = data.get("parts_data", []) 
 
     if not booking_id:
         return jsonify({"error": "Thiếu booking_id"}), 400
-    
-    # Logic: Tạo hóa đơn
-    invoice, error = service.create_invoice_from_booking(booking_id, parts_data)
-    
+
+    # Logic: Tạo hóa đơn (phụ tùng sẽ được lấy từ maintenance task)
+    invoice, error = service.create_invoice_from_booking(booking_id)
+
     if error:
         # 409 Conflict: đã tồn tại. 400 Bad Request: lỗi khác.
         status_code = 409 if "tồn tại" in error else 400

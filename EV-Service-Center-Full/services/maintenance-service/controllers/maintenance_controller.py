@@ -1,5 +1,5 @@
 # File: services/maintenance-service/controllers/maintenance_controller.py
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt, verify_jwt_in_request
 from functools import wraps
 
@@ -126,3 +126,84 @@ def update_task_status_route(task_id):
         "message": f"Cập nhật trạng thái công việc thành '{new_status}' thành công.",
         "task": task.to_dict()
     }), 200
+
+
+# ============= Task Parts Endpoints =============
+
+@maintenance_bp.route("/tasks/<int:task_id>/parts", methods=["POST"])
+@jwt_required()
+def add_part_to_task_route(task_id):
+    """KTV thêm phụ tùng đã sử dụng vào task"""
+    data = request.get_json()
+    item_id = data.get("item_id")
+    quantity = data.get("quantity", 1)
+
+    if not item_id:
+        return jsonify({"error": "item_id là bắt buộc"}), 400
+
+    # Kiểm tra quyền: phải là owner của task hoặc admin
+    current_user_id = get_jwt_identity()
+    claims = get_jwt()
+    is_admin = claims.get("role") == "admin"
+
+    task = service.get_task_by_id(task_id)
+    if not task:
+        return jsonify({"error": "Task không tồn tại"}), 404
+
+    is_owner = str(task.user_id) == str(current_user_id)
+
+    if not is_admin and not is_owner:
+        return jsonify({"error": "Bạn không có quyền thêm phụ tùng vào task này"}), 403
+
+    part, error = service.add_part_to_task(task_id, item_id, quantity)
+    if error:
+        return jsonify({"error": error}), 400
+
+    return jsonify({
+        "message": "Thêm phụ tùng thành công",
+        "part": part.to_dict()
+    }), 201
+
+
+@maintenance_bp.route("/tasks/<int:task_id>/parts", methods=["GET"])
+@jwt_required()
+def get_task_parts_route(task_id):
+    """Lấy danh sách phụ tùng của task"""
+    parts = service.get_task_parts(task_id)
+    return jsonify([p.to_dict() for p in parts]), 200
+
+
+@maintenance_bp.route("/parts/<int:part_id>", methods=["DELETE"])
+@jwt_required()
+def remove_part_route(part_id):
+    """Xóa phụ tùng khỏi task"""
+    success, error = service.remove_part_from_task(part_id)
+    if error:
+        return jsonify({"error": error}), 404
+
+    return jsonify({"message": "Xóa phụ tùng thành công"}), 200
+
+
+@maintenance_bp.route("/completed-tasks-with-parts", methods=["GET"])
+@admin_required()
+def get_completed_tasks_with_parts_route():
+    """Admin lấy danh sách task completed với phụ tùng"""
+    tasks = service.get_completed_tasks_with_parts()
+    return jsonify(tasks), 200
+
+
+@maintenance_bp.route("/bookings/<int:booking_id>/parts", methods=["GET"])
+def get_booking_parts_route(booking_id):
+    """Internal endpoint: Lấy danh sách phụ tùng theo booking_id (cho Finance Service)"""
+    # Kiểm tra internal token
+    internal_token = request.headers.get("X-Internal-Token")
+    expected_token = current_app.config.get("INTERNAL_SERVICE_TOKEN")
+
+    if not internal_token or internal_token != expected_token:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    parts, error = service.get_task_parts_by_booking_id(booking_id)
+    if error:
+        return jsonify({"error": error}), 404
+
+    return jsonify(parts), 200

@@ -24,9 +24,15 @@ def create_app():
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
     app.config["JWT_COOKIE_CSRF_PROTECT"] = False  # Disable CSRF for JWT
-    app.config["INTERNAL_SERVICE_TOKEN"] = os.getenv("INTERNAL_SERVICE_TOKEN")
+
+    # FIX: Làm sạch INTERNAL_SERVICE_TOKEN
+    internal_token = os.getenv("INTERNAL_SERVICE_TOKEN")
+    if internal_token:
+        app.config["INTERNAL_SERVICE_TOKEN"] = internal_token.strip()
+
     app.config["BOOKING_SERVICE_URL"] = os.getenv("BOOKING_SERVICE_URL")
     app.config["USER_SERVICE_URL"] = os.getenv("USER_SERVICE_URL")
+    app.config["INVENTORY_SERVICE_URL"] = os.getenv("INVENTORY_SERVICE_URL")
     
     # ===== KHỞI TẠO EXTENSIONS =====
     db.init_app(app)

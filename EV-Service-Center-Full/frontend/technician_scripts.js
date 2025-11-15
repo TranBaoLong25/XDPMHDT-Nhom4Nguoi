@@ -160,15 +160,15 @@ async function loadWorkList() {
                       class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs mr-2"
                     >
                       Bắt Đầu
-                    </button>
-                    <button
-                      onclick="updateTaskStatus(${task.task_id}, 'completed')"
-                      class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-xs"
-                    >
-                      Hoàn Thành
                     </button>`
                   : task.status === "in_progress"
                   ? `<button
+                      onclick="openAddPartsModal(${task.task_id})"
+                      class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded text-xs mr-2"
+                    >
+                      Thêm Phụ Tùng
+                    </button>
+                    <button
                       onclick="updateTaskStatus(${task.task_id}, 'completed')"
                       class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-xs"
                     >
@@ -268,6 +268,163 @@ async function loadInventoryList() {
     showToast("Không thể tải danh sách vật tư", true);
   }
 }
+
+// ==================== PARTS MODAL FUNCTIONS ====================
+let currentTaskId = null;
+let availableInventoryItems = [];
+
+async function openAddPartsModal(taskId) {
+  currentTaskId = taskId;
+  document.getElementById("current-task-id").textContent = taskId;
+
+  const modal = document.getElementById("add-parts-modal");
+  modal.classList.remove("hidden");
+
+  // Load inventory items
+  await loadInventoryItemsForParts();
+
+  // Load existing parts for this task
+  await loadTaskParts(taskId);
+}
+window.openAddPartsModal = openAddPartsModal;
+
+function closeAddPartsModal() {
+  const modal = document.getElementById("add-parts-modal");
+  modal.classList.add("hidden");
+  document.getElementById("add-part-form").reset();
+  currentTaskId = null;
+}
+window.closeAddPartsModal = closeAddPartsModal;
+
+async function loadInventoryItemsForParts() {
+  try {
+    const items = await apiRequest("/api/inventory/items", "GET");
+    availableInventoryItems = items;
+
+    const selectElement = document.getElementById("part-item-id");
+    selectElement.innerHTML = '<option value="">-- Chọn phụ tùng --</option>';
+
+    items.forEach((item) => {
+      const option = document.createElement("option");
+      option.value = item.id;
+      option.dataset.quantity = item.quantity; // Lưu số lượng vào data attribute
+      option.textContent = `#${item.id} - ${item.name} (${item.quantity} có sẵn) - ${item.price.toLocaleString("vi-VN")}₫`;
+      selectElement.appendChild(option);
+    });
+
+    // Event listener để cập nhật max value khi chọn phụ tùng
+    selectElement.addEventListener("change", function () {
+      const selectedOption = this.options[this.selectedIndex];
+      const quantityInput = document.getElementById("part-quantity");
+
+      if (selectedOption && selectedOption.dataset.quantity) {
+        const maxQuantity = parseInt(selectedOption.dataset.quantity);
+        quantityInput.max = maxQuantity;
+        quantityInput.placeholder = `Tối đa ${maxQuantity}`;
+
+        // Reset value nếu vượt quá
+        if (parseInt(quantityInput.value) > maxQuantity) {
+          quantityInput.value = maxQuantity;
+        }
+      }
+    });
+  } catch (error) {
+    console.error("Error loading inventory items:", error);
+    showToast("Lỗi khi tải danh sách phụ tùng", true);
+  }
+}
+
+async function loadTaskParts(taskId) {
+  try {
+    const parts = await apiRequest(`/api/maintenance/tasks/${taskId}/parts`, "GET");
+    const container = document.getElementById("added-parts-list");
+
+    if (!parts || parts.length === 0) {
+      container.innerHTML = '<p class="text-gray-500 text-sm">Chưa có phụ tùng nào</p>';
+      return;
+    }
+
+    container.innerHTML = parts
+      .map((part) => {
+        // Find item info from inventory
+        const itemInfo = availableInventoryItems.find(
+          (item) => item.id === part.item_id
+        );
+        const itemName = itemInfo ? itemInfo.name : `Item #${part.item_id}`;
+
+        return `
+          <div class="flex justify-between items-center bg-gray-100 p-2 rounded">
+            <span class="text-sm">${itemName} x ${part.quantity}</span>
+            <button
+              onclick="removeTaskPart(${part.id})"
+              class="text-red-500 hover:text-red-700 text-sm"
+            >
+              Xóa
+            </button>
+          </div>
+        `;
+      })
+      .join("");
+  } catch (error) {
+    console.error("Error loading task parts:", error);
+  }
+}
+
+async function removeTaskPart(partId) {
+  if (!confirm("Bạn có chắc muốn xóa phụ tùng này?")) {
+    return;
+  }
+
+  try {
+    await apiRequest(`/api/maintenance/parts/${partId}`, "DELETE");
+    showToast("Xóa phụ tùng thành công");
+    await loadTaskParts(currentTaskId);
+  } catch (error) {
+    console.error("Error removing part:", error);
+    showToast("Lỗi khi xóa phụ tùng", true);
+  }
+}
+window.removeTaskPart = removeTaskPart;
+
+// Handle add part form submission
+document.getElementById("add-part-form")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const itemId = parseInt(document.getElementById("part-item-id").value);
+  const quantity = parseInt(document.getElementById("part-quantity").value);
+  const quantityInput = document.getElementById("part-quantity");
+
+  if (!itemId || !quantity) {
+    showToast("Vui lòng chọn phụ tùng và số lượng", true);
+    return;
+  }
+
+  // Validate số lượng không vượt quá max
+  const maxQuantity = parseInt(quantityInput.max);
+  if (maxQuantity && quantity > maxQuantity) {
+    showToast(`Số lượng vượt quá tồn kho (Tối đa: ${maxQuantity})`, true);
+    return;
+  }
+
+  try {
+    await apiRequest(`/api/maintenance/tasks/${currentTaskId}/parts`, "POST", {
+      item_id: itemId,
+      quantity: quantity,
+    });
+
+    showToast("Thêm phụ tùng thành công");
+    document.getElementById("add-part-form").reset();
+    // Reset max attribute
+    quantityInput.max = "";
+    quantityInput.placeholder = "";
+    await loadTaskParts(currentTaskId);
+  } catch (error) {
+    console.error("Error adding part:", error);
+    // Hiển thị lỗi từ server (bao gồm thông báo về tồn kho)
+    const errorMessage = error.message || "Lỗi khi thêm phụ tùng";
+    showToast(errorMessage, true);
+  }
+});
 
 // ==================== INITIALIZATION ====================
 document.addEventListener("DOMContentLoaded", () => {

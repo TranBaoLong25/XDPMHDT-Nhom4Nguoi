@@ -226,6 +226,7 @@ services:
       - BOOKING_SERVICE_URL=http://booking-service:8001
       - INVENTORY_SERVICE_URL=http://inventory-service:8000
       - PAYMENT_SERVICE_URL=http://payment-service:8004
+      - MAINTENANCE_SERVICE_URL=http://maintenance-service:8003
     expose:
       - "8002"
     depends_on:
@@ -236,6 +237,8 @@ services:
       inventory-service:
         condition: service_started
       payment-service:
+        condition: service_started
+      maintenance-service:
         condition: service_started
     networks:
       - ev_network  
@@ -253,6 +256,7 @@ services:
       - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN}
       - BOOKING_SERVICE_URL=http://booking-service:8001
       - USER_SERVICE_URL=http://user-service:5000
+      - INVENTORY_SERVICE_URL=http://inventory-service:8000
     expose:
       - "8003"
     depends_on:
@@ -261,6 +265,8 @@ services:
       booking-service:
         condition: service_started
       user-service:
+        condition: service_started
+      inventory-service:
         condition: service_started
     networks:
       - ev_network  

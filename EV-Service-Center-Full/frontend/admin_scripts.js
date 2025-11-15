@@ -1141,6 +1141,51 @@ window.updateInvoiceStatus = updateInvoiceStatus;
 const createInvoiceModal = document.getElementById("create-invoice-modal");
 const partsInputContainer = document.getElementById("parts-input-container");
 
+// Load bookings từ tasks đã completed
+async function loadInProgressBookings() {
+  try {
+    const tasks = await window.apiRequestCore(
+      window.ADMIN_TOKEN_KEY,
+      "/api/maintenance/completed-tasks-with-parts",
+      "GET"
+    );
+
+    const selectElement = document.getElementById("invoice-booking-id");
+    if (!selectElement) return;
+
+    // Xóa các option cũ (trừ option placeholder)
+    selectElement.innerHTML = '<option value="">-- Chọn lịch hẹn --</option>';
+
+    // Thêm các booking từ completed tasks vào dropdown
+    tasks.forEach((task) => {
+      const option = document.createElement("option");
+      option.value = task.booking_id;
+      option.textContent = `#${task.booking_id} - ${task.description} - Task #${task.task_id} (KTV #${task.technician_id})`;
+      selectElement.appendChild(option);
+    });
+  } catch (error) {
+    console.error("Error loading completed tasks:", error);
+    window.showToast("Lỗi khi tải danh sách công việc đã hoàn thành");
+  }
+}
+
+// Load danh sách items từ kho
+async function loadInventoryItems() {
+  try {
+    const items = await window.apiRequestCore(
+      window.ADMIN_TOKEN_KEY,
+      "/api/inventory/items",
+      "GET"
+    );
+
+    // Lưu vào biến global để sử dụng khi thêm phụ tùng
+    window.inventoryItems = items;
+  } catch (error) {
+    console.error("Error loading inventory items:", error);
+    window.showToast("Lỗi khi tải danh sách phụ kiện");
+  }
+}
+
 function closeCreateInvoiceModal() {
   if (createInvoiceModal) createInvoiceModal.classList.add("hidden");
   document.getElementById("create-invoice-form")?.reset();
@@ -1148,27 +1193,37 @@ function closeCreateInvoiceModal() {
 }
 window.closeCreateInvoiceModal = closeCreateInvoiceModal;
 
-function openCreateInvoiceModal() {
+async function openCreateInvoiceModal() {
   if (createInvoiceModal) createInvoiceModal.classList.remove("hidden");
-  // Thêm một input phụ tùng mặc định
-  if (partsInputContainer.children.length === 0) {
-    addPartInput();
-  }
+
+  // Chỉ cần load bookings từ completed tasks
+  await loadInProgressBookings();
 }
 window.openCreateInvoiceModal = openCreateInvoiceModal;
 
 function addPartInput() {
   const count = partsInputContainer.children.length + 1;
+
+  // Tạo dropdown options từ inventory items
+  let itemOptions = '<option value="">-- Chọn phụ kiện --</option>';
+  if (window.inventoryItems && window.inventoryItems.length > 0) {
+    itemOptions += window.inventoryItems
+      .map(
+        (item) =>
+          `<option value="${item.id}">#${item.id} - ${item.name} (${item.quantity} có sẵn) - ${item.price.toLocaleString("vi-VN")}₫</option>`
+      )
+      .join("");
+  }
+
   const partHtml = `
         <div class="flex space-x-2 part-input-group" data-id="${count}">
-            <input
-                type="number"
-                placeholder="Item ID"
-                class="w-1/4 px-3 py-2 border rounded-md shadow-sm"
+            <select
+                class="w-1/2 px-3 py-2 border rounded-md shadow-sm bg-white"
                 name="item_id"
                 required
-                min="1"
-            />
+            >
+                ${itemOptions}
+            </select>
             <input
                 type="number"
                 placeholder="Số lượng"
@@ -1178,7 +1233,7 @@ function addPartInput() {
                 min="1"
                 value="1"
             />
-            <span class="w-2/4 text-sm text-gray-500 flex items-center">
+            <span class="w-1/4 text-sm text-gray-500 flex items-center">
                 (Phụ tùng ${count})
             </span>
             <button type="button" onclick="removePartInput(${count})" class="text-red-500 hover:text-red-700">
@@ -1204,36 +1259,13 @@ document
       document.getElementById("invoice-booking-id").value
     );
 
-    // Lấy dữ liệu phụ tùng
-    const partsData = [];
-    const groups = document.querySelectorAll(
-      "#parts-input-container .part-input-group"
-    );
-
-    groups.forEach((group) => {
-      const itemId = parseInt(
-        group.querySelector('input[name="item_id"]')?.value
-      );
-      const quantity = parseInt(
-        group.querySelector('input[name="quantity"]')?.value
-      );
-
-      if (itemId && quantity && quantity > 0) {
-        partsData.push({
-          item_id: itemId,
-          quantity: quantity,
-        });
-      }
-    });
-
     try {
       const data = await window.apiRequestCore(
         window.ADMIN_TOKEN_KEY,
         "/api/invoices/",
         "POST",
         {
-          booking_id: bookingId,
-          parts_data: partsData,
+          booking_id: bookingId
         }
       );
 

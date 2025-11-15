@@ -47,3 +47,23 @@ class MaintenanceTask(db.Model):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }
+
+
+class TaskPart(db.Model):
+    """Bảng lưu các phụ tùng đã sử dụng cho mỗi task"""
+    __tablename__ = "task_parts"
+
+    id = db.Column(db.Integer, primary_key=True, index=True)
+    task_id = db.Column(db.Integer, nullable=False, index=True)
+    item_id = db.Column(db.Integer, nullable=False)  # ID từ inventory
+    quantity = db.Column(db.Integer, nullable=False, default=1)
+    created_at = db.Column(db.DateTime, nullable=False, default=func.now())
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "task_id": self.task_id,
+            "item_id": self.item_id,
+            "quantity": self.quantity,
+            "created_at": self.created_at.isoformat() if self.created_at else None
+        }

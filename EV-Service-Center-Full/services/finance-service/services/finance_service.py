@@ -57,6 +57,12 @@ class FinanceService:
         return FinanceService._call_internal_api(inventory_url, f"/api/inventory/items/{item_id}")
 
     @staticmethod
+    def _get_task_parts_by_booking(booking_id):
+        """Lấy danh sách phụ tùng từ task theo booking_id"""
+        maintenance_url = current_app.config.get("MAINTENANCE_SERVICE_URL")
+        return FinanceService._call_internal_api(maintenance_url, f"/api/maintenance/bookings/{booking_id}/parts")
+
+    @staticmethod
     def _update_inventory_quantity(item_id, new_quantity):
         """Cập nhật tồn kho bằng cách gọi PUT Inventory Service (dùng Internal Token)"""
         inventory_url = current_app.config.get("INVENTORY_SERVICE_URL")
@@ -100,9 +106,10 @@ class FinanceService:
         return payment_transaction, None
 
     @staticmethod
-    def create_invoice_from_booking(booking_id, parts_data):
+    def create_invoice_from_booking(booking_id, parts_data=None):
         """
         Tạo Hóa đơn mới từ Booking ID, bao gồm cả việc trừ tồn kho.
+        Phụ tùng sẽ được lấy từ maintenance task (do KTV đã thêm).
         """
         # 1. Lấy chi tiết Booking
         booking_data, error = FinanceService._get_booking_details(booking_id)
@@ -110,38 +117,44 @@ class FinanceService:
             return None, f"Lỗi khi lấy Booking: {error}"
 
         user_id = booking_data.get('user_id')
-        
+
         # Kiểm tra trùng lặp
         if Invoice.query.filter_by(booking_id=booking_id).first():
             return None, "Hóa đơn cho Booking này đã tồn tại."
 
+        # 2. Lấy danh sách phụ tùng từ maintenance task
+        task_parts_data, parts_error = FinanceService._get_task_parts_by_booking(booking_id)
+        if parts_error:
+            # Nếu không có task hoặc không có parts, vẫn tạo hóa đơn nhưng chỉ có service
+            task_parts_data = []
+
         # TẠO TRANSACTION CHUNG
         try:
             total_amount = 0.0
-            
+
             new_invoice = Invoice(
                 booking_id=booking_id,
                 user_id=user_id,
-                total_amount=0.0 
+                total_amount=0.0
             )
             db.session.add(new_invoice)
             db.session.flush() # Lấy ID của Invoice mới
 
-            # 2. Thêm Dịch vụ (Service Item)
+            # 3. Thêm Dịch vụ (Service Item)
             service_price = 500000.0 # Giá công thợ cố định
             service_item = InvoiceItem(
                 invoice_id=new_invoice.id,
                 item_type="service",
-                description=f"Dịch vụ: {booking_data.get('service_type', 'Bảo dưỡng')}",
+                description=f"Dịch vụ: {booking_data.get('service_type', 'Kiểm tra tổng quát')}",
                 quantity=1,
                 unit_price=service_price,
                 sub_total=service_price
             )
             db.session.add(service_item)
             total_amount += service_price
-            
-            # 3. Thêm Phụ tùng (Part Items) VÀ TRỪ TỒN KHO (FIX LỖI)
-            for part in parts_data:
+
+            # 4. Thêm Phụ tùng (Part Items) từ task VÀ TRỪ TỒN KHO
+            for part in task_parts_data:
                 item_id = part.get('item_id')
                 quantity = part.get('quantity')
                 
