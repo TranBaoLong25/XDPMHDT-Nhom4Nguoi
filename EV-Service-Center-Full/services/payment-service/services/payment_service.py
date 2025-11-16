@@ -57,25 +57,31 @@ class PaymentService:
         pg_id = f"PG_{method.upper()}_{invoice_id}_{int(amount)}_{os.urandom(4).hex()}"
         note = f"EV_TT_{invoice_id}"
         
-        # ✅ FIX: ĐỌC TRỰC TIẾP TỪ OS ENV ĐỂ KHÔNG PHỤ THUỘC current_app.config
-        # Nếu biến môi trường đã được tải bằng load_dotenv (trong app.py), os.getenv sẽ hoạt động
-        custom_momo_url = os.getenv("MOMO_QR_CODE_URL")
+        # Lấy cấu hình URL tĩnh (dù không khuyến khích cho thanh toán động, nhưng giữ lại cho test)
+        custom_momo_url = current_app.config.get("MOMO_QR_CODE_URL")
         
-        # Logic tạo URL
-        # Ưu tiên URL cá nhân chỉ khi phương thức là momo_qr
-        if method == "momo_qr" and custom_momo_url: 
-            qr_url = custom_momo_url # SỬ DỤNG URL CÁ NHÂN TỪ .ENV
-        else:
-            # Fallback: Code tạo QR động mặc định
-            qr_content = f"MOMO|{note}|{amount}|{pg_id}"
-            qr_url = f"https://chart.googleapis.com/chart?cht=qr&chs=150x150&chl={qr_content}"
-            
         if method == "momo_qr":
+            # 🎯 TẠO QR CODE ĐỘNG DỰA TRÊN THÔNG SỐ GIAO DỊCH
+            
+            # Chuỗi mã hóa (content) cần chứa thông tin động: amount, note, pg_id
+            # Sử dụng format chuẩn: TYPE|AMOUNT|NOTE|PG_ID (hoặc format phù hợp với cổng TT)
+            qr_content = f"MOMO|{note}|{amount}|{pg_id}"
+            
+            # Tạo URL hình ảnh QR Code từ Google Charts API (Kích thước 200x200)
+            # Đây là URL QR code động, chứa tất cả thông tin giao dịch
+            qr_url = f"https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl={qr_content}"
+            
+            # Nếu có URL tĩnh (custom_momo_url), ta sẽ ưu tiên dùng URL tĩnh 
+            # chỉ khi đó là yêu cầu bắt buộc (chú ý: ảnh tĩnh sẽ không có thông tin động)
+            if custom_momo_url: 
+                 qr_url = custom_momo_url # Giữ lại logic ưu tiên URL tĩnh nếu có
+
             qr_data = {
                 "qr_code_url": qr_url, 
                 "payment_text": note,
                 "amount": amount,
                 "note": f"Thanh toan HD {invoice_id} cho EV Service Center",
+                "pg_id": pg_id, # THÊM PG_ID VÀO DATA TRẢ VỀ CHO FE
                 "test_code": f"SUCCESS_PG_{pg_id}" 
             }
             return pg_id, json.dumps(qr_data)
@@ -87,13 +93,14 @@ class PaymentService:
                 "account_number": "19072525585011",
                 "amount": amount,
                 "note": note,
+                "pg_id": pg_id, # THÊM PG_ID VÀO DATA TRẢ VỀ CHO FE
                 "test_code": f"SUCCESS_PG_{pg_id}"
             }
             return pg_id, json.dumps(bank_data)
 
         return None, None
 
-    # --- Core Business Logic (Giữ nguyên logic đã sửa) ---
+    # --- Core Business Logic (Giữ nguyên logic tạo request) ---
     @staticmethod
     def create_payment_request(invoice_id, method, user_id, amount): 
         """Bắt đầu tạo giao dịch thanh toán"""
@@ -157,11 +164,18 @@ class PaymentService:
             transaction.status = final_status
             db.session.commit()
 
-            # 2. Nếu thành công, cập nhật trạng thái Invoice
+            # 2. Nếu thành công, cập nhật trạng thái Invoice VÀ GỬI NOTIFICATION
             if final_status == 'success':
                 _, error = PaymentService._update_invoice_status(transaction.invoice_id, 'paid')
                 if error:
                     current_app.logger.error(f"Failed to update Invoice {transaction.invoice_id} status to 'paid': {error}")
+                
+                # 🎯 BỔ SUNG: GỬI NOTIFICATION THANH TOÁN THÀNH CÔNG
+                PaymentService._notify_payment_success(transaction) 
+            
+            # 3. Nếu thất bại/hết hạn, có thể gửi notification thất bại (tùy chọn)
+            elif final_status in ('failed', 'expired'):
+                PaymentService._notify_payment_failed(transaction)
 
             return transaction, None
         except Exception as e:
@@ -177,10 +191,15 @@ class PaymentService:
     def get_all_history():
         """Lấy tất cả lịch sử giao dịch (Admin)"""
         return PaymentTransaction.query.order_by(desc(PaymentTransaction.created_at)).all()
+        
     @staticmethod
     def _notify_payment_success(payment):
         """Thông báo thanh toán thành công"""
-        from notification_helper import NotificationHelper
+        # Tránh lỗi circular dependency import
+        from services.notification_service.notification_helper import NotificationHelper 
+        
+        # Dữ liệu cần thiết cho metadata
+        payment_data = json.loads(payment.payment_data_json)
         
         return NotificationHelper.send_notification(
             user_id=payment.user_id,
@@ -194,37 +213,48 @@ class PaymentService:
             metadata={
                 "amount": payment.amount,
                 "invoice_id": payment.invoice_id,
-                "payment_method": payment.payment_method
+                "payment_method": payment.method, # Sửa: dùng payment.method
+                "pg_id": payment.pg_transaction_id
             }
         )
     
     @staticmethod
     def _notify_payment_failed(payment):
         """Thông báo thanh toán thất bại"""
-        from notification_helper import NotificationHelper
+        from services.notification_service.notification_helper import NotificationHelper 
         
         return NotificationHelper.send_notification(
             user_id=payment.user_id,
             notification_type="payment",
             title="❌ Thanh toán thất bại",
-            message=f"Thanh toán {payment.amount:,.0f} VNĐ không thành công. Vui lòng thử lại hoặc liên hệ hỗ trợ.",
+            message=f"Thanh toán {payment.amount:,.0f} VNĐ không thành công. Trạng thái: {payment.status}. Vui lòng thử lại hoặc liên hệ hỗ trợ.",
             channel="in_app",
             priority="high",
             related_entity_type="payment",
             related_entity_id=payment.id
         )
     
+    # ⚠️ HÀM process_payment DƯ THỪA (Đã được thay thế bằng handle_pg_webhook)
     @staticmethod
     def process_payment(data):
+        # Hàm này không cần thiết vì logic đã nằm trong handle_pg_webhook
+        # Nếu muốn dùng lại, cần định nghĩa lại logic và loại bỏ dòng gọi notify ở cuối.
+        
+        # Giữ nguyên code cũ nhưng cảnh báo:
+        current_app.logger.warning("PaymentService.process_payment called. This function is deprecated.")
         # ... existing payment processing code ...
+        
+        # Bỏ các dòng này (vì đã được thêm vào handle_pg_webhook)
+        # if payment.status == "success": # type: ignore
+        #     PaymentService._notify_payment_success(payment) # type: ignore
+        # elif payment.status == "failed": # type: ignore
+        #     PaymentService._notify_payment_failed(payment) # type: ignore
 
-        # ✅ THÊM: Gửi notification dựa trên kết quả
-        if payment.status == "success": # type: ignore
-            PaymentService._notify_payment_success(payment) # type: ignore
-        elif payment.status == "failed": # type: ignore
-            PaymentService._notify_payment_failed(payment) # type: ignore
+        # return payment, None # type: ignore
+        
+        # Thay thế bằng:
+        return None, "Function deprecated."
 
-        return payment, None # type: ignore
 
     @staticmethod
     def expire_pending_transactions():
@@ -244,7 +274,12 @@ class PaymentService:
 
             expired_count = 0
             for transaction in expired_transactions:
+                # 1. Cập nhật trạng thái
                 transaction.status = 'expired'
+                
+                # 2. Thông báo thất bại (Expired)
+                PaymentService._notify_payment_failed(transaction) 
+                
                 expired_count += 1
 
             if expired_count > 0:

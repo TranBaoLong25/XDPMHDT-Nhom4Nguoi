@@ -1,94 +1,86 @@
+docker-compose up -d --force-recreate listing-service
+docker-compose up -d --build frontend
+docker-compose down -v
+"\\wsl.localhost\docker-desktop\mnt\docker-desktop-disk\data\docker\volumes\second-handevbatterytradingplatform_listing_uploads_data"
 
-README.md – EV Service Center Maintenance Management System 🚗 1. Giới thiệu
+Move-Item -Path .\app\* -Destination .\ # Di chuyển toàn bộ nội dung bên trong thư mục app ra thư mục hiện tại
 
-EV Service Center Maintenance Management System là phần mềm quản lý bảo dưỡng xe điện cho trung tâm dịch vụ, giúp:
+<!-- lần đầu chạy -->
+<!-- 1. xây dựng (build) và chạy container của chương trình ở chế độ nền -->
 
-Khách hàng có thể đặt lịch bảo dưỡng, theo dõi xe, thanh toán trực tuyến.
+docker-compose up -d --build
 
-Nhân viên và kỹ thuật viên có thể quản lý lịch hẹn, theo dõi tiến độ, quản lý phụ tùng và báo cáo tài chính.
+<!-- 2. tạo và cập nhật cơ sở dữ liệu trong Flask -->
+<!-- db init: khởi tạo thư mục migration. -->
+<!-- db migrate: tạo file migration (các thay đổi bảng). -->
+<!-- db upgrade: áp dụng migration vào database. -->
 
-Quản trị viên có thể giám sát tổng thể trung tâm, hiệu suất nhân viên và hoạt động dịch vụ.
+ <!-- user-service -->
 
-👥 2. Đối tượng sử dụng
+docker-compose exec user-service flask db init
+docker-compose exec user-service flask db migrate -m "Initial user service tables"
+docker-compose exec user-service flask db upgrade
 
-Customer (Khách hàng): Đặt lịch, theo dõi bảo dưỡng, thanh toán.
+<!-- inventory-service -->
 
-Staff (Nhân viên lễ tân / tiếp nhận): Tiếp nhận xe, quản lý khách hàng, lập lịch.
+docker-compose exec inventory-service flask db init
+docker-compose exec inventory-service flask db migrate -m "Initial inventory service tables"
+docker-compose exec inventory-service flask db upgrade
 
-Technician (Kỹ thuật viên): Thực hiện bảo dưỡng, cập nhật tiến độ, báo cáo tình trạng.
+<!-- booking-service -->
 
-Admin (Quản trị viên): Quản lý hệ thống, nhân sự, tài chính, thống kê.
+docker-compose exec booking-service flask db init
+docker-compose exec booking-service flask db migrate -m "Initial booking service tables"
+docker-compose exec booking-service flask db upgrade
 
-⚙️ 3. Các chức năng chính 🧍‍♂️ 3.1. Chức năng cho Khách hàng (Customer)
+<!-- finance-service -->
 
-Theo dõi xe & nhắc nhở:
+docker-compose exec finance-service flask db init
+docker-compose exec finance-service flask db migrate -m "Initial finance service tables"
+docker-compose exec finance-service flask db upgrade
 
-Nhắc lịch bảo dưỡng định kỳ theo km hoặc thời gian.
+<!-- maintenance-service -->
 
-Nhắc gia hạn gói dịch vụ.
+docker-compose exec -w /app maintenance-service sh -c 'FLASK_APP=app.py flask db init'
+docker-compose exec -w /app maintenance-service sh -c 'FLASK_APP=app.py flask db migrate -m "Final schema fix"'
+docker-compose exec -w /app maintenance-service sh -c 'FLASK_APP=app.py flask db upgrade'
 
-Đặt lịch dịch vụ:
+<!-- Payment-service -->
 
-Chọn trung tâm, loại dịch vụ, thời gian.
+docker-compose exec payment-service flask db init
+docker-compose exec payment-service flask db migrate -m "Initial payment service tables"
+docker-compose exec payment-service flask db upgrade
 
-Nhận thông báo trạng thái xe (chờ → đang làm → hoàn tất).
+<!-- tạo tài khoản admin(có hàm trong user-service/app.py) -->
 
-Quản lý hồ sơ & chi phí:
+docker-compose exec user-service flask create-admin admin1 kyu764904@gmail.com 12345
 
-Lưu lịch sử bảo dưỡng.
+<!-- xem log (nhật ký chạy) của container(thay tên service để có thể xem log của các service khác) -->
 
-Theo dõi chi phí từng lần bảo dưỡng.
+docker-compose logs -f transaction-service
 
-Thanh toán trực tuyến (e-wallet, banking...).
+<!-- vào terminal bên trong container transaction_db(thay tên db để có thể xem log của các db khác -->
 
-🧰 3.2. Chức năng cho Trung tâm dịch vụ (Staff, Technician, Admin)
+docker exec -it transaction_db bash
 
-Quản lý khách hàng & xe:
+<!-- mở PostgreSQL CLI và kết nối vào database transaction_db(thay tên db để có thể xem log của các db khác với user db_user (POSTGRES_USER=db_user trong .env) -->
 
-Hồ sơ khách hàng, VIN, model xe, lịch sử dịch vụ.
+psql -U db_user -d transaction_db
 
-Chat trực tuyến với khách hàng.
+<!-- xóa toàn bộ dữ liệu trong bảng -->
 
-Quản lý lịch hẹn & dịch vụ:
+TRUNCATE TABLE transaction_db CASCADE;
 
-Tiếp nhận yêu cầu, lập lịch kỹ thuật viên.
+<!-- xóa toàn bộ dữ liệu bảng transaction, đặt lại ID về 1, và xóa cả dữ liệu ở bảng liên quan (CASCADE). -->
 
-Quản lý phiếu tiếp nhận và checklist EV.
+TRUNCATE TABLE transaction RESTART IDENTITY CASCADE;
 
-Quản lý quy trình bảo dưỡng:
+<!-- các câu lệnh truy vấn csdl -->
 
-Theo dõi tiến độ từng xe (chờ – đang làm – hoàn tất).
-
-Ghi nhận tình trạng xe.
-
-Quản lý phụ tùng:
-
-Theo dõi số lượng phụ tùng.
-
-Cảnh báo tồn kho tối thiểu.
-
-AI gợi ý nhu cầu phụ tùng thay thế.
-
-Quản lý nhân sự:
-
-Phân công ca/lịch cho kỹ thuật viên.
-
-Theo dõi hiệu suất, chứng chỉ EV.
-
-Quản lý tài chính & báo cáo:
-
-Báo giá → hóa đơn → thanh toán.
-
-Thống kê doanh thu, chi phí, lợi nhuận.
-
-Báo cáo loại dịch vụ và xu hướng hỏng hóc.
-
-🧱 4. Kiến trúc hệ thống
-
-Frontend: HTML, CSS, JavaScript (hoặc React/Vue nếu có).
-
-Backend: PHP / Python (Flask / Django) hoặc Node.js.
-
-Database: MySQL / PostgreSQL.
-
-Triển khai: Docker / Local Server.
+select _ from
+INSERT INTO ... () VALUES ();
+UPDATE ... SET * = * WHERE * = *;
+select _ from ...;
+DELETE FROM ... WHERE _ = _;
+UPDATE auctions SET start_time = start_time::date + interval '8 hour 5 minute', end_time = start_time::date + interval '10 hour 5 minute' WHERE EXTRACT(HOUR FROM start_time) = 8;
+UPDATE auctions SET auction_status = 'started' where auction_id = 1;

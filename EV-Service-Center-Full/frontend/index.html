@@ -13,14 +13,14 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
 
-  <body class="bg-gray-100 text-gray-800 font-['Inter']">
-    <nav class="bg-white shadow-md sticky top-0 z-50">
+  <body class="bg-gray-900 text-gray-100 font-['Inter']">
+    <nav class="bg-gray-800 shadow-xl sticky top-0 z-50">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
           <a
             href="#"
             onclick="navigateTo('home')"
-            class="font-bold text-xl text-indigo-600"
+            class="font-bold text-xl text-indigo-400"
           >
             EV-Service
           </a>
@@ -29,14 +29,14 @@
               <a
                 href="#"
                 onclick="navigateTo('home')"
-                class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                class="nav-link text-gray-300 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
               >
                 Trang Chủ
               </a>
               <a
                 href="#"
                 onclick="navigateTo('inventory-list')"
-                class="nav-link text-gray-600 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                class="nav-link text-gray-300 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
               >
                 Kho Vật Tư
               </a>
@@ -49,11 +49,11 @@
 
     <main id="app-container" class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
       <div id="home-page" class="page hidden">
-        <div class="text-center p-12 bg-white rounded-lg shadow">
-          <h1 class="text-4xl font-bold text-gray-900">
+        <div class="text-center p-12 bg-gray-800 rounded-lg shadow-xl">
+          <h1 class="text-4xl font-bold text-white">
             EV Service Center Management
           </h1>
-          <p class="mt-4 text-lg text-gray-600">
+          <p class="mt-4 text-lg text-gray-300">
             Hệ thống quản lý thông tin và hồ sơ khách hàng.
           </p>
           <button
@@ -66,13 +66,15 @@
       </div>
 
       <div id="login-page" class="page active">
-        <div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg">
-          <h2 class="text-2xl font-bold text-center mb-6">Đăng Nhập</h2>
+        <div class="max-w-md mx-auto bg-gray-800 p-8 rounded-lg shadow-lg">
+          <h2 class="text-2xl font-bold text-center mb-6 text-white">
+            Đăng Nhập
+          </h2>
           <form id="login-form">
             <div class="mb-4">
               <label
                 for="login-email-username"
-                class="block text-sm font-medium text-gray-700"
+                class="block text-sm font-medium text-gray-300"
               >
                 Email hoặc Tên đăng nhập
               </label>
@@ -80,14 +82,14 @@
                 type="text"
                 id="login-email-username"
                 autocomplete="username"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500"
+                class="mt-1 block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 bg-gray-700"
                 required
               />
             </div>
             <div class="mb-6">
               <label
                 for="login-password"
-                class="block text-sm font-medium text-gray-700"
+                class="block text-sm font-medium text-gray-300"
               >
                 Mật khẩu
               </label>
@@ -95,13 +97,13 @@
                 type="password"
                 id="login-password"
                 autocomplete="current-password"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500"
+                class="mt-1 block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 bg-gray-700"
                 required
               />
               <a
                 href="#"
                 onclick="navigateTo('forget-password')"
-                class="text-indigo-600 hover:underline text-right block mt-2"
+                class="text-indigo-400 hover:underline text-right block mt-2"
               >
                 Quên mật khẩu?
               </a>
@@ -113,12 +115,12 @@
               Đăng Nhập
             </button>
           </form>
-          <p class="text-center mt-4 text-sm">
+          <p class="text-center mt-4 text-sm text-gray-300">
             Chưa có tài khoản?
             <a
               href="#"
               onclick="navigateTo('register')"
-              class="text-indigo-600 hover:underline"
+              class="text-indigo-400 hover:underline"
             >
               Đăng ký ngay
             </a>
@@ -127,13 +129,15 @@
       </div>
 
       <div id="register-page" class="page hidden">
-        <div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg">
-          <h2 class="text-2xl font-bold text-center mb-6">Đăng Ký Tài Khoản</h2>
+        <div class="max-w-md mx-auto bg-gray-800 p-8 rounded-lg shadow-lg">
+          <h2 class="text-2xl font-bold text-center mb-6 text-white">
+            Đăng Ký Tài Khoản
+          </h2>
           <form id="register-form">
             <div class="mb-4">
               <label
                 for="register-username"
-                class="block text-sm font-medium text-gray-700"
+                class="block text-sm font-medium text-gray-300"
               >
                 Tên đăng nhập
               </label>
@@ -141,14 +145,14 @@
                 type="text"
                 id="register-username"
                 autocomplete="username"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                class="mt-1 block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700"
                 required
               />
             </div>
             <div class="mb-4">
               <label
                 for="register-email"
-                class="block text-sm font-medium text-gray-700"
+                class="block text-sm font-medium text-gray-300"
               >
                 Email
               </label>
@@ -156,14 +160,14 @@
                 type="email"
                 id="register-email"
                 autocomplete="email"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                class="mt-1 block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700"
                 required
               />
             </div>
             <div class="mb-6">
               <label
                 for="register-password"
-                class="block text-sm font-medium text-gray-700"
+                class="block text-sm font-medium text-gray-300"
               >
                 Mật khẩu
               </label>
@@ -171,7 +175,7 @@
                 type="password"
                 id="register-password"
                 autocomplete="new-password"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                class="mt-1 block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700"
                 required
               />
             </div>
@@ -182,12 +186,12 @@
               Đăng Ký
             </button>
           </form>
-          <p class="text-center mt-4 text-sm">
+          <p class="text-center mt-4 text-sm text-gray-300">
             Đã có tài khoản?
             <a
               href="#"
               onclick="navigateTo('login')"
-              class="text-indigo-600 hover:underline"
+              class="text-indigo-400 hover:underline"
             >
               Đăng nhập
             </a>
@@ -196,20 +200,22 @@
       </div>
 
       <div id="forget-password-page" class="page hidden">
-        <div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg">
-          <h2 class="text-2xl font-bold text-center mb-6">Quên Mật Khẩu</h2>
+        <div class="max-w-md mx-auto bg-gray-800 p-8 rounded-lg shadow-lg">
+          <h2 class="text-2xl font-bold text-center mb-6 text-white">
+            Quên Mật Khẩu
+          </h2>
           <form id="forget-password-form">
             <div class="mb-4">
               <label
                 for="forget-email"
-                class="block text-sm font-medium text-gray-700"
+                class="block text-sm font-medium text-gray-300"
                 >Email đăng ký</label
               >
               <input
                 type="email"
                 id="forget-email"
                 autocomplete="email"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                class="mt-1 block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700"
                 required
               />
             </div>
@@ -226,27 +232,27 @@
             <div class="mb-4">
               <label
                 for="otp-code"
-                class="block text-sm font-medium text-gray-700"
+                class="block text-sm font-medium text-gray-300"
                 >Mã OTP</label
               >
               <input
                 type="text"
                 id="otp-code"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                class="mt-1 block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700"
                 required
               />
             </div>
             <div class="mb-6">
               <label
                 for="new-password"
-                class="block text-sm font-medium text-gray-700"
+                class="block text-sm font-medium text-gray-300"
                 >Mật khẩu mới</label
               >
               <input
                 type="password"
                 id="new-password"
                 autocomplete="new-password"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                class="mt-1 block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700"
                 required
               />
             </div>
@@ -262,7 +268,7 @@
             <a
               href="#"
               onclick="navigateTo('login')"
-              class="text-indigo-600 hover:underline"
+              class="text-indigo-400 hover:underline"
             >
               Quay lại Đăng nhập
             </a>
@@ -270,11 +276,11 @@
         </div>
       </div>
       <div id="profile-page" class="page hidden">
-        <h2 class="text-3xl font-bold mb-6 text-gray-900">Hồ Sơ Cá Nhân</h2>
+        <h2 class="text-3xl font-bold mb-6 text-white">Hồ Sơ Cá Nhân</h2>
 
         <div
           id="profile-details"
-          class="bg-white p-6 rounded-lg shadow-md space-y-2"
+          class="bg-gray-800 p-6 rounded-lg shadow-md space-y-2"
         >
           <p>
             <strong>Họ và tên:</strong>
@@ -309,34 +315,34 @@
 
         <form
           id="profile-update-form"
-          class="hidden bg-white p-6 rounded-lg shadow-md space-y-4 mt-4"
+          class="hidden bg-gray-800 p-6 rounded-lg shadow-md space-y-4 mt-4"
         >
           <input
-            class="w-full px-3 py-2 border rounded-md"
+            class="w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700"
             type="text"
             id="profile-fullname"
             placeholder="Họ và tên"
           />
           <input
-            class="w-full px-3 py-2 border rounded-md"
+            class="w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700"
             type="text"
             id="profile-phone"
             placeholder="Số điện thoại"
           />
           <input
-            class="w-full px-3 py-2 border rounded-md"
+            class="w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700"
             type="text"
             id="profile-address"
             placeholder="Địa chỉ"
           />
           <input
-            class="w-full px-3 py-2 border rounded-md"
+            class="w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700"
             type="text"
             id="profile-vehicle-model"
             placeholder="Model xe"
           />
           <input
-            class="w-full px-3 py-2 border rounded-md"
+            class="w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700"
             type="text"
             id="profile-vin-number"
             placeholder="Số VIN"
@@ -352,7 +358,7 @@
             <button
               type="button"
               onclick="toggleProfileForm(false)"
-              class="bg-gray-300 py-2 px-4 rounded hover:bg-gray-400 transition"
+              class="bg-gray-700 text-white py-2 px-4 rounded hover:bg-gray-600 transition"
             >
               Hủy
             </button>
@@ -360,11 +366,11 @@
         </form>
 
         <div id="booking-history-container" class="mt-10">
-          <h3 class="text-2xl font-bold mb-4 text-gray-900">
+          <h3 class="text-2xl font-bold mb-4 text-white">
             Lịch Sử Đặt Lịch
           </h3>
           <div id="profile-booking-list" class="space-y-4">
-            <div class="bg-white p-6 rounded-lg shadow-md text-gray-500">
+            <div class="bg-gray-800 p-6 rounded-lg shadow-md text-gray-400">
               Đang tải lịch sử đặt lịch...
             </div>
           </div>
@@ -372,20 +378,22 @@
       </div>
 
       <div id="booking-page" class="page hidden">
-        <h2 class="text-3xl font-bold mb-6 text-gray-900">Đặt Lịch Dịch Vụ</h2>
+        <h2 class="text-3xl font-bold mb-6 text-white">Đặt Lịch Dịch Vụ</h2>
 
-        <div class="max-w-xl mx-auto bg-white p-8 rounded-lg shadow-lg">
-          <h3 class="text-xl font-semibold mb-4">Thông tin đặt lịch</h3>
+        <div class="max-w-xl mx-auto bg-gray-800 p-8 rounded-lg shadow-lg">
+          <h3 class="text-xl font-semibold mb-4 text-white">
+            Thông tin đặt lịch
+          </h3>
           <form id="booking-form" class="space-y-4">
             <div>
               <label
                 for="service-type"
-                class="block text-sm font-medium text-gray-700"
+                class="block text-sm font-medium text-gray-300"
                 >Loại Dịch Vụ</label
               >
               <select
                 id="service-type"
-                class="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm"
+                class="mt-1 block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700"
                 required
               >
                 <option value="Bảo dưỡng định kỳ">Bảo dưỡng định kỳ</option>
@@ -399,7 +407,7 @@
             <div>
               <label
                 for="technician-id"
-                class="block text-sm font-medium text-gray-700"
+                class="block text-sm font-medium text-gray-300"
                 >Kỹ Thuật Viên (ID)</label
               >
               <input
@@ -407,7 +415,7 @@
                 id="technician-id"
                 value="1"
                 min="1"
-                class="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm"
+                class="mt-1 block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700"
                 required
               />
             </div>
@@ -415,7 +423,7 @@
             <div>
               <label
                 for="station-id"
-                class="block text-sm font-medium text-gray-700"
+                class="block text-sm font-medium text-gray-300"
                 >Trạm Dịch Vụ (ID)</label
               >
               <input
@@ -423,7 +431,7 @@
                 id="station-id"
                 value="1"
                 min="1"
-                class="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm"
+                class="mt-1 block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700"
                 required
               />
             </div>
@@ -432,26 +440,26 @@
               <div class="flex-1">
                 <label
                   for="start-time"
-                  class="block text-sm font-medium text-gray-700"
+                  class="block text-sm font-medium text-gray-300"
                   >Thời gian Bắt đầu</label
                 >
                 <input
                   type="datetime-local"
                   id="start-time"
-                  class="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm"
+                  class="mt-1 block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700"
                   required
                 />
               </div>
               <div class="flex-1">
                 <label
                   for="end-time"
-                  class="block text-sm font-medium text-gray-700"
+                  class="block text-sm font-medium text-gray-300"
                   >Thời gian Kết thúc</label
                 >
                 <input
                   type="datetime-local"
                   id="end-time"
-                  class="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm"
+                  class="mt-1 block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700"
                   required
                 />
               </div>
@@ -467,11 +475,11 @@
         </div>
 
         <div id="my-bookings-container" class="mt-10">
-          <h3 class="text-2xl font-semibold mb-4 text-gray-800">
+          <h3 class="text-2xl font-semibold mb-4 text-white">
             Lịch Hẹn Của Bạn
           </h3>
           <div id="booking-list" class="space-y-4">
-            <div class="bg-white p-6 rounded-lg shadow-md text-gray-500">
+            <div class="bg-gray-800 p-6 rounded-lg shadow-md text-gray-400">
               Đang tải lịch hẹn...
             </div>
           </div>
@@ -479,13 +487,13 @@
       </div>
 
       <div id="invoice-history-page" class="page hidden">
-        <h2 class="text-3xl font-bold mb-6 text-gray-900">Lịch Sử Hóa Đơn</h2>
+        <h2 class="text-3xl font-bold mb-6 text-white">Lịch Sử Hóa Đơn</h2>
 
-        <ul class="flex border-b border-gray-200 mb-4">
+        <ul class="flex border-b border-gray-700 mb-4">
           <li class="-mb-px mr-1">
             <a
               id="tab-invoices"
-              class="bg-white inline-block py-2 px-4 text-indigo-600 font-semibold border-l border-t border-r rounded-t"
+              class="bg-gray-800 inline-block py-2 px-4 text-indigo-400 font-semibold border-l border-t border-r rounded-t"
               href="#"
               onclick="showHistory('invoices', this)"
               >Hóa Đơn</a
@@ -494,7 +502,7 @@
           <li class="mr-1">
             <a
               id="tab-payments"
-              class="bg-gray-100 inline-block py-2 px-4 text-gray-500 hover:text-gray-700 font-semibold rounded-t"
+              class="bg-gray-700 inline-block py-2 px-4 text-gray-400 hover:text-gray-200 font-semibold rounded-t"
               href="#"
               onclick="showHistory('payments', this)"
               >Lịch Sử Giao Dịch</a
@@ -504,7 +512,7 @@
 
         <div id="history-content-invoices" class="history-content">
           <div id="invoice-list-container" class="space-y-4">
-            <div class="bg-white p-6 rounded-lg shadow-md text-gray-500">
+            <div class="bg-gray-800 p-6 rounded-lg shadow-md text-gray-400">
               Đang tải lịch sử hóa đơn...
             </div>
           </div>
@@ -512,38 +520,38 @@
 
         <div id="history-content-payments" class="history-content hidden">
           <div id="payment-history-list-container" class="space-y-4">
-            <div class="bg-white p-6 rounded-lg shadow-md text-gray-500">
+            <div class="bg-gray-800 p-6 rounded-lg shadow-md text-gray-400">
               Đang tải lịch sử giao dịch...
             </div>
           </div>
         </div>
       </div>
       <div id="my-tasks-page" class="page hidden">
-        <h2 class="text-3xl font-bold mb-6 text-gray-900">
+        <h2 class="text-3xl font-bold mb-6 text-white">
           Công Việc Bảo Trì Của Tôi
         </h2>
-        <p class="text-gray-600 mb-6">
+        <p class="text-gray-300 mb-6">
           Theo dõi trạng thái các công việc bảo trì/sửa chữa xe của bạn.
         </p>
 
         <div id="my-tasks-list-container" class="space-y-4">
-          <div class="bg-white p-6 rounded-lg shadow-md text-gray-500">
+          <div class="bg-gray-800 p-6 rounded-lg shadow-md text-gray-400">
             Đang tải danh sách công việc...
           </div>
         </div>
       </div>
 
       <div id="inventory-list-page" class="page hidden">
-        <h2 class="text-3xl font-bold mb-6 text-gray-900">
+        <h2 class="text-3xl font-bold mb-6 text-white">
           Vật Tư & Phụ Tùng Hiện Có
         </h2>
-        <p class="text-gray-600 mb-6">
+        <p class="text-gray-300 mb-6">
           Danh sách các phụ tùng có sẵn tại trung tâm dịch vụ.
         </p>
 
         <div id="inventory-list-container" class="space-y-4">
           <div
-            class="text-center py-8 bg-white rounded-lg shadow-md"
+            class="text-center py-8 bg-gray-800 rounded-lg shadow-md text-gray-400"
             id="inventory-loading-message"
           >
             Đang tải danh sách vật tư...
@@ -555,8 +563,8 @@
       id="invoice-detail-modal"
       class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center hidden z-40"
     >
-      <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-2xl">
-        <h3 class="text-2xl font-bold mb-4 text-gray-800">
+      <div class="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-2xl">
+        <h3 class="text-2xl font-bold mb-4 text-white">
           Chi Tiết Hóa Đơn #<span id="invoice-detail-id"></span>
         </h3>
         <div id="invoice-detail-content" class="space-y-3">
@@ -571,34 +579,34 @@
             <strong>Tổng tiền:</strong>
             <span
               id="invoice-detail-total"
-              class="text-xl font-bold text-red-600"
+              class="text-xl font-bold text-red-500"
             ></span>
           </p>
 
-          <h4 class="text-lg font-semibold mt-4 border-t pt-3">
+          <h4 class="text-lg font-semibold mt-4 border-t border-gray-700 pt-3">
             Danh sách Mục
           </h4>
-          <div class="bg-gray-50 p-3 rounded-lg">
-            <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-100">
+          <div class="bg-gray-700 p-3 rounded-lg">
+            <table class="min-w-full divide-y divide-gray-600">
+              <thead class="bg-gray-600">
                 <tr>
                   <th
-                    class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"
+                    class="px-3 py-2 text-left text-xs font-medium text-gray-200 uppercase"
                   >
                     Mô tả
                   </th>
                   <th
-                    class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase"
+                    class="px-3 py-2 text-right text-xs font-medium text-gray-200 uppercase"
                   >
                     SL
                   </th>
                   <th
-                    class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase"
+                    class="px-3 py-2 text-right text-xs font-medium text-gray-200 uppercase"
                   >
                     Đơn giá
                   </th>
                   <th
-                    class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase"
+                    class="px-3 py-2 text-right text-xs font-medium text-gray-200 uppercase"
                   >
                     Thành tiền
                   </th>
@@ -606,7 +614,7 @@
               </thead>
               <tbody
                 id="invoice-items-table-body"
-                class="bg-white divide-y divide-gray-200"
+                class="bg-gray-700 divide-y divide-gray-600"
               ></tbody>
             </table>
           </div>
@@ -636,29 +644,31 @@
       id="payment-modal"
       class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center hidden z-50"
     >
-      <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-lg">
-        <h3 class="text-2xl font-bold mb-4 text-gray-800">
+      <div class="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-lg">
+        <h3 class="text-2xl font-bold mb-4 text-white">
           Thanh Toán Hóa Đơn #<span id="payment-invoice-id"></span>
         </h3>
         <p
           id="payment-status-message"
-          class="text-lg font-semibold mb-4 text-indigo-600"
+          class="text-lg font-semibold mb-4 text-indigo-400"
         >
-          Tổng tiền: <span id="payment-amount" class="text-red-600"></span>
+          Tổng tiền: <span id="payment-amount" class="text-red-500"></span>
         </p>
 
         <div id="payment-method-selection" class="space-y-4 mb-6">
-          <h4 class="text-xl font-bold border-b pb-2">Chọn Phương Thức</h4>
+          <h4 class="text-xl font-bold border-b border-gray-700 pb-2 text-white">
+            Chọn Phương Thức
+          </h4>
           <div class="flex space-x-4">
             <button
               onclick="processPayment('bank_transfer')"
-              class="flex-1 bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 font-medium transition"
+              class="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-medium transition"
             >
               Chuyển Khoản Ngân Hàng
             </button>
             <button
               onclick="processPayment('momo_qr')"
-              class="flex-1 bg-pink-500 text-white py-3 rounded-lg hover:bg-pink-600 font-medium transition"
+              class="flex-1 bg-pink-600 text-white py-3 rounded-lg hover:bg-pink-700 font-medium transition"
             >
               Quét Mã Momo/QR
             </button>
@@ -667,20 +677,20 @@
 
         <div
           id="payment-details-container"
-          class="hidden bg-gray-50 p-4 rounded-lg"
+          class="hidden bg-gray-700 p-4 rounded-lg"
         >
           <h4
             id="payment-detail-title"
-            class="text-xl font-semibold mb-3 text-indigo-700"
+            class="text-xl font-semibold mb-3 text-indigo-400"
           ></h4>
           <div id="qr-code-display" class="text-center space-y-3 hidden">
             <img
               id="qr-image"
-              class="w-40 h-40 mx-auto border"
+              class="w-40 h-40 mx-auto border border-gray-600"
               src="https://via.placeholder.com/150?text=QR+Code"
               alt="QR Code"
             />
-            <p class="text-sm font-mono text-gray-700">
+            <p class="text-sm font-mono text-gray-300">
               Nội dung CK: <strong id="payment-note-qr"></strong>
             </p>
           </div>
@@ -694,14 +704,14 @@
             </p>
             <p>
               <strong>Số tiền:</strong>
-              <span id="amount-bank" class="font-bold text-red-600"></span>
+              <span id="amount-bank" class="font-bold text-red-500"></span>
             </p>
-            <p class="text-sm font-mono text-gray-700">
+            <p class="text-sm font-mono text-gray-300">
               Nội dung CK: <strong id="payment-note-bank"></strong>
             </p>
           </div>
 
-          <p class="text-center text-sm text-red-500 mt-4">
+          <p class="text-center text-sm text-red-400 mt-4">
             Mã Giao Dịch TEST:
             <strong id="test-code-display" class="font-bold"></strong>
           </p>
@@ -726,6 +736,6 @@
       </div>
     </div>
 
-    <script src="scripts.js?v=3"></script>
+    <script src="scripts.js"></script>
   </body>
 </html>
