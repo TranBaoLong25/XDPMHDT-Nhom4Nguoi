@@ -1141,14 +1141,14 @@ window.updateInvoiceStatus = updateInvoiceStatus;
 const createInvoiceModal = document.getElementById("create-invoice-modal");
 const partsInputContainer = document.getElementById("parts-input-container");
 
-// Load bookings từ tasks đã completed
+// Load bookings có trạng thái confirmed và chưa có hóa đơn
 async function loadInProgressBookings() {
   try {
-    const tasks = await window.apiRequestCore(
-      window.ADMIN_TOKEN_KEY,
-      "/api/maintenance/completed-tasks-with-parts",
-      "GET"
-    );
+    // Load cả bookings và invoices
+    const [bookings, invoices] = await Promise.all([
+      window.apiRequestCore(window.ADMIN_TOKEN_KEY, "/api/bookings/items", "GET"),
+      window.apiRequestCore(window.ADMIN_TOKEN_KEY, "/api/invoices/", "GET")
+    ]);
 
     const selectElement = document.getElementById("invoice-booking-id");
     if (!selectElement) return;
@@ -1156,16 +1156,37 @@ async function loadInProgressBookings() {
     // Xóa các option cũ (trừ option placeholder)
     selectElement.innerHTML = '<option value="">-- Chọn lịch hẹn --</option>';
 
-    // Thêm các booking từ completed tasks vào dropdown
-    tasks.forEach((task) => {
+    // Lấy danh sách booking_id đã có hóa đơn
+    const bookingIdsWithInvoice = invoices.map(inv => inv.booking_id);
+
+    // Lọc booking:
+    // - Trạng thái "confirmed" (đã xác nhận)
+    // - Chưa có hóa đơn (không có trong danh sách bookingIdsWithInvoice)
+    const availableBookings = bookings.filter(
+      (booking) =>
+        booking.status === "confirmed" &&
+        !bookingIdsWithInvoice.includes(booking.id)
+    );
+
+    // Thêm các booking khả dụng vào dropdown
+    availableBookings.forEach((booking) => {
       const option = document.createElement("option");
-      option.value = task.booking_id;
-      option.textContent = `#${task.booking_id} - ${task.description} - Task #${task.task_id} (KTV #${task.technician_id})`;
+      option.value = booking.id;
+      const date = new Date(booking.start_time).toLocaleDateString("vi-VN");
+      option.textContent = `#${booking.id} - ${booking.service_type} - ${date} - ${booking.customer_name}`;
       selectElement.appendChild(option);
     });
+
+    if (availableBookings.length === 0) {
+      const option = document.createElement("option");
+      option.value = "";
+      option.textContent = "Không có lịch hẹn khả dụng (đã xác nhận & chưa có hóa đơn)";
+      option.disabled = true;
+      selectElement.appendChild(option);
+    }
   } catch (error) {
-    console.error("Error loading completed tasks:", error);
-    window.showToast("Lỗi khi tải danh sách công việc đã hoàn thành");
+    console.error("Error loading available bookings:", error);
+    window.showToast("Lỗi khi tải danh sách lịch hẹn");
   }
 }
 
@@ -1189,7 +1210,7 @@ async function loadInventoryItems() {
 function closeCreateInvoiceModal() {
   if (createInvoiceModal) createInvoiceModal.classList.add("hidden");
   document.getElementById("create-invoice-form")?.reset();
-  partsInputContainer.innerHTML = ""; // Clear parts inputs
+  if (partsInputContainer) partsInputContainer.innerHTML = ""; // Clear parts inputs
 }
 window.closeCreateInvoiceModal = closeCreateInvoiceModal;
 
@@ -1202,6 +1223,7 @@ async function openCreateInvoiceModal() {
 window.openCreateInvoiceModal = openCreateInvoiceModal;
 
 function addPartInput() {
+  if (!partsInputContainer) return; // Guard clause
   const count = partsInputContainer.children.length + 1;
 
   // Tạo dropdown options từ inventory items

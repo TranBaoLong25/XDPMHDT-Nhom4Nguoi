@@ -42,6 +42,19 @@ def create_app():
     # Cấu hình migration riêng cho Payment Service
     migrate.init_app(app, db, directory='migrations', version_table='alembic_version_payment')
 
+    # ===== JWT CALLBACKS =====
+    @jwt.additional_claims_loader
+    def add_claims_to_jwt(identity):
+        # Callback này cho phép JWT token từ User Service hoạt động với Payment Service
+        # Không cần load user từ DB vì chỉ cần validate token
+        return {}
+
+    @jwt.user_lookup_loader
+    def user_lookup_callback(_jwt_header, jwt_data):
+        # Callback này cho phép JWT token từ User Service hoạt động
+        # Trả về identity từ token (không cần query DB)
+        return jwt_data.get("sub")
+
     # ===== IMPORT MODELS & TẠO TABLES (CHỈ TRONG CLI/LẦN ĐẦU) =====
     # KHÔNG gọi db.create_all() ở đây khi chạy Gunicorn để tránh worker crash
     with app.app_context():
