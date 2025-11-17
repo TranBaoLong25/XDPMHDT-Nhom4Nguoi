@@ -283,6 +283,7 @@ services:
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN}
       - FINANCE_SERVICE_URL=http://finance-service:8002
+      - MOMO_QR_CODE_URL=${MOMO_QR_CODE_URL}
       - GUNICORN_ENV=true
     expose:
       - "8004"

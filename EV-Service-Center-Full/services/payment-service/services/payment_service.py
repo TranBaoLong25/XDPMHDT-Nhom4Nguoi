@@ -62,19 +62,26 @@ class PaymentService:
         
         if method == "momo_qr":
             # 🎯 TẠO QR CODE ĐỘNG DỰA TRÊN THÔNG SỐ GIAO DỊCH
-            
+
             # Chuỗi mã hóa (content) cần chứa thông tin động: amount, note, pg_id
             # Sử dụng format chuẩn: TYPE|AMOUNT|NOTE|PG_ID (hoặc format phù hợp với cổng TT)
             qr_content = f"MOMO|{note}|{amount}|{pg_id}"
-            
-            # Tạo URL hình ảnh QR Code từ Google Charts API (Kích thước 200x200)
-            # Đây là URL QR code động, chứa tất cả thông tin giao dịch
-            qr_url = f"https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl={qr_content}"
-            
-            # Nếu có URL tĩnh (custom_momo_url), ta sẽ ưu tiên dùng URL tĩnh 
+
+            # Tạo URL hình ảnh QR Code từ QuickChart.io API (Kích thước 200x200)
+            # QuickChart.io là dịch vụ miễn phí, ổn định hơn Google Charts
+            import urllib.parse
+            encoded_content = urllib.parse.quote(qr_content)
+            qr_url = f"https://quickchart.io/qr?text={encoded_content}&size=200"
+
+            # Nếu có URL tĩnh (custom_momo_url), ta sẽ ưu tiên dùng URL tĩnh
             # chỉ khi đó là yêu cầu bắt buộc (chú ý: ảnh tĩnh sẽ không có thông tin động)
-            if custom_momo_url: 
-                 qr_url = custom_momo_url # Giữ lại logic ưu tiên URL tĩnh nếu có
+            if custom_momo_url:
+                 # Thêm timestamp để tránh browser cache ảnh cũ
+                 import time
+                 cache_buster = int(time.time())
+                 qr_url = f"{custom_momo_url}?v={cache_buster}"
+
+            current_app.logger.info(f"🔍 Generated QR URL: {qr_url}")
 
             qr_data = {
                 "qr_code_url": qr_url, 
