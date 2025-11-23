@@ -1,54 +1,64 @@
-# File: services/inventory-service/services/inventory_service.py
 import requests
 import os
 from app import db
 from models.inventory_model import Inventory
+from sqlalchemy import and_
+
+# Cố gắng import NotificationHelper, nếu không có thì bỏ qua (để tránh lỗi import vòng nếu chưa setup)
+try:
+    from helpers.notification_helper import NotificationHelper
+except ImportError:
+    NotificationHelper = None
+
 class InventoryService:
     """Service xử lý logic nghiệp vụ liên quan đến Inventory"""
 
     @staticmethod
     def get_item_by_id(item_id):
         """Lấy vật tư theo ID"""
-        #
         return Inventory.query.get(item_id)
 
     @staticmethod
-    def get_item_by_part_number(part_number):
-        """Lấy vật tư theo Part Number (Mã phụ tùng)"""
-        #
-        return Inventory.query.filter_by(part_number=part_number).first()
+    def get_item_by_part_number(part_number, center_id=1):
+        """Lấy vật tư theo Part Number và Center ID"""
+        # Mặc định tìm center 1 nếu không truyền
+        cid = center_id if center_id is not None else 1
+        return Inventory.query.filter(
+            and_(
+                Inventory.part_number == part_number,
+                Inventory.center_id == cid
+            )
+        ).first()
 
     @staticmethod
-    def get_all_items():
-        """Lấy tất cả vật tư"""
-        #
-        return Inventory.query.all()
-
-    @staticmethod
-    def get_all_parts():
-        """Alias cho get_all_items() - để tương thích với internal API"""
-        return InventoryService.get_all_items()
-
-    @staticmethod
-    def get_low_stock_items(min_quantity=10):
-        """Lấy các vật tư có tồn kho thấp hơn mức tối thiểu"""
-        #
-        return Inventory.query.filter(Inventory.quantity <= Inventory.min_quantity).all()
+    def get_all_items(center_id=None):
+        """Lấy tất cả vật tư, có thể lọc theo chi nhánh"""
+        query = Inventory.query
+        if center_id:
+            query = query.filter_by(center_id=center_id)
+        
+        # Sắp xếp theo ID giảm dần (mới nhất lên đầu)
+        return query.order_by(Inventory.id.desc()).all()
 
     @staticmethod
     def create_item(data):
         """Tạo vật tư mới"""
-        #
         part_number = data.get("part_number")
-        if InventoryService.get_item_by_part_number(part_number):
-            return None, f"Part number '{part_number}' already exists"
+        # Lấy center_id, mặc định là 1 nếu không gửi lên
+        center_id = data.get("center_id", 1) 
+
+        # Kiểm tra trùng part_number trong cùng 1 chi nhánh
+        existing_item = InventoryService.get_item_by_part_number(part_number, center_id)
+        if existing_item:
+            return None, f"Mã phụ tùng '{part_number}' đã tồn tại tại chi nhánh {center_id}"
 
         new_item = Inventory(
             part_number=part_number,
             name=data.get("name"),
             quantity=data.get("quantity", 0),
             min_quantity=data.get("min_quantity", 10),
-            price=data.get("price")
+            price=data.get("price", 0),
+            center_id=center_id  # Lưu center_id
         )
 
         try:
@@ -57,187 +67,101 @@ class InventoryService:
             return new_item, None
         except Exception as e:
             db.session.rollback()
-            return None, f"Error creating item: {str(e)}"
+            return None, f"Lỗi khi tạo vật tư: {str(e)}"
 
     @staticmethod
     def update_item(item_id, data):
-        """Cập nhật vật tư"""
-        #
+        """Cập nhật thông tin vật tư"""
         item = InventoryService.get_item_by_id(item_id)
         if not item:
-            return None, "Item not found"
-
-        try:
-            for field, value in data.items():
-                if hasattr(item, field):
-                    setattr(item, field, value)
-
-            db.session.commit()
-            return item, None
-        except Exception as e:
-            db.session.rollback()
-            return None, f"Error updating item: {str(e)}"
-
-    @staticmethod
-    def delete_item(item_id):
-        """Xóa vật tư"""
-        #
-        item = InventoryService.get_item_by_id(item_id)
-        if not item:
-            return False, "Item not found"
-
-        try:
-            db.session.delete(item)
-            db.session.commit()
-            return True, "Item deleted successfully"
-        except Exception as e:
-            db.session.rollback()
-            return False, f"Error deleting item: {str(e)}"
-    @staticmethod
-    def _send_low_stock_alert(item):
-        """Send alert when stock is low"""
-        try:
-            # Get admin users (you might need to call User Service)
-            # For now, hardcode admin_id or get from config
-            admin_id = 1  # Replace with actual admin user_id
-            
-            url = "http://notification-service:8005/internal/notifications/create"
-            headers = {
-                "X-Internal-Token": os.getenv("INTERNAL_SERVICE_TOKEN"),
-                "Content-Type": "application/json"
-            }
-            data = {
-                "user_id": admin_id,
-                "notification_type": "inventory_alert",
-                "title": "⚠️ Cảnh báo tồn kho thấp",
-                "message": f"Phụ tùng '{item.name}' chỉ còn {item.quantity} (tối thiểu: {item.min_quantity})",
-                "channel": "in_app",
-                "priority": "urgent",
-                "related_entity_type": "inventory",
-                "related_entity_id": item.id
-            }
-            
-            response = requests.post(url, json=data, headers=headers, timeout=5)
-            return response.status_code == 201
-        except Exception as e:
-            print(f"Failed to send alert: {e}")
-            return False
-    
-    @staticmethod
-    def update_item(item_id, data):
-        # ... existing update code ...
-        
-        # After update, check if stock is low
-        if item and item.quantity < item.min_quantity:
-            InventoryService._send_low_stock_alert(item)
-        
-        return item, None
-    @staticmethod
-    def _get_admin_user_ids():
-        """Lấy danh sách admin IDs (có thể gọi User Service)"""
-        # TODO: Gọi User Service để lấy danh sách admin
-        # Tạm thời hardcode
-        return [1]  # Replace with actual admin IDs
-    
-    @staticmethod
-    def _notify_low_stock(item):
-        """Cảnh báo tồn kho thấp đến Admin"""
-        from notification_helper import NotificationHelper
-        
-        admin_ids = InventoryService._get_admin_user()
-        
-        title = "⚠️ Cảnh báo tồn kho thấp"
-        message = f"Phụ tùng '{item.name}' (#{item.part_number}) chỉ còn {item.quantity} (tối thiểu: {item.min_quantity}). Cần nhập hàng ngay!"
-        
-        return NotificationHelper.send_to_multiple_users(
-            user_ids=admin_ids,
-            notification_type="inventory_alert",
-            title=title,
-            message=message,
-            channel="in_app",
-            priority="urgent",
-            related_entity_type="inventory",
-            related_entity_id=item.id,
-            metadata={
-                "part_number": item.part_number,
-                "current_quantity": item.quantity,
-                "min_quantity": item.min_quantity,
-                "difference": item.min_quantity - item.quantity
-            }
-        )
-    
-    @staticmethod
-    def _notify_out_of_stock(item):
-        """Cảnh báo hết hàng"""
-        from notification_helper import NotificationHelper
-        
-        admin_ids = InventoryService._get_admin_user_ids()
-        
-        return NotificationHelper.send_to_multiple_users(
-            user_ids=admin_ids,
-            notification_type="inventory_alert",
-            title="🚨 HẾT HÀNG KHẨN CẤP",
-            message=f"Phụ tùng '{item.name}' (#{item.part_number}) ĐÃ HẾT HÀNG!",
-            channel="in_app",
-            priority="urgent",
-            related_entity_type="inventory",
-            related_entity_id=item.id
-        )
-    
-    @staticmethod
-    def update_item(item_id, data):
-        item = InventoryService.get_item_by_id(item_id)
-        if not item:
-            return None, "Item not found"
+            return None, "Không tìm thấy vật tư"
         
         old_quantity = item.quantity
         
         try:
-            # Update item
-            for key, value in data.items():
-                if hasattr(item, key):
-                    setattr(item, key, value)
+            # Cập nhật các trường được phép
+            if "name" in data: item.name = data["name"]
+            if "quantity" in data: item.quantity = int(data["quantity"])
+            if "min_quantity" in data: item.min_quantity = int(data["min_quantity"])
+            if "price" in data: item.price = float(data["price"])
+            if "center_id" in data: item.center_id = int(data["center_id"])
             
             db.session.commit()
             
-            # ✅ THÊM: Kiểm tra và gửi cảnh báo
-            if item.quantity == 0 and old_quantity > 0:
-                # Hết hàng
-                InventoryService._notify_out_of_stock(item)
-            elif item.quantity < item.min_quantity and old_quantity >= item.min_quantity:
-                # Tồn kho thấp (chỉ gửi khi vừa giảm xuống dưới ngưỡng)
-                InventoryService._notify_low_stock(item)
+            # --- Logic gửi cảnh báo ---
+            if NotificationHelper:
+                # 1. Cảnh báo hết hàng (Vừa giảm về 0)
+                if item.quantity == 0 and old_quantity > 0:
+                    InventoryService._notify_out_of_stock(item)
+                
+                # 2. Cảnh báo tồn kho thấp (Vừa giảm xuống dưới mức tối thiểu)
+                elif item.quantity < item.min_quantity and old_quantity >= item.min_quantity:
+                    InventoryService._notify_low_stock(item)
             
             return item, None
         except Exception as e:
             db.session.rollback()
-            return None, f"Error: {str(e)}"
+            return None, f"Lỗi cập nhật: {str(e)}"
+
     @staticmethod
-    def _notify_welcome_new_user(user):
-        """Chào mừng người dùng mới"""
-        from notification_helper import NotificationHelper
-        
-        return NotificationHelper.send_notification(
-            user_id=user.id,
-            notification_type="system",
-            title="👋 Chào mừng đến với EV Service Center",
-            message=f"Xin chào {user.username}! Cảm ơn bạn đã đăng ký tài khoản. Chúng tôi sẵn sàng phục vụ bạn!",
-            channel="in_app",
-            priority="medium"
-        )
-    
+    def delete_item(item_id):
+        """Xóa vật tư"""
+        item = InventoryService.get_item_by_id(item_id)
+        if not item:
+            return False, "Không tìm thấy vật tư"
+
+        try:
+            db.session.delete(item)
+            db.session.commit()
+            return True, "Đã xóa vật tư thành công"
+        except Exception as e:
+            db.session.rollback()
+            return False, f"Lỗi xóa vật tư: {str(e)}"
+
+    # ================= INTERNAL HELPER METHODS =================
+
     @staticmethod
-    def _notify_password_changed(user):
-        """Thông báo đổi mật khẩu"""
-        from notification_helper import NotificationHelper
+    def _get_admin_user_ids():
+        """
+        Lấy danh sách ID của Admin từ User Service
+        (Tạm thời hardcode ID 1 là Admin, sau này cần gọi API sang User Service)
+        """
+        return [1]
+
+    @staticmethod
+    def _notify_low_stock(item):
+        """Gửi thông báo tồn kho thấp"""
+        if not NotificationHelper: return
         
-        return NotificationHelper.send_notification(
-            user_id=user.id,
-            notification_type="system",
-            title="🔐 Mật khẩu đã được thay đổi",
-            message="Mật khẩu của bạn đã được thay đổi thành công. Nếu không phải bạn, vui lòng liên hệ ngay!",
-            channel="in_app",
-            priority="high"
+        admin_ids = InventoryService._get_admin_user_ids()
+        title = "⚠️ Cảnh báo tồn kho thấp"
+        message = f"Phụ tùng '{item.name}' (#{item.part_number}) tại Chi nhánh {item.center_id} sắp hết (Còn {item.quantity})."
+        
+        NotificationHelper.send_to_multiple_users(
+            user_ids=admin_ids,
+            notification_type="inventory_alert",
+            title=title,
+            message=message,
+            priority="high",
+            related_entity_type="inventory",
+            related_entity_id=item.id
         )
 
+    @staticmethod
+    def _notify_out_of_stock(item):
+        """Gửi thông báo hết hàng"""
+        if not NotificationHelper: return
 
+        admin_ids = InventoryService._get_admin_user_ids()
+        title = "🚨 HẾT HÀNG KHẨN CẤP"
+        message = f"Phụ tùng '{item.name}' (#{item.part_number}) tại Chi nhánh {item.center_id} ĐÃ HẾT HÀNG!"
+        
+        NotificationHelper.send_to_multiple_users(
+            user_ids=admin_ids,
+            notification_type="inventory_alert",
+            title=title,
+            message=message,
+            priority="urgent",
+            related_entity_type="inventory",
+            related_entity_id=item.id
+        )

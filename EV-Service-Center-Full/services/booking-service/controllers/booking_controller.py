@@ -4,7 +4,7 @@ from flask_jwt_extended import (
     jwt_required, 
     verify_jwt_in_request, 
     get_jwt,
-    get_jwt_identity # ✅ Đã thêm import bị thiếu
+    get_jwt_identity
 )
 from functools import wraps
 
@@ -12,7 +12,7 @@ from services.booking_service import BookingService as service
 
 booking_bp = Blueprint("booking", __name__, url_prefix="/api/bookings")
 
-# --- Decorators (Tạm thời định nghĩa ở đây) ---
+# --- Decorators ---
 def admin_required():
     def wrapper(fn):
         @wraps(fn)
@@ -29,7 +29,26 @@ def admin_required():
         return decorator
     return wrapper
 
-# --- Routes ---
+# ================= SERVICE CENTER ROUTES (NEW) =================
+
+@booking_bp.route("/centers", methods=["GET"])
+def get_service_centers():
+    """Public endpoint: Lấy danh sách các trung tâm dịch vụ"""
+    centers = service.get_all_service_centers(active_only=True)
+    return jsonify([c.to_dict() for c in centers]), 200
+
+@booking_bp.route("/centers", methods=["POST"])
+@jwt_required()
+@admin_required()
+def create_service_center_route():
+    """Admin endpoint: Tạo trung tâm dịch vụ mới"""
+    data = request.json
+    center, error = service.create_service_center(data)
+    if error:
+        return jsonify({"error": error}), 400
+    return jsonify({"message": "Tạo trung tâm thành công", "center": center.to_dict()}), 201
+
+# ================= BOOKING ROUTES =================
 
 # 1. GET ALL BOOKINGS (Chỉ Admin)
 @booking_bp.route("/items", methods=["GET"])
@@ -45,7 +64,6 @@ def get_bookings():
 def create_booking_route():
     data = request.json
     
-    # ✅ Đã sửa: get_jwt_identity đã được import ở trên, không cần import lại ở đây
     current_user_id = get_jwt_identity()
     
     data['user_id'] = int(current_user_id) 
@@ -107,7 +125,7 @@ def get_booking_by_id_route(booking_id):
 def get_my_bookings():
     """Lấy danh sách lịch đặt của User hiện tại (lấy ID từ JWT)"""
     try:
-        user_id = get_jwt_identity() # ✅ Hàm đã được tìm thấy
+        user_id = get_jwt_identity()
         bookings = service.get_bookings_by_user(user_id)
         
         return jsonify([b.to_dict() for b in bookings]), 200

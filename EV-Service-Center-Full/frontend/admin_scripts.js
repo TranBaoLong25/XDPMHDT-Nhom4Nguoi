@@ -1,77 +1,60 @@
-// ===================== GLOBAL CONFIG =====================
+// =============================================================================
+// 1. GLOBAL CONFIG & UTILITIES
+// =============================================================================
 window.ADMIN_TOKEN_KEY = "admin_jwt_token";
 window.ADMIN_ROLE = "admin";
+const API_BASE_URL = "http://localhost"; // Gateway Port
 
-// ===================== UI UTILITIES =====================
+// --- UI Utilities ---
 window.showToast = function (message, isError = false) {
   const toast = document.createElement("div");
   toast.textContent = message;
-  toast.className = `fixed bottom-5 right-5 px-4 py-3 rounded-md text-white font-medium shadow-lg z-50 transition-all duration-500 ${
-    isError ? "bg-red-500" : "bg-green-500"
+  toast.className = `fixed bottom-5 right-5 px-6 py-4 rounded-lg text-white font-medium shadow-2xl z-[60] transition-all duration-500 transform translate-y-0 flex items-center gap-2 ${
+    isError ? "bg-red-600" : "bg-green-600"
   }`;
   document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 3000);
+  setTimeout(() => {
+    toast.classList.add("opacity-0", "translate-y-10");
+    setTimeout(() => toast.remove(), 500);
+  }, 3000);
 };
 
 window.showLoading = function () {
   document.getElementById("loading-spinner")?.classList.remove("hidden");
-};
-window.hideLoading = function () {
-  document.getElementById("loading-spinner")?.classList.add("hidden");
+  document.getElementById("loading-spinner")?.classList.add("flex");
 };
 
-// --- Helper: Định dạng tiền tệ (BỔ SUNG) ---
+window.hideLoading = function () {
+  document.getElementById("loading-spinner")?.classList.add("hidden");
+  document.getElementById("loading-spinner")?.classList.remove("flex");
+};
+
+// --- Formatters ---
 function formatCurrency(amount) {
   return new Intl.NumberFormat("vi-VN").format(amount) + "₫";
 }
 
-// --- Helper: Định dạng trạng thái thanh toán (BỔ SUNG) ---
-function formatPaymentStatus(status) {
-  switch (status) {
-    case "pending":
-      return { text: "Chờ thanh toán", class: "bg-yellow-100 text-yellow-800" };
-    case "success":
-      return { text: "Thành công", class: "bg-green-100 text-green-800" };
-    case "failed":
-      return { text: "Thất bại", class: "bg-red-100 text-red-800" };
-    case "expired":
-      return { text: "Hết Hạn", class: "bg-gray-100 text-gray-800" };
-    default:
-      return { text: status, class: "bg-gray-100 text-gray-800" };
-  }
+function formatDateTime(dateString) {
+  if (!dateString) return "-";
+  return new Date(dateString).toLocaleString("vi-VN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
-// ===================== ADMIN CORE FUNCTIONS =====================
-const loginPage = document.getElementById("admin-login-page");
-const dashboardPage = document.getElementById("dashboard");
-const dashboardTitle = document.getElementById("dashboard-title");
+// =============================================================================
+// 2. CORE API & AUTHENTICATION
+// =============================================================================
 
-function adminLogout() {
-  localStorage.removeItem(window.ADMIN_TOKEN_KEY);
-  window.showToast(
-    "Phiên làm việc hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại.",
-    true
-  );
-  // Đảm bảo navigate về trang login
-  loginPage.classList.remove("hidden");
-  dashboardPage.classList.add("hidden");
-}
-window.adminLogout = adminLogout; // Xuất ra window để có thể gọi từ bên ngoài
-
-function showDashboard() {
-  loginPage.classList.add("hidden");
-  dashboardPage.classList.remove("hidden");
-}
-
-// ===================== CORE REQUEST FUNCTION (UPDATED) =====================
 window.apiRequestCore = async function (
   tokenKey,
   endpoint,
   method = "GET",
   body = null
 ) {
-  // API Gateway chạy trên http://localhost (port 80)
-  const API_BASE_URL = "http://localhost";
   const url = `${API_BASE_URL}${endpoint}`;
   const token = tokenKey ? localStorage.getItem(tokenKey) : null;
 
@@ -89,37 +72,78 @@ window.apiRequestCore = async function (
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      // ✅ THÊM LOGIC XỬ LÝ LỖI 401
       if (response.status === 401 && token) {
         adminLogout();
-        // Ném lỗi để dừng xử lý tiếp theo và thoát khỏi khối try
         throw new Error("Token Admin hết hạn.");
       }
-
-      console.error("API Error:", data);
-      // Hiển thị toast cho các lỗi khác (400, 403, 404, 409,...)
       const errorMessage =
         data.message || data.error || `HTTP Error ${response.status}`;
       window.showToast(errorMessage || "Lỗi hệ thống!", true);
-
       throw new Error(errorMessage || "API Error");
     }
-
     return data;
   } catch (err) {
     console.error("🚨 API Request Error:", err);
-    // Không show toast ở đây vì nó đã được xử lý trong khối if (!response.ok)
     throw err;
   } finally {
     hideLoading();
   }
 };
 
-// ===================== NAVIGATION LOGIC =====================
+// --- Auth Logic ---
+const loginPage = document.getElementById("admin-login-page");
+const dashboardPage = document.getElementById("dashboard");
+const dashboardTitle = document.getElementById("dashboard-title");
 
-/**
- * Chuyển đổi giữa các phần Users, Inventory, Bookings, Invoices, Maintenance và Payment History
- */
+function adminLogout() {
+  localStorage.removeItem(window.ADMIN_TOKEN_KEY);
+  window.showToast("Đã đăng xuất.", true);
+  loginPage.classList.remove("hidden");
+  dashboardPage.classList.add("hidden");
+}
+window.adminLogout = adminLogout;
+
+function showDashboard() {
+  loginPage.classList.add("hidden");
+  dashboardPage.classList.remove("hidden");
+}
+
+// Login Form Submit
+document
+  .getElementById("admin-login-form")
+  ?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email_username = document.getElementById("admin-email").value;
+    const password = document.getElementById("admin-password").value;
+
+    try {
+      const data = await window.apiRequestCore(null, "/api/login", "POST", {
+        email_username,
+        password,
+      });
+
+      const token = data.access_token;
+      // Decode token payload to check role
+      const payload = JSON.parse(atob(token.split(".")[1]));
+
+      if (payload.role !== window.ADMIN_ROLE) {
+        adminLogout();
+        window.showToast("Bạn không có quyền truy cập trang quản trị.", true);
+        return;
+      }
+
+      localStorage.setItem(window.ADMIN_TOKEN_KEY, token);
+      window.showToast("Đăng nhập quản trị thành công!");
+      showDashboard();
+      navigateToDashboardSection("inventory-section", "Quản lý Kho Phụ Tùng");
+    } catch (error) {
+      console.error("Login failed:", error);
+    }
+  });
+
+// =============================================================================
+// 3. NAVIGATION CONTROLLER
+// =============================================================================
 function navigateToDashboardSection(sectionId, title) {
   document.querySelectorAll(".dashboard-section").forEach((section) => {
     section.classList.add("hidden");
@@ -133,202 +157,146 @@ function navigateToDashboardSection(sectionId, title) {
     if (dashboardTitle) dashboardTitle.textContent = title;
   }
 
-  // Tải dữ liệu tùy thuộc vào section
-  if (sectionId === "inventory-section") {
-    loadAllInventory();
-  } else if (sectionId === "users-section") {
-    loadAllUsers();
-  } else if (sectionId === "bookings-section") {
-    loadAllBookings();
-  } else if (sectionId === "invoices-section") {
-    loadAllInvoices();
-  }
-  // ✅ TẢI DỮ LIỆU MAINTENANCE
-  else if (sectionId === "maintenance-section") {
-    loadAllMaintenanceTasks();
-  }
-  // ✅ TẢI DỮ LIỆU PAYMENT HISTORY
-  else if (sectionId === "payment-history-section") {
-    loadAllPaymentHistory();
-  }
-  // ✅ TẢI DỮ LIỆU NOTIFICATIONS
-  else if (sectionId === "notifications-section") {
-    loadAllNotificationsAdmin();
+  switch (sectionId) {
+    case "inventory-section":
+      loadAllInventory();
+      break;
+    case "users-section":
+      loadAllUsers();
+      break;
+    case "bookings-section":
+      loadAllBookings();
+      break;
+    case "invoices-section":
+      loadAllInvoices();
+      break;
+    case "maintenance-section":
+      loadAllMaintenanceTasks();
+      break;
+    case "payment-history-section":
+      loadAllPaymentHistory();
+      break;
+    case "notifications-section":
+      loadAllNotificationsAdmin();
+      break;
+    case "centers-section":
+      loadServiceCenters();
+      break;
+    case "reports-section":
+      loadDashboardData();
+      switchReportTab("revenue");
+      break;
   }
 }
 window.navigateToDashboardSection = navigateToDashboardSection;
 
-// ===================== LOGIN HANDLER =====================
-document
-  .getElementById("admin-login-form")
-  ?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const email_username = document.getElementById("admin-email").value;
-    const password = document.getElementById("admin-password").value;
+// =============================================================================
+// 4. MODULE: SERVICE CENTERS (Chi Nhánh)
+// =============================================================================
+async function loadServiceCenters() {
+  const tbody = document.getElementById("centers-table-body");
+  if (!tbody) return;
+  tbody.innerHTML =
+    '<tr><td colspan="5" class="text-center py-4 text-gray-500">Đang tải...</td></tr>';
 
-    console.log("🔐 Login attempt:", { email_username, password: "***" });
-
-    try {
-      // Gọi API login (không dùng tokenKey)
-      const data = await window.apiRequestCore(null, "/api/login", "POST", {
-        email_username,
-        password,
-      });
-      console.log("✅ Login successful:", data);
-      const token = data.access_token;
-
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      if (payload.role !== window.ADMIN_ROLE) {
-        adminLogout();
-        window.showToast("Bạn không có quyền truy cập trang quản trị.", true);
-        return;
-      }
-
-      localStorage.setItem(window.ADMIN_TOKEN_KEY, token);
-      window.showToast("Đăng nhập quản trị thành công!");
-      showDashboard();
-      // CHUYỂN MẶC ĐỊNH SANG INVENTORY
-      navigateToDashboardSection("inventory-section", "Quản lý Kho Phụ Tùng");
-    } catch (error) {
-      console.error("Login failed:", error);
-    }
-  });
-
-// ===================== USER MANAGEMENT =====================
-async function loadAllUsers() {
   try {
-    const users = await window.apiRequestCore(
+    const centers = await window.apiRequestCore(
       window.ADMIN_TOKEN_KEY,
-      "/api/admin/users"
+      "/api/bookings/centers",
+      "GET"
     );
-    const tbody = document.getElementById("users-table-body");
-    tbody.innerHTML = "";
-
-    if (!users || users.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6" class="text-center text-gray-500 py-4">Không có người dùng.</td></tr>`;
+    if (!centers || centers.length === 0) {
+      tbody.innerHTML =
+        '<tr><td colspan="5" class="text-center py-4 text-gray-500">Chưa có chi nhánh nào.</td></tr>';
       return;
     }
 
-    tbody.innerHTML = users
+    tbody.innerHTML = centers
       .map(
-        (u) => `
-            <tr>
-                <td class="px-6 py-4 text-sm">${u.user_id}</td>
-                <td class="px-6 py-4 text-sm">${u.username}</td>
-                <td class="px-6 py-4 text-sm">${u.email}</td>
-                <td class="px-6 py-4 text-sm">${u.role}</td>
-                <td class="px-6 py-4 text-sm">${u.status}</td>
-                <td class="px-6 py-4 text-center space-x-2">
-                    <button onclick="toggleUserLock(${
-                      u.user_id
-                    })" class="text-indigo-600 hover:text-indigo-900">
-                        ${u.status === "active" ? "Lock" : "Unlock"}
-                    </button>
-                    <button onclick="deleteUser(${
-                      u.user_id
-                    })" class="text-red-600 hover:text-red-900">Delete</button>
-                </td>
-            </tr>`
+        (c) => `
+      <tr class="hover:bg-gray-50">
+        <td class="px-6 py-4 text-sm font-mono text-gray-500">${c.id}</td>
+        <td class="px-6 py-4 text-sm font-medium text-indigo-600">${c.name}</td>
+        <td class="px-6 py-4 text-sm">${c.address}</td>
+        <td class="px-6 py-4 text-sm">${c.phone || "-"}</td>
+        <td class="px-6 py-4 text-sm">
+          <span class="px-2 py-1 text-xs rounded-full ${
+            c.is_active
+              ? "bg-green-100 text-green-800"
+              : "bg-red-100 text-red-800"
+          }">
+            ${c.is_active ? "Hoạt động" : "Đóng cửa"}
+          </span>
+        </td>
+      </tr>
+    `
       )
       .join("");
   } catch (err) {
-    console.error(err);
-    document.getElementById(
-      "users-table-body"
-    ).innerHTML = `<tr><td colspan="6" class="text-center text-red-500 py-4">Lỗi khi tải dữ liệu người dùng.</td></tr>`;
+    tbody.innerHTML =
+      '<tr><td colspan="5" class="text-center text-red-500 py-4">Lỗi tải dữ liệu.</td></tr>';
   }
 }
-async function toggleUserLock(userId) {
-  try {
-    await window.apiRequestCore(
-      window.ADMIN_TOKEN_KEY,
-      `/api/admin/users/${userId}/toggle-lock`,
-      "PUT"
-    );
-    window.showToast("Cập nhật trạng thái người dùng thành công.");
-    loadAllUsers();
-  } catch (error) {
-    console.error("Lỗi khi khóa/mở khóa user:", error);
-    // Toast được hiển thị trong apiRequestCore
-  }
-}
+window.loadServiceCenters = loadServiceCenters;
 
-async function deleteUser(userId) {
-  if (!confirm("Bạn có chắc chắn muốn xóa người dùng này?")) return;
-
-  try {
-    await window.apiRequestCore(
-      window.ADMIN_TOKEN_KEY,
-      `/api/admin/users/${userId}`,
-      "DELETE"
-    );
-    window.showToast("Đã xóa người dùng!");
-    loadAllUsers();
-  } catch (error) {
-    // Toast được hiển thị trong apiRequestCore
-  }
-}
-window.deleteUser = deleteUser;
-window.toggleUserLock = toggleUserLock; // Cần export cho onclick
-
-// XỬ LÝ MODAL THÊM NGƯỜI DÙNG
-const addUserModal = document.getElementById("add-user-modal");
-function openAddUserModal() {
-  if (addUserModal) addUserModal.classList.remove("hidden");
-}
-window.openAddUserModal = openAddUserModal; // Export cho onclick
-
-function closeAddUserModal() {
-  if (addUserModal) addUserModal.classList.add("hidden");
-  document.getElementById("add-user-form")?.reset();
-}
-window.closeAddUserModal = closeAddUserModal; // Export cho onclick
+// --- Center Modal ---
+const centerModal = document.getElementById("center-modal");
+window.openCenterModal = () => centerModal?.classList.remove("hidden");
+window.closeCenterModal = () => {
+  centerModal?.classList.add("hidden");
+  document.getElementById("center-form")?.reset();
+};
 
 document
-  .getElementById("add-user-form")
+  .getElementById("center-form")
   ?.addEventListener("submit", async (e) => {
     e.preventDefault();
-
-    const username = document.getElementById("add-username").value;
-    const email = document.getElementById("add-email").value;
-    const password = document.getElementById("add-password").value;
-    const role = document.getElementById("add-role").value;
-
+    const data = {
+      name: document.getElementById("center-name").value,
+      address: document.getElementById("center-address").value,
+      phone: document.getElementById("center-phone").value,
+      latitude: document.getElementById("center-lat").value
+        ? parseFloat(document.getElementById("center-lat").value)
+        : null,
+      longitude: document.getElementById("center-lng").value
+        ? parseFloat(document.getElementById("center-lng").value)
+        : null,
+      is_active: true,
+    };
     try {
       await window.apiRequestCore(
         window.ADMIN_TOKEN_KEY,
-        "/api/admin/users",
+        "/api/bookings/centers",
         "POST",
-        { username, email, password, role }
+        data
       );
-
-      window.showToast("Tạo người dùng thành công!");
-      closeAddUserModal();
-      loadAllUsers();
+      window.showToast("Thêm chi nhánh thành công!");
+      window.closeCenterModal();
+      loadServiceCenters();
     } catch (error) {
-      console.error("Lỗi khi tạo người dùng:", error);
+      console.error(error);
     }
   });
 
-// ===================== INVENTORY MANAGEMENT =====================
-// --- LOAD INVENTORY ---
+// =============================================================================
+// 5. MODULE: INVENTORY (Kho Phụ Tùng)
+// =============================================================================
 async function loadAllInventory() {
   try {
     const items = await window.apiRequestCore(
       window.ADMIN_TOKEN_KEY,
-      "/api/inventory/items" // Endpoint GET ALL ITEMS
+      "/api/inventory/items"
     );
     const tbody = document.getElementById("inventory-table-body");
     tbody.innerHTML = "";
 
     if (!items || items.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" class="text-center text-gray-500 py-4">Không có vật tư nào trong kho.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-gray-500 py-4">Kho trống.</td></tr>`;
       return;
     }
 
     tbody.innerHTML = items
       .map((item) => {
-        // Logic hiển thị tồn kho thấp
         const isLowStock = item.quantity <= item.min_quantity;
         const rowClass = isLowStock
           ? "bg-red-50 hover:bg-red-100"
@@ -338,72 +306,91 @@ async function loadAllInventory() {
           : '<span class="p-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">Đủ hàng</span>';
 
         return `
-                    <tr class="${rowClass}">
-                        <td class="px-6 py-4 text-sm">${item.id}</td>
-                        <td class="px-6 py-4 text-sm">${item.name}</td>
-                        <td class="px-6 py-4 text-sm">${item.part_number}</td>
-                        <td class="px-6 py-4 text-sm text-center font-bold">${
-                          item.quantity
-                        }</td>
-                        <td class="px-6 py-4 text-sm text-center">${
-                          item.min_quantity
-                        }</td>
-                        <td class="px-6 py-4 text-sm">${new Intl.NumberFormat(
-                          "vi-VN"
-                        ).format(item.price)}₫</td>
-                        <td class="px-6 py-4 text-center space-x-2">
-                            ${statusBadge}
-                            <button onclick="openItemModal('edit', ${
-                              item.id
-                            })" class="text-indigo-600 hover:text-indigo-900">
-                                Edit
-                            </button>
-                            <button onclick="deleteItem(${
-                              item.id
-                            })" class="text-red-600 hover:text-red-900">
-                                Delete
-                            </button>
-                        </td>
-                    </tr>`;
+            <tr class="${rowClass}">
+                <td class="px-6 py-4 text-sm">${item.id}</td>
+                <td class="px-6 py-4 text-sm font-semibold text-gray-700">${
+                  item.name
+                }</td>
+                <td class="px-6 py-4 text-sm font-mono text-gray-500">${
+                  item.part_number
+                }</td>
+                <td class="px-6 py-4 text-sm text-center text-blue-600 font-medium">
+                    ${item.center_id ? `CN ${item.center_id}` : "Kho Tổng"}
+                </td>
+                <td class="px-6 py-4 text-sm text-center font-bold">${
+                  item.quantity
+                }</td>
+                <td class="px-6 py-4 text-sm text-center text-gray-500">${
+                  item.min_quantity
+                }</td>
+                <td class="px-6 py-4 text-sm font-medium">${formatCurrency(
+                  item.price
+                )}</td>
+                <td class="px-6 py-4 text-center space-x-2">
+                    <button onclick="openItemModal('edit', ${
+                      item.id
+                    })" class="text-indigo-600 hover:text-indigo-900 font-medium">Sửa</button>
+                    <button onclick="deleteItem(${
+                      item.id
+                    })" class="text-red-600 hover:text-red-900 font-medium">Xóa</button>
+                </td>
+            </tr>`;
       })
       .join("");
   } catch (err) {
-    console.error(err);
     document.getElementById(
       "inventory-table-body"
-    ).innerHTML = `<tr><td colspan="7" class="text-center text-red-500 py-4">Lỗi khi tải dữ liệu Kho.</td></tr>`;
+    ).innerHTML = `<tr><td colspan="8" class="text-center text-red-500 py-4">Lỗi tải kho.</td></tr>`;
   }
 }
-window.loadAllInventory = loadAllInventory; // Export cho onclick Load lại
+window.loadAllInventory = loadAllInventory;
 
-// --- MODAL HANDLERS ---
+// --- Inventory Modal & Actions ---
 const itemModal = document.getElementById("item-modal");
 const itemForm = document.getElementById("item-form");
-const itemModalTitle = document.getElementById("item-modal-title");
-const itemSubmitButton = document.getElementById("item-submit-button");
 
-function closeItemModal() {
+window.closeItemModal = function () {
   if (itemModal) itemModal.classList.add("hidden");
   itemForm?.reset();
   document.getElementById("item-id-hidden").value = "";
-}
-window.closeItemModal = closeItemModal; // Export cho onclick
+};
 
-async function openItemModal(mode, itemId = null) {
+window.openItemModal = async function (mode, itemId = null) {
   itemForm.dataset.mode = mode;
   itemForm.reset();
 
+  // 1. Load danh sách chi nhánh vào dropdown
+  try {
+    const centers = await window.apiRequestCore(
+      window.ADMIN_TOKEN_KEY,
+      "/api/bookings/centers",
+      "GET"
+    );
+    const select = document.getElementById("item-center-id");
+    if (select && centers.length > 0) {
+      select.innerHTML = centers
+        .map((c) => `<option value="${c.id}">${c.name} (ID: ${c.id})</option>`)
+        .join("");
+    }
+  } catch (e) {
+    console.warn("Lỗi load centers cho dropdown inventory");
+  }
+
+  // 2. Handle Mode
   if (mode === "add") {
-    itemModalTitle.textContent = "Thêm Vật tư Mới";
-    itemSubmitButton.textContent = "Thêm";
+    document.getElementById("item-modal-title").textContent = "Thêm Vật tư Mới";
+    document.getElementById("item-submit-button").textContent = "Thêm";
     document.getElementById("item-part-number").disabled = false;
-    if (itemModal) itemModal.classList.remove("hidden");
+    // Mặc định chọn chi nhánh đầu tiên hoặc theo logic
   } else if (mode === "edit" && itemId) {
-    itemModalTitle.textContent = "Chỉnh Sửa Vật tư";
-    itemSubmitButton.textContent = "Lưu Thay Đổi";
+    document.getElementById("item-modal-title").textContent =
+      "Chỉnh Sửa Vật tư";
+    document.getElementById("item-submit-button").textContent = "Lưu Thay Đổi";
     document.getElementById("item-id-hidden").value = itemId;
+    document.getElementById("item-part-number").disabled = true; // Không sửa mã Part
 
     try {
+      // Load Item Details
       const item = await window.apiRequestCore(
         window.ADMIN_TOKEN_KEY,
         `/api/inventory/items/${itemId}`
@@ -411,23 +398,24 @@ async function openItemModal(mode, itemId = null) {
 
       document.getElementById("item-name").value = item.name;
       document.getElementById("item-part-number").value = item.part_number;
-      document.getElementById("item-part-number").disabled = true;
       document.getElementById("item-quantity").value = item.quantity;
       document.getElementById("item-min-quantity").value = item.min_quantity;
       document.getElementById("item-price").value = item.price;
 
-      if (itemModal) itemModal.classList.remove("hidden");
+      // Pre-select Center
+      const centerSelect = document.getElementById("item-center-id");
+      if (centerSelect && item.center_id) {
+        centerSelect.value = item.center_id;
+      }
     } catch (error) {
-      // Toast đã được xử lý trong apiRequestCore
+      /* Error handled in apiRequestCore */
     }
   }
-}
-window.openItemModal = openItemModal; // Export cho onclick
+  itemModal?.classList.remove("hidden");
+};
 
-// --- FORM SUBMIT HANDLER (Add/Edit) ---
 itemForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
-
   const mode = itemForm.dataset.mode;
   const itemId = document.getElementById("item-id-hidden").value;
 
@@ -437,6 +425,7 @@ itemForm?.addEventListener("submit", async (e) => {
     quantity: parseInt(document.getElementById("item-quantity").value),
     min_quantity: parseInt(document.getElementById("item-min-quantity").value),
     price: parseFloat(document.getElementById("item-price").value),
+    center_id: parseInt(document.getElementById("item-center-id").value), // Send center_id
   };
 
   try {
@@ -449,8 +438,7 @@ itemForm?.addEventListener("submit", async (e) => {
       );
       window.showToast("Thêm vật tư thành công!");
     } else if (mode === "edit" && itemId) {
-      delete data.part_number;
-
+      delete data.part_number; // Prevent update
       await window.apiRequestCore(
         window.ADMIN_TOKEN_KEY,
         `/api/inventory/items/${itemId}`,
@@ -459,19 +447,15 @@ itemForm?.addEventListener("submit", async (e) => {
       );
       window.showToast("Cập nhật vật tư thành công!");
     }
-
-    closeItemModal();
-    loadAllInventory(); // Tải lại bảng
+    window.closeItemModal();
+    loadAllInventory();
   } catch (error) {
-    console.error("Lỗi khi lưu vật tư:", error);
+    console.error("Lỗi lưu vật tư:", error);
   }
 });
 
-// --- DELETE FUNCTION ---
-async function deleteItem(itemId) {
-  if (!confirm(`Bạn có chắc chắn muốn xóa vật tư có ID ${itemId} này không?`))
-    return;
-
+window.deleteItem = async function (itemId) {
+  if (!confirm(`Bạn có chắc chắn muốn xóa vật tư ID ${itemId}?`)) return;
   try {
     await window.apiRequestCore(
       window.ADMIN_TOKEN_KEY,
@@ -480,380 +464,124 @@ async function deleteItem(itemId) {
     );
     window.showToast("Đã xóa vật tư!");
     loadAllInventory();
-  } catch (error) {
-    // Toast đã được xử lý trong apiRequestCore
-  }
-}
-window.deleteItem = deleteItem; // Cần export hàm này ra window để HTML có thể gọi
+  } catch (error) {}
+};
 
-// ========================================================
-// ✅ LOGIC MAINTENANCE MANAGEMENT (MỚI)
-// ========================================================
-
-/**
- * Helper: Định dạng trạng thái công việc
- */
-function formatMaintenanceStatus(status) {
-  switch (status) {
-    case "pending":
-      return { text: "Chờ thực hiện", class: "bg-yellow-100 text-yellow-800" };
-    case "in_progress":
-      return { text: "Đang tiến hành", class: "bg-blue-100 text-blue-800" };
-    case "completed":
-      return { text: "Hoàn thành", class: "bg-green-100 text-green-800" };
-    case "failed":
-      return { text: "Thất bại/Hủy", class: "bg-red-100 text-red-800" };
-    default:
-      return { text: status, class: "bg-gray-100 text-gray-800" };
-  }
-}
-
-/**
- * 1. Tải tất cả công việc bảo trì
- */
-async function loadAllMaintenanceTasks() {
-  const tbody = document.getElementById("maintenance-table-body");
-  if (!tbody) return;
-  tbody.innerHTML =
-    '<tr><td colspan="7" class="text-center text-gray-500 py-4">Đang tải dữ liệu...</td></tr>';
-
+// =============================================================================
+// 6. MODULE: USERS (Quản lý Người dùng)
+// =============================================================================
+async function loadAllUsers() {
   try {
-    const tasks = await window.apiRequestCore(
+    const users = await window.apiRequestCore(
       window.ADMIN_TOKEN_KEY,
-      "/api/maintenance/tasks", // Endpoint GET ALL TASKS
-      "GET"
+      "/api/admin/users"
     );
-
-    if (!tasks || tasks.length === 0) {
-      tbody.innerHTML =
-        '<tr><td colspan="7" class="text-center text-gray-500 py-4">Không có công việc bảo trì nào.</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = tasks
-      .map((task) => {
-        const statusInfo = formatMaintenanceStatus(task.status);
-        const disabled =
-          task.status === "completed" || task.status === "failed"
-            ? "disabled"
-            : "";
-
-        return `
-                    <tr id="maintenance-row-${task.task_id}">
-                        <td class="px-6 py-4 text-sm">${task.task_id}</td>
-                        <td class="px-6 py-4 text-sm">${task.booking_id}</td>
-                        <td class="px-6 py-4 text-sm">${task.description}</td>
-                        <td class="px-6 py-4 text-sm font-mono">${
-                          task.vehicle_vin
-                        }</td>
-                        <td class="px-6 py-4 text-sm">KTV ID: ${
-                          task.technician_id
-                        }</td>
-                        <td class="px-6 py-4 text-sm">
-                            <select
-                                class="status-select border rounded p-1 text-xs ${
-                                  statusInfo.class
-                                }"
-                                data-task-id="${task.task_id}"
-                                onchange="updateMaintenanceTaskStatus(${
-                                  task.task_id
-                                }, this.value)"
-                                ${disabled}>
-                                <option value="pending" ${
-                                  task.status === "pending" ? "selected" : ""
-                                }>Chờ thực hiện</option>
-                                <option value="in_progress" ${
-                                  task.status === "in_progress"
-                                    ? "selected"
-                                    : ""
-                                }>Đang tiến hành</option>
-                                <option value="completed" ${
-                                  task.status === "completed" ? "selected" : ""
-                                }>Hoàn thành</option>
-                                <option value="failed" ${
-                                  task.status === "failed" ? "selected" : ""
-                                }>Thất bại/Hủy</option>
-                            </select>
-                        </td>
-                        <td class="px-6 py-4 text-center space-x-2">
-                            ${
-                              disabled
-                                ? '<span class="text-gray-400">Đã khóa</span>'
-                                : "<button onclick=\"if(confirm('Chuyển trạng thái sang hoàn thành?')) updateMaintenanceTaskStatus(" +
-                                  task.task_id +
-                                  ', \'completed\')" class="text-green-600 hover:text-green-900">Hoàn Thành</button>'
-                            }
-                        </td>
-                    </tr>
-                `;
-      })
-      .join("");
-  } catch (err) {
-    console.error(err);
+    const tbody = document.getElementById("users-table-body");
     tbody.innerHTML =
-      '<tr><td colspan="7" class="text-center text-red-500 py-4">Lỗi khi tải dữ liệu Công việc Bảo trì.</td></tr>';
+      users
+        .map(
+          (u) => `
+        <tr class="hover:bg-gray-50">
+            <td class="px-6 py-4 text-sm">${u.user_id}</td>
+            <td class="px-6 py-4 text-sm font-medium text-gray-900">${
+              u.username
+            }</td>
+            <td class="px-6 py-4 text-sm text-gray-500">${u.email}</td>
+            <td class="px-6 py-4 text-sm"><span class="px-2 py-1 rounded-full bg-gray-100 text-xs font-bold uppercase">${
+              u.role
+            }</span></td>
+            <td class="px-6 py-4 text-sm">
+                <span class="px-2 py-1 rounded-full text-xs font-bold ${
+                  u.status === "active"
+                    ? "bg-green-100 text-green-800"
+                    : "bg-red-100 text-red-800"
+                }">
+                    ${u.status}
+                </span>
+            </td>
+            <td class="px-6 py-4 text-center space-x-2">
+                <button onclick="toggleUserLock(${
+                  u.user_id
+                })" class="text-indigo-600 hover:text-indigo-900 font-medium">
+                    ${u.status === "active" ? "Khóa" : "Mở khóa"}
+                </button>
+                <button onclick="deleteUser(${
+                  u.user_id
+                })" class="text-red-600 hover:text-red-900 font-medium">Xóa</button>
+            </td>
+        </tr>`
+        )
+        .join("") ||
+      '<tr><td colspan="6" class="text-center py-4">Không có user.</td></tr>';
+  } catch (err) {
+    document.getElementById(
+      "users-table-body"
+    ).innerHTML = `<tr><td colspan="6" class="text-center text-red-500 py-4">Lỗi tải user.</td></tr>`;
   }
 }
-window.loadAllMaintenanceTasks = loadAllMaintenanceTasks;
+window.loadAllUsers = loadAllUsers;
 
-/**
- * 2. Cập nhật trạng thái công việc
- */
-async function updateTaskStatus(taskId, newStatus) {
-  if (
-    !confirm(
-      `Bạn có chắc muốn cập nhật trạng thái của Công việc ${taskId} thành ${newStatus.toUpperCase()}?`
-    )
-  ) {
-    loadAllMaintenanceTasks(); // Tải lại để revert nếu người dùng hủy
-    return;
-  }
-
+window.toggleUserLock = async (userId) => {
   try {
     await window.apiRequestCore(
       window.ADMIN_TOKEN_KEY,
-      `/api/maintenance/tasks/${taskId}/status`,
-      "PUT",
-      { status: newStatus }
+      `/api/admin/users/${userId}/toggle-lock`,
+      "PUT"
     );
-    window.showToast("Cập nhật trạng thái công việc thành công!");
-    loadAllMaintenanceTasks(); // Tải lại bảng
-  } catch (error) {
-    // Toast đã được xử lý trong apiRequestCore
-    loadAllMaintenanceTasks(); // Tải lại để reset trạng thái
-    console.error("Lỗi cập nhật trạng thái công việc:", error);
-  }
-}
-window.updateTaskStatus = updateTaskStatus;
-window.updateMaintenanceTaskStatus = updateTaskStatus; // Alias for consistency
+    window.showToast("Cập nhật trạng thái thành công.");
+    loadAllUsers();
+  } catch (error) {}
+};
 
-// --- MODAL TẠO TASK HANDLERS ---
-const createTaskModal = document.getElementById("create-task-modal");
-
-function closeCreateTaskModal() {
-  if (createTaskModal) createTaskModal.classList.add("hidden");
-  document.getElementById("create-task-form")?.reset();
-}
-window.closeCreateTaskModal = closeCreateTaskModal;
-
-// Fetch incomplete bookings for task assignment
-async function loadIncompleteBookings() {
+window.deleteUser = async (userId) => {
+  if (!confirm("Xóa người dùng này?")) return;
   try {
-    console.log("🔄 Loading incomplete bookings...");
-    const bookings = await window.apiRequestCore(
+    await window.apiRequestCore(
       window.ADMIN_TOKEN_KEY,
-      "/api/bookings/items",
-      "GET"
+      `/api/admin/users/${userId}`,
+      "DELETE"
     );
-    console.log("✅ Bookings loaded:", bookings);
+    window.showToast("Đã xóa người dùng!");
+    loadAllUsers();
+  } catch (error) {}
+};
 
-    // Filter out completed and canceled bookings
-    const incompleteBookings = bookings.filter(
-      (booking) => booking.status !== "completed" && booking.status !== "canceled"
-    );
-    console.log("✅ Incomplete bookings:", incompleteBookings);
-
-    const select = document.getElementById("task-booking-id");
-    if (!select) {
-      console.error("❌ Select element 'task-booking-id' not found");
-      return;
-    }
-
-    // Clear existing options except first one
-    select.innerHTML = '<option value="">-- Chọn lịch hẹn --</option>';
-
-    // Populate with incomplete bookings
-    incompleteBookings.forEach((booking) => {
-      const option = document.createElement("option");
-      option.value = booking.id;
-      const date = new Date(booking.booking_date).toLocaleDateString("vi-VN");
-      option.textContent = `#${booking.id} - ${booking.service_type} - ${date} - ${booking.status}`;
-      select.appendChild(option);
-    });
-
-    if (incompleteBookings.length === 0) {
-      const option = document.createElement("option");
-      option.value = "";
-      option.textContent = "Không có lịch hẹn chưa hoàn thành";
-      option.disabled = true;
-      select.appendChild(option);
-    }
-  } catch (error) {
-    console.error("Error loading incomplete bookings:", error);
-    window.showToast("Không thể tải danh sách lịch hẹn", true);
-  }
-}
-
-// Fetch technicians for task assignment
-async function loadTechnicians() {
-  try {
-    console.log("🔄 Loading technicians...");
-    const users = await window.apiRequestCore(
-      window.ADMIN_TOKEN_KEY,
-      "/api/admin/users",
-      "GET"
-    );
-    console.log("✅ Users loaded:", users);
-
-    // Filter to only technicians
-    const technicians = users.filter((user) => user.role === "technician");
-    console.log("✅ Technicians:", technicians);
-
-    const select = document.getElementById("task-technician-id");
-    if (!select) {
-      console.error("❌ Select element 'task-technician-id' not found");
-      return;
-    }
-
-    // Clear existing options except first one
-    select.innerHTML = '<option value="">-- Chọn kỹ thuật viên --</option>';
-
-    // Populate with technicians
-    technicians.forEach((tech) => {
-      const option = document.createElement("option");
-      option.value = tech.user_id;
-      option.textContent = `#${tech.user_id} - ${tech.username} - ${tech.email}`;
-      select.appendChild(option);
-    });
-
-    if (technicians.length === 0) {
-      const option = document.createElement("option");
-      option.value = "";
-      option.textContent = "Không có kỹ thuật viên nào";
-      option.disabled = true;
-      select.appendChild(option);
-    }
-  } catch (error) {
-    console.error("Error loading technicians:", error);
-    window.showToast("Không thể tải danh sách kỹ thuật viên", true);
-  }
-}
-
-async function openCreateTaskModal() {
-  console.log("🚀 Opening create task modal...");
-  if (createTaskModal) {
-    createTaskModal.classList.remove("hidden");
-    // Load dropdown data when modal opens
-    console.log("📥 Loading dropdown data...");
-    await Promise.all([loadIncompleteBookings(), loadTechnicians()]);
-    console.log("✅ Dropdown data loaded successfully");
-  } else {
-    console.error("❌ createTaskModal element not found");
-  }
-}
-window.openCreateTaskModal = openCreateTaskModal;
+// Modal Add User
+const addUserModal = document.getElementById("add-user-modal");
+window.openAddUserModal = () => addUserModal?.classList.remove("hidden");
+window.closeAddUserModal = () => {
+  addUserModal?.classList.add("hidden");
+  document.getElementById("add-user-form")?.reset();
+};
 
 document
-  .getElementById("create-task-form")
+  .getElementById("add-user-form")
   ?.addEventListener("submit", async (e) => {
     e.preventDefault();
-
-    const bookingId = parseInt(
-      document.getElementById("task-booking-id")?.value
-    );
-    const technicianId = parseInt(
-      document.getElementById("task-technician-id")?.value
-    );
-
-    if (isNaN(bookingId) || isNaN(technicianId)) {
-      window.showToast("Booking ID và Technician ID phải là số hợp lệ.", true);
-      return;
-    }
-
+    const data = {
+      username: document.getElementById("add-username").value,
+      email: document.getElementById("add-email").value,
+      password: document.getElementById("add-password").value,
+      role: document.getElementById("add-role").value,
+    };
     try {
-      const data = await window.apiRequestCore(
+      await window.apiRequestCore(
         window.ADMIN_TOKEN_KEY,
-        "/api/maintenance/tasks",
+        "/api/admin/users",
         "POST",
-        {
-          booking_id: bookingId,
-          technician_id: technicianId,
-        }
+        data
       );
-
-      window.showToast(data.message || "Tạo công việc thành công!");
-      closeCreateTaskModal();
-      loadAllMaintenanceTasks();
+      window.showToast("Tạo user thành công!");
+      window.closeAddUserModal();
+      loadAllUsers();
     } catch (error) {
-      console.error("Lỗi khi tạo công việc:", error);
+      console.error(error);
     }
   });
-// ========================================================
-// ✅ LOGIC PAYMENT HISTORY MANAGEMENT (MỚI)
-// ========================================================
 
-/**
- * Helper: Định dạng tiền tệ
- */
-function formatCurrency(amount) {
-  return new Intl.NumberFormat("vi-VN").format(amount) + "₫";
-}
-
-// [DÁN LẠI ĐỊNH NGHĨA formatPaymentStatus CHO RÕ RÀNG TRONG BẢN CUỐI CÙNG]
-// function formatPaymentStatus(status) { ... }
-// Đã được định nghĩa ở trên, chỉ giữ lại định nghĩa này thôi.
-
-/**
- * 1. Tải tất cả lịch sử thanh toán (Admin)
- */
-async function loadAllPaymentHistory() {
-  const tbody = document.getElementById("payment-history-table-body");
-  if (!tbody) return;
-  tbody.innerHTML =
-    '<tr><td colspan="7" class="text-center text-gray-500 py-4">Đang tải dữ liệu...</td></tr>';
-
-  try {
-    const history = await window.apiRequestCore(
-      window.ADMIN_TOKEN_KEY,
-      "/api/payments/history/all", // Endpoint GET ALL PAYMENT HISTORY
-      "GET"
-    );
-
-    if (!history || history.length === 0) {
-      tbody.innerHTML =
-        '<tr><td colspan="7" class="text-center text-gray-500 py-4">Không có giao dịch nào.</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = history
-      .map((t) => {
-        const statusInfo = formatPaymentStatus(t.status);
-
-        return `
-                    <tr class="hover:bg-gray-50">
-                        <td class="px-6 py-4 text-sm font-semibold">${t.id}</td>
-                        <td class="px-6 py-4 text-sm">${t.invoice_id}</td>
-                        <td class="px-6 py-4 text-sm">${t.user_id}</td>
-                        <td class="px-6 py-4 text-sm font-bold text-red-600">${formatCurrency(
-                          t.amount
-                        )}</td>
-                        <td class="px-6 py-4 text-sm uppercase">${t.method}</td>
-                        <td class="px-6 py-4 text-sm font-mono">${
-                          t.pg_transaction_id
-                        }</td>
-                        <td class="px-6 py-4 text-sm">
-                            <span class="p-1 rounded-full text-xs font-semibold ${
-                              statusInfo.class
-                            }">
-                                ${statusInfo.text}
-                            </span>
-                        </td>
-                    </tr>
-                `;
-      })
-      .join("");
-  } catch (err) {
-    console.error(err);
-    tbody.innerHTML =
-      '<tr><td colspan="7" class="text-center text-red-500 py-4">Lỗi khi tải dữ liệu Lịch sử Thanh toán.</td></tr>';
-  }
-}
-window.loadAllPaymentHistory = loadAllPaymentHistory;
-// ========================================================
-// LOGIC BOOKING MANAGEMENT
-// ... (GIỮ NGUYÊN HOẶC KHÔNG DÁN LẠI NẾU KHÔNG CÓ THAY ĐỔI)
-// ========================================================
-// Hàm Helper: Định dạng trạng thái hiển thị
+// =============================================================================
+// 7. MODULE: BOOKINGS (Lịch hẹn)
+// =============================================================================
 function formatBookingStatus(status) {
   switch (status) {
     case "pending":
@@ -869,154 +597,301 @@ function formatBookingStatus(status) {
   }
 }
 
-// 1. Tải tất cả lịch hẹn
 async function loadAllBookings() {
   const tbody = document.getElementById("bookings-table-body");
   if (!tbody) return;
   tbody.innerHTML =
-    '<tr><td colspan="7" class="text-center text-gray-500 py-4">Đang tải dữ liệu...</td></tr>';
+    '<tr><td colspan="7" class="text-center py-4">Đang tải...</td></tr>';
 
   try {
     const bookings = await window.apiRequestCore(
       window.ADMIN_TOKEN_KEY,
-      "/api/bookings/items", // Endpoint GET ALL BOOKINGS (Đã bảo vệ)
+      "/api/bookings/items",
       "GET"
     );
-
     if (!bookings || bookings.length === 0) {
       tbody.innerHTML =
-        '<tr><td colspan="7" class="text-center text-gray-500 py-4">Không có lịch hẹn nào.</td></tr>';
+        '<tr><td colspan="7" class="text-center py-4">Không có lịch hẹn.</td></tr>';
       return;
     }
-
     tbody.innerHTML = bookings
-      .map((booking) => {
-        const startDate = new Date(booking.start_time).toLocaleString("vi-VN", {
-          dateStyle: "short",
-          timeStyle: "short",
-        });
-        const endDate = new Date(booking.end_time).toLocaleTimeString("vi-VN", {
-          timeStyle: "short",
-        });
-        const statusInfo = formatBookingStatus(booking.status);
-
+      .map((b) => {
+        const dateStr = formatDateTime(b.start_time);
+        const statusInfo = formatBookingStatus(b.status);
         return `
-                    <tr id="booking-row-${booking.id}">
-                        <td class="px-6 py-4 text-sm">${booking.id}</td>
-                        <td class="px-6 py-4 text-sm">${
-                          booking.customer_name
-                        } (ID: ${booking.user_id})</td>
-                        <td class="px-6 py-4 text-sm">${startDate} - ${endDate}</td>
-                        <td class="px-6 py-4 text-sm">${
-                          booking.service_type
-                        }</td>
-                        <td class="px-6 py-4 text-sm">KTV: ${
-                          booking.technician_id
-                        } / Trạm: ${booking.station_id}</td>
-                        <td class="px-6 py-4 text-sm">
-                            <select 
-                                class="status-select border rounded p-1 text-xs ${
-                                  statusInfo.class
-                                }" 
-                                data-booking-id="${booking.id}" 
-                                onchange="updateBookingStatus(${
-                                  booking.id
-                                }, this.value)">
-                                <option value="pending" ${
-                                  booking.status === "pending" ? "selected" : ""
-                                }>Chờ xác nhận</option>
-                                <option value="confirmed" ${
-                                  booking.status === "confirmed"
-                                    ? "selected"
-                                    : ""
-                                }>Đã xác nhận</option>
-                                <option value="completed" ${
-                                  booking.status === "completed"
-                                    ? "selected"
-                                    : ""
-                                }>Hoàn thành</option>
-                                <option value="canceled" ${
-                                  booking.status === "canceled"
-                                    ? "selected"
-                                    : ""
-                                }>Hủy</option>
-                            </select>
-                        </td>
-                        <td class="px-6 py-4 text-center space-x-2">
-                            <button onclick="deleteBooking(${
-                              booking.id
-                            })" class="text-red-600 hover:text-red-900">Xóa</button>
-                        </td>
-                    </tr>
-                `;
+            <tr id="booking-row-${b.id}" class="hover:bg-gray-50">
+                <td class="px-6 py-4 text-sm font-mono">${b.id}</td>
+                <td class="px-6 py-4 text-sm">
+                    <div class="font-medium text-gray-900">${
+                      b.customer_name
+                    }</div>
+                    <div class="text-xs text-gray-500">User ID: ${
+                      b.user_id
+                    }</div>
+                </td>
+                <td class="px-6 py-4 text-sm">${dateStr}</td>
+                <td class="px-6 py-4 text-sm">${b.service_type}</td>
+                <td class="px-6 py-4 text-sm text-gray-500">
+                    ${
+                      b.center_id
+                        ? `<span class="block text-indigo-600 font-medium">CN: ${b.center_id}</span>`
+                        : ""
+                    }
+                    KTV: ${b.technician_id || "?"}
+                </td>
+                <td class="px-6 py-4 text-sm">
+                    <select class="border rounded p-1 text-xs ${
+                      statusInfo.class
+                    }" 
+                            onchange="updateBookingStatus(${b.id}, this.value)">
+                        <option value="pending" ${
+                          b.status === "pending" ? "selected" : ""
+                        }>Chờ xác nhận</option>
+                        <option value="confirmed" ${
+                          b.status === "confirmed" ? "selected" : ""
+                        }>Đã xác nhận</option>
+                        <option value="completed" ${
+                          b.status === "completed" ? "selected" : ""
+                        }>Hoàn thành</option>
+                        <option value="canceled" ${
+                          b.status === "canceled" ? "selected" : ""
+                        }>Hủy</option>
+                    </select>
+                </td>
+                <td class="px-6 py-4 text-center">
+                    <button onclick="deleteBooking(${
+                      b.id
+                    })" class="text-red-600 hover:text-red-900 font-medium">Xóa</button>
+                </td>
+            </tr>`;
       })
       .join("");
   } catch (err) {
-    console.error(err);
     tbody.innerHTML =
-      '<tr><td colspan="7" class="text-center text-red-500 py-4">Lỗi khi tải dữ liệu Lịch Hẹn.</td></tr>';
+      '<tr><td colspan="7" class="text-center text-red-500 py-4">Lỗi tải lịch hẹn.</td></tr>';
   }
 }
-window.loadAllBookings = loadAllBookings; // Export ra window cho HTML gọi
+window.loadAllBookings = loadAllBookings;
 
-// 2. Cập nhật trạng thái
-async function updateBookingStatus(bookingId, newStatus) {
-  if (
-    !confirm(
-      `Bạn có chắc muốn cập nhật trạng thái của lịch hẹn ${bookingId} thành ${newStatus.toUpperCase()}?`
-    )
-  ) {
-    loadAllBookings(); // Tải lại để revert nếu người dùng hủy
+window.updateBookingStatus = async (id, status) => {
+  if (!confirm(`Cập nhật trạng thái lịch hẹn ${id} thành ${status}?`)) {
+    loadAllBookings();
     return;
   }
-
   try {
     await window.apiRequestCore(
       window.ADMIN_TOKEN_KEY,
-      `/api/bookings/items/${bookingId}/status`,
+      `/api/bookings/items/${id}/status`,
       "PUT",
-      { status: newStatus }
+      { status }
     );
-    window.showToast("Cập nhật trạng thái thành công!");
-    loadAllBookings(); // Tải lại bảng để cập nhật màu sắc/hiển thị
-  } catch (error) {
-    // Toast đã được xử lý trong apiRequestCore
-    loadAllBookings(); // Tải lại để reset trạng thái
-    console.error("Lỗi cập nhật trạng thái:", error);
+    window.showToast("Cập nhật thành công!");
+    loadAllBookings();
+  } catch (e) {
+    loadAllBookings();
   }
-}
-window.updateBookingStatus = updateBookingStatus; // Export ra window cho HTML gọi
+};
 
-// 3. Xóa lịch hẹn
-async function deleteBooking(bookingId) {
-  if (!confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn lịch hẹn ID ${bookingId}?`))
-    return;
-
+window.deleteBooking = async (id) => {
+  if (!confirm("Xóa vĩnh viễn lịch hẹn này?")) return;
   try {
     await window.apiRequestCore(
       window.ADMIN_TOKEN_KEY,
-      `/api/bookings/items/${bookingId}`,
+      `/api/bookings/items/${id}`,
       "DELETE"
     );
     window.showToast("Đã xóa lịch hẹn!");
+    document.getElementById(`booking-row-${id}`)?.remove();
+  } catch (e) {}
+};
 
-    // Xóa dòng khỏi bảng
-    document.getElementById(`booking-row-${bookingId}`)?.remove();
-  } catch (error) {
-    // Toast đã được xử lý trong apiRequestCore
+// =============================================================================
+// 8. MODULE: MAINTENANCE (Bảo trì)
+// =============================================================================
+function formatMaintenanceStatus(status) {
+  switch (status) {
+    case "pending":
+      return { text: "Chờ thực hiện", class: "bg-yellow-100 text-yellow-800" };
+    case "in_progress":
+      return { text: "Đang tiến hành", class: "bg-blue-100 text-blue-800" };
+    case "completed":
+      return { text: "Hoàn thành", class: "bg-green-100 text-green-800" };
+    case "failed":
+      return { text: "Thất bại/Hủy", class: "bg-red-100 text-red-800" };
+    default:
+      return { text: status, class: "bg-gray-100 text-gray-800" };
   }
 }
-window.deleteBooking = deleteBooking; // Export ra window cho HTML gọi
 
-// ========================================================
-// LOGIC INVOICE MANAGEMENT
-// ========================================================
-// Hàm Helper: Định dạng tiền tệ
-function formatCurrency(amount) {
-  return new Intl.NumberFormat("vi-VN").format(amount) + "₫";
+async function loadAllMaintenanceTasks() {
+  const tbody = document.getElementById("maintenance-table-body");
+  if (!tbody) return;
+  tbody.innerHTML =
+    '<tr><td colspan="7" class="text-center text-gray-500 py-4">Đang tải...</td></tr>';
+
+  try {
+    const tasks = await window.apiRequestCore(
+      window.ADMIN_TOKEN_KEY,
+      "/api/maintenance/tasks",
+      "GET"
+    );
+    if (!tasks || tasks.length === 0) {
+      tbody.innerHTML =
+        '<tr><td colspan="7" class="text-center py-4">Không có công việc nào.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = tasks
+      .map((t) => {
+        const statusInfo = formatMaintenanceStatus(t.status);
+        const disabled =
+          t.status === "completed" || t.status === "failed" ? "disabled" : "";
+        return `
+            <tr class="hover:bg-gray-50">
+                <td class="px-6 py-4 text-sm">${t.task_id}</td>
+                <td class="px-6 py-4 text-sm">Booking #${t.booking_id}</td>
+                <td class="px-6 py-4 text-sm">${t.description}</td>
+                <td class="px-6 py-4 text-sm font-mono">${t.vehicle_vin}</td>
+                <td class="px-6 py-4 text-sm">KTV ID: ${t.technician_id}</td>
+                <td class="px-6 py-4 text-sm">
+                     <select class="border rounded p-1 text-xs ${
+                       statusInfo.class
+                     }" ${disabled}
+                            onchange="updateMaintenanceTaskStatus(${
+                              t.task_id
+                            }, this.value)">
+                        <option value="pending" ${
+                          t.status === "pending" ? "selected" : ""
+                        }>Chờ thực hiện</option>
+                        <option value="in_progress" ${
+                          t.status === "in_progress" ? "selected" : ""
+                        }>Đang tiến hành</option>
+                        <option value="completed" ${
+                          t.status === "completed" ? "selected" : ""
+                        }>Hoàn thành</option>
+                        <option value="failed" ${
+                          t.status === "failed" ? "selected" : ""
+                        }>Thất bại</option>
+                    </select>
+                </td>
+                <td class="px-6 py-4 text-center">
+                    ${
+                      disabled
+                        ? '<span class="text-gray-400">Đã khóa</span>'
+                        : `<button onclick="if(confirm('Hoàn thành công việc?')) updateMaintenanceTaskStatus(${t.task_id}, 'completed')" class="text-green-600 hover:text-green-900 font-medium">Hoàn Thành</button>`
+                    }
+                </td>
+            </tr>`;
+      })
+      .join("");
+  } catch (e) {
+    tbody.innerHTML =
+      '<tr><td colspan="7" class="text-center text-red-500">Lỗi tải dữ liệu.</td></tr>';
+  }
 }
+window.loadAllMaintenanceTasks = loadAllMaintenanceTasks;
 
-// Hàm Helper: Định dạng trạng thái Hóa đơn
+window.updateMaintenanceTaskStatus = async (taskId, newStatus) => {
+  if (!confirm(`Cập nhật trạng thái Task ${taskId} -> ${newStatus}?`)) {
+    loadAllMaintenanceTasks();
+    return;
+  }
+  try {
+    await window.apiRequestCore(
+      window.ADMIN_TOKEN_KEY,
+      `/api/maintenance/tasks/${taskId}/status`,
+      "PUT",
+      { status: newStatus }
+    );
+    window.showToast("Cập nhật thành công!");
+    loadAllMaintenanceTasks();
+  } catch (e) {
+    loadAllMaintenanceTasks();
+  }
+};
+
+// Modal Tạo Task
+const createTaskModal = document.getElementById("create-task-modal");
+window.closeCreateTaskModal = () => {
+  createTaskModal?.classList.add("hidden");
+  document.getElementById("create-task-form")?.reset();
+};
+
+window.openCreateTaskModal = async () => {
+  if (!createTaskModal) return;
+  createTaskModal.classList.remove("hidden");
+
+  // Load Dropdowns
+  try {
+    // 1. Load incomplete bookings
+    const bookings = await window.apiRequestCore(
+      window.ADMIN_TOKEN_KEY,
+      "/api/bookings/items",
+      "GET"
+    );
+    const incomplete = bookings.filter(
+      (b) => b.status !== "completed" && b.status !== "canceled"
+    );
+    const bookingSelect = document.getElementById("task-booking-id");
+    bookingSelect.innerHTML =
+      '<option value="">-- Chọn lịch hẹn --</option>' +
+      incomplete
+        .map(
+          (b) =>
+            `<option value="${b.id}">#${b.id} - ${
+              b.service_type
+            } - ${formatDateTime(b.start_time)}</option>`
+        )
+        .join("");
+
+    // 2. Load Technicians
+    const users = await window.apiRequestCore(
+      window.ADMIN_TOKEN_KEY,
+      "/api/admin/users",
+      "GET"
+    );
+    const techs = users.filter((u) => u.role === "technician");
+    const techSelect = document.getElementById("task-technician-id");
+    techSelect.innerHTML =
+      '<option value="">-- Chọn KTV --</option>' +
+      techs
+        .map(
+          (t) =>
+            `<option value="${t.user_id}">#${t.user_id} - ${t.username}</option>`
+        )
+        .join("");
+  } catch (e) {
+    window.showToast("Lỗi tải dữ liệu dropdown", true);
+  }
+};
+
+document
+  .getElementById("create-task-form")
+  ?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const data = {
+      booking_id: parseInt(document.getElementById("task-booking-id").value),
+      technician_id: parseInt(
+        document.getElementById("task-technician-id").value
+      ),
+    };
+    try {
+      await window.apiRequestCore(
+        window.ADMIN_TOKEN_KEY,
+        "/api/maintenance/tasks",
+        "POST",
+        data
+      );
+      window.showToast("Tạo công việc thành công!");
+      window.closeCreateTaskModal();
+      loadAllMaintenanceTasks();
+    } catch (e) {
+      console.error(e);
+    }
+  });
+
+// =============================================================================
+// 9. MODULE: INVOICES (Hóa đơn)
+// =============================================================================
 function formatInvoiceStatus(status) {
   switch (status) {
     case "pending":
@@ -1032,317 +907,121 @@ function formatInvoiceStatus(status) {
   }
 }
 
-// 1. Tải tất cả hóa đơn
 async function loadAllInvoices() {
   const tbody = document.getElementById("invoices-table-body");
   if (!tbody) return;
   tbody.innerHTML =
-    '<tr><td colspan="6" class="text-center text-gray-500 py-4">Đang tải dữ liệu...</td></tr>';
+    '<tr><td colspan="6" class="text-center text-gray-500 py-4">Đang tải...</td></tr>';
 
   try {
     const invoices = await window.apiRequestCore(
       window.ADMIN_TOKEN_KEY,
-      "/api/invoices/", // Endpoint GET ALL INVOICES
+      "/api/invoices/",
       "GET"
     );
-
     if (!invoices || invoices.length === 0) {
       tbody.innerHTML =
-        '<tr><td colspan="6" class="text-center text-gray-500 py-4">Không có hóa đơn nào.</td></tr>';
+        '<tr><td colspan="6" class="text-center py-4">Không có hóa đơn.</td></tr>';
       return;
     }
-
     tbody.innerHTML = invoices
-      .map((invoice) => {
-        const statusInfo = formatInvoiceStatus(invoice.status);
-        const date = new Date(invoice.created_at).toLocaleDateString("vi-VN");
-
+      .map((inv) => {
+        const statusInfo = formatInvoiceStatus(inv.status);
         return `
-                    <tr id="invoice-row-${invoice.id}" class="hover:bg-gray-50">
-                        <td class="px-6 py-4 text-sm">${invoice.id}</td>
-                        <td class="px-6 py-4 text-sm">${invoice.booking_id}</td>
-                        <td class="px-6 py-4 text-sm">${invoice.user_id}</td>
-                        <td class="px-6 py-4 text-sm font-semibold text-red-600">${formatCurrency(
-                          invoice.total_amount
-                        )}</td>
-                        <td class="px-6 py-4 text-sm">
-                            <select 
-                                class="status-select border rounded p-1 text-xs ${
-                                  statusInfo.class
-                                }" 
-                                data-invoice-id="${invoice.id}" 
-                                onchange="updateInvoiceStatus(${
-                                  invoice.id
-                                }, this.value)">
-                                <option value="issued" ${
-                                  invoice.status === "issued" ? "selected" : ""
-                                }>Đã xuất</option>
-                                <option value="pending" ${
-                                  invoice.status === "pending" ? "selected" : ""
-                                }>Chờ thanh toán</option>
-                                <option value="paid" ${
-                                  invoice.status === "paid" ? "selected" : ""
-                                }>Đã thanh toán</option>
-                                <option value="canceled" ${
-                                  invoice.status === "canceled"
-                                    ? "selected"
-                                    : ""
-                                }>Đã hủy</option>
-                            </select>
-                        </td>
-                        <td class="px-6 py-4 text-center space-x-2">
-                            <button onclick="showAdminInvoiceDetails(${
-                              invoice.id
-                            })" class="text-indigo-600 hover:text-indigo-900">
-                                Xem Chi Tiết
-                            </button>
-                            </td>
-                    </tr>
-                `;
+            <tr class="hover:bg-gray-50">
+                <td class="px-6 py-4 text-sm">${inv.id}</td>
+                <td class="px-6 py-4 text-sm">${inv.booking_id}</td>
+                <td class="px-6 py-4 text-sm">${inv.user_id}</td>
+                <td class="px-6 py-4 text-sm font-semibold text-red-600">${formatCurrency(
+                  inv.total_amount
+                )}</td>
+                <td class="px-6 py-4 text-sm">
+                     <select class="border rounded p-1 text-xs ${
+                       statusInfo.class
+                     }"
+                            onchange="updateInvoiceStatus(${
+                              inv.id
+                            }, this.value)">
+                        <option value="issued" ${
+                          inv.status === "issued" ? "selected" : ""
+                        }>Đã xuất</option>
+                        <option value="pending" ${
+                          inv.status === "pending" ? "selected" : ""
+                        }>Chờ thanh toán</option>
+                        <option value="paid" ${
+                          inv.status === "paid" ? "selected" : ""
+                        }>Đã thanh toán</option>
+                        <option value="canceled" ${
+                          inv.status === "canceled" ? "selected" : ""
+                        }>Đã hủy</option>
+                    </select>
+                </td>
+                <td class="px-6 py-4 text-center">
+                    <button onclick="showAdminInvoiceDetails(${
+                      inv.id
+                    })" class="text-indigo-600 hover:text-indigo-900 font-medium">Chi Tiết</button>
+                </td>
+            </tr>`;
       })
       .join("");
-  } catch (err) {
-    console.error(err);
+  } catch (e) {
     tbody.innerHTML =
-      '<tr><td colspan="6" class="text-center text-red-500 py-4">Lỗi khi tải dữ liệu Hóa Đơn.</td></tr>';
+      '<tr><td colspan="6" class="text-center text-red-500">Lỗi tải hóa đơn.</td></tr>';
   }
 }
 window.loadAllInvoices = loadAllInvoices;
 
-// 2. Cập nhật trạng thái hóa đơn
-async function updateInvoiceStatus(invoiceId, newStatus) {
-  if (
-    !confirm(
-      `Bạn có chắc muốn cập nhật trạng thái của Hóa Đơn ${invoiceId} thành ${newStatus.toUpperCase()}?`
-    )
-  ) {
-    loadAllInvoices(); // Tải lại để revert nếu người dùng hủy
+window.updateInvoiceStatus = async (id, status) => {
+  if (!confirm(`Đổi trạng thái hóa đơn ${id} -> ${status}?`)) {
+    loadAllInvoices();
     return;
   }
-
   try {
     await window.apiRequestCore(
       window.ADMIN_TOKEN_KEY,
-      `/api/invoices/${invoiceId}/status`,
+      `/api/invoices/${id}/status`,
       "PUT",
-      { status: newStatus }
+      { status }
     );
-    window.showToast("Cập nhật trạng thái thành công!");
-    loadAllInvoices(); // Tải lại bảng để cập nhật màu sắc/hiển thị
-  } catch (error) {
-    // Toast đã được xử lý trong apiRequestCore
-    loadAllInvoices(); // Tải lại để reset trạng thái
-    console.error("Lỗi cập nhật trạng thái hóa đơn:", error);
+    window.showToast("Cập nhật thành công!");
+    loadAllInvoices();
+  } catch (e) {
+    loadAllInvoices();
   }
-}
-window.updateInvoiceStatus = updateInvoiceStatus;
+};
 
-// 3. Logic Tạo Hóa Đơn (Từ Booking)
-const createInvoiceModal = document.getElementById("create-invoice-modal");
-const partsInputContainer = document.getElementById("parts-input-container");
-
-// Load bookings có trạng thái confirmed và chưa có hóa đơn
-async function loadInProgressBookings() {
-  try {
-    // Load cả bookings và invoices
-    const [bookings, invoices] = await Promise.all([
-      window.apiRequestCore(window.ADMIN_TOKEN_KEY, "/api/bookings/items", "GET"),
-      window.apiRequestCore(window.ADMIN_TOKEN_KEY, "/api/invoices/", "GET")
-    ]);
-
-    const selectElement = document.getElementById("invoice-booking-id");
-    if (!selectElement) return;
-
-    // Xóa các option cũ (trừ option placeholder)
-    selectElement.innerHTML = '<option value="">-- Chọn lịch hẹn --</option>';
-
-    // Lấy danh sách booking_id đã có hóa đơn
-    const bookingIdsWithInvoice = invoices.map(inv => inv.booking_id);
-
-    // Lọc booking:
-    // - Trạng thái "confirmed" (đã xác nhận)
-    // - Chưa có hóa đơn (không có trong danh sách bookingIdsWithInvoice)
-    const availableBookings = bookings.filter(
-      (booking) =>
-        booking.status === "confirmed" &&
-        !bookingIdsWithInvoice.includes(booking.id)
-    );
-
-    // Thêm các booking khả dụng vào dropdown
-    availableBookings.forEach((booking) => {
-      const option = document.createElement("option");
-      option.value = booking.id;
-      const date = new Date(booking.start_time).toLocaleDateString("vi-VN");
-      option.textContent = `#${booking.id} - ${booking.service_type} - ${date} - ${booking.customer_name}`;
-      selectElement.appendChild(option);
-    });
-
-    if (availableBookings.length === 0) {
-      const option = document.createElement("option");
-      option.value = "";
-      option.textContent = "Không có lịch hẹn khả dụng (đã xác nhận & chưa có hóa đơn)";
-      option.disabled = true;
-      selectElement.appendChild(option);
-    }
-  } catch (error) {
-    console.error("Error loading available bookings:", error);
-    window.showToast("Lỗi khi tải danh sách lịch hẹn");
-  }
-}
-
-// Load danh sách items từ kho
-async function loadInventoryItems() {
-  try {
-    const items = await window.apiRequestCore(
-      window.ADMIN_TOKEN_KEY,
-      "/api/inventory/items",
-      "GET"
-    );
-
-    // Lưu vào biến global để sử dụng khi thêm phụ tùng
-    window.inventoryItems = items;
-  } catch (error) {
-    console.error("Error loading inventory items:", error);
-    window.showToast("Lỗi khi tải danh sách phụ kiện");
-  }
-}
-
-function closeCreateInvoiceModal() {
-  if (createInvoiceModal) createInvoiceModal.classList.add("hidden");
-  document.getElementById("create-invoice-form")?.reset();
-  if (partsInputContainer) partsInputContainer.innerHTML = ""; // Clear parts inputs
-}
-window.closeCreateInvoiceModal = closeCreateInvoiceModal;
-
-async function openCreateInvoiceModal() {
-  if (createInvoiceModal) createInvoiceModal.classList.remove("hidden");
-
-  // Chỉ cần load bookings từ completed tasks
-  await loadInProgressBookings();
-}
-window.openCreateInvoiceModal = openCreateInvoiceModal;
-
-function addPartInput() {
-  if (!partsInputContainer) return; // Guard clause
-  const count = partsInputContainer.children.length + 1;
-
-  // Tạo dropdown options từ inventory items
-  let itemOptions = '<option value="">-- Chọn phụ kiện --</option>';
-  if (window.inventoryItems && window.inventoryItems.length > 0) {
-    itemOptions += window.inventoryItems
-      .map(
-        (item) =>
-          `<option value="${item.id}">#${item.id} - ${item.name} (${item.quantity} có sẵn) - ${item.price.toLocaleString("vi-VN")}₫</option>`
-      )
-      .join("");
-  }
-
-  const partHtml = `
-        <div class="flex space-x-2 part-input-group" data-id="${count}">
-            <select
-                class="w-1/2 px-3 py-2 border rounded-md shadow-sm bg-white"
-                name="item_id"
-                required
-            >
-                ${itemOptions}
-            </select>
-            <input
-                type="number"
-                placeholder="Số lượng"
-                class="w-1/4 px-3 py-2 border rounded-md shadow-sm"
-                name="quantity"
-                required
-                min="1"
-                value="1"
-            />
-            <span class="w-1/4 text-sm text-gray-500 flex items-center">
-                (Phụ tùng ${count})
-            </span>
-            <button type="button" onclick="removePartInput(${count})" class="text-red-500 hover:text-red-700">
-                &times;
-            </button>
-        </div>
-    `;
-  partsInputContainer.insertAdjacentHTML("beforeend", partHtml);
-}
-window.addPartInput = addPartInput;
-
-function removePartInput(id) {
-  const element = document.querySelector(`.part-input-group[data-id="${id}"]`);
-  if (element) element.remove();
-}
-
-document
-  .getElementById("create-invoice-form")
-  ?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    const bookingId = parseInt(
-      document.getElementById("invoice-booking-id").value
-    );
-
-    try {
-      const data = await window.apiRequestCore(
-        window.ADMIN_TOKEN_KEY,
-        "/api/invoices/",
-        "POST",
-        {
-          booking_id: bookingId
-        }
-      );
-
-      window.showToast(data.message || "Tạo hóa đơn thành công!");
-      closeCreateInvoiceModal();
-      loadAllInvoices();
-    } catch (error) {
-      console.error("Lỗi khi tạo hóa đơn:", error);
-    }
-  });
-
-// 4. Logic Xem Chi Tiết Hóa Đơn (Admin)
+// --- Invoice Detail Modal ---
 const adminInvoiceDetailModal = document.getElementById(
   "admin-invoice-detail-modal"
 );
+window.closeAdminInvoiceDetailModal = () =>
+  adminInvoiceDetailModal?.classList.add("hidden");
 
-function closeAdminInvoiceDetailModal() {
-  if (adminInvoiceDetailModal) adminInvoiceDetailModal.classList.add("hidden");
-}
-window.closeAdminInvoiceDetailModal = closeAdminInvoiceDetailModal; // Export ra window
-
-async function showAdminInvoiceDetails(invoiceId) {
+window.showAdminInvoiceDetails = async (id) => {
   try {
-    // API cho Admin cho phép lấy chi tiết (có items)
     const detail = await window.apiRequestCore(
       window.ADMIN_TOKEN_KEY,
-      `/api/invoices/${invoiceId}`,
+      `/api/invoices/${id}`,
       "GET"
     );
+    if (!detail) throw new Error("No details");
 
-    if (!detail) throw new Error("Không tìm thấy chi tiết hóa đơn.");
-
-    // 1. Cập nhật header/footer
     const statusInfo = formatInvoiceStatus(detail.status);
-    const date = new Date(detail.created_at).toLocaleString("vi-VN");
-
     document.getElementById("admin-invoice-detail-id").textContent = detail.id;
-    document.getElementById("admin-invoice-detail-date").textContent = date;
-    document.getElementById("admin-invoice-detail-status").textContent =
-      statusInfo.text;
-    document.getElementById(
-      "admin-invoice-detail-status"
-    ).className = `font-bold ${statusInfo.class} p-1 rounded`;
+    document.getElementById("admin-invoice-detail-date").textContent =
+      formatDateTime(detail.created_at);
+    const statusEl = document.getElementById("admin-invoice-detail-status");
+    statusEl.textContent = statusInfo.text;
+    statusEl.className = `font-bold ${statusInfo.class} p-1 rounded`;
     document.getElementById("admin-invoice-detail-total").textContent =
       formatCurrency(detail.total_amount);
 
-    // 2. Cập nhật danh sách items
-    const tbody = document.getElementById("admin-invoice-items-table-body");
-    tbody.innerHTML = detail.items
-      .map(
-        (item) => `
+    document.getElementById("admin-invoice-items-table-body").innerHTML =
+      detail.items
+        .map(
+          (item) => `
             <tr>
-                <td class="px-3 py-2 text-sm text-gray-900">${
-                  item.description
-                }</td>
+                <td class="px-3 py-2 text-sm">${item.description}</td>
                 <td class="px-3 py-2 text-sm text-right">${item.quantity}</td>
                 <td class="px-3 py-2 text-sm text-right">${formatCurrency(
                   item.unit_price
@@ -1352,26 +1031,179 @@ async function showAdminInvoiceDetails(invoiceId) {
                 )}</td>
             </tr>
         `
-      )
-      .join("");
+        )
+        .join("");
+    adminInvoiceDetailModal?.classList.remove("hidden");
+  } catch (e) {
+    window.showToast("Lỗi xem chi tiết", true);
+  }
+};
 
-    if (adminInvoiceDetailModal)
-      adminInvoiceDetailModal.classList.remove("hidden");
-  } catch (error) {
-    console.error("Lỗi khi tải chi tiết hóa đơn:", error);
+// --- Create Invoice Logic ---
+const createInvoiceModal = document.getElementById("create-invoice-modal");
+const partsInputContainer = document.getElementById("parts-input-container");
+
+window.closeCreateInvoiceModal = () => {
+  createInvoiceModal?.classList.add("hidden");
+  document.getElementById("create-invoice-form")?.reset();
+  if (partsInputContainer) partsInputContainer.innerHTML = "";
+};
+
+window.openCreateInvoiceModal = async () => {
+  createInvoiceModal?.classList.remove("hidden");
+  try {
+    // Load bookings confirmed chưa có hóa đơn và Inventory
+    const [bookings, invoices, items] = await Promise.all([
+      window.apiRequestCore(
+        window.ADMIN_TOKEN_KEY,
+        "/api/bookings/items",
+        "GET"
+      ),
+      window.apiRequestCore(window.ADMIN_TOKEN_KEY, "/api/invoices/", "GET"),
+      window.apiRequestCore(
+        window.ADMIN_TOKEN_KEY,
+        "/api/inventory/items",
+        "GET"
+      ),
+    ]);
+    window.inventoryItems = items; // Cache for dropdown
+
+    const invoiceBookingIds = invoices.map((i) => i.booking_id);
+    const available = bookings.filter(
+      (b) => b.status === "confirmed" && !invoiceBookingIds.includes(b.id)
+    );
+
+    const select = document.getElementById("invoice-booking-id");
+    select.innerHTML =
+      '<option value="">-- Chọn lịch hẹn --</option>' +
+      available
+        .map(
+          (b) =>
+            `<option value="${b.id}">#${b.id} - ${b.service_type} - ${b.customer_name}</option>`
+        )
+        .join("");
+  } catch (e) {
+    window.showToast("Lỗi tải dữ liệu form", true);
+  }
+};
+
+window.addPartInput = () => {
+  if (!partsInputContainer) return;
+  const count = partsInputContainer.children.length + 1;
+  const itemOptions =
+    window.inventoryItems
+      ?.map(
+        (i) =>
+          `<option value="${i.id}">#${i.id} ${i.name} (${
+            i.quantity
+          }) - ${formatCurrency(i.price)}</option>`
+      )
+      .join("") || "";
+
+  const html = `
+        <div class="flex space-x-2 part-input-group mb-2" data-id="${count}">
+            <select name="item_id" class="w-1/2 px-3 py-2 border rounded bg-white" required>
+                <option value="">-- Chọn PT --</option>
+                ${itemOptions}
+            </select>
+            <input type="number" name="quantity" placeholder="SL" class="w-1/4 px-3 py-2 border rounded" required min="1" value="1" />
+            <button type="button" onclick="this.parentElement.remove()" class="text-red-500">&times;</button>
+        </div>`;
+  partsInputContainer.insertAdjacentHTML("beforeend", html);
+};
+
+document
+  .getElementById("create-invoice-form")
+  ?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const bookingId = parseInt(
+      document.getElementById("invoice-booking-id").value
+    );
+    try {
+      await window.apiRequestCore(
+        window.ADMIN_TOKEN_KEY,
+        "/api/invoices/",
+        "POST",
+        { booking_id: bookingId }
+      );
+      window.showToast("Tạo hóa đơn thành công!");
+      window.closeCreateInvoiceModal();
+      loadAllInvoices();
+    } catch (e) {
+      console.error(e);
+    }
+  });
+
+// =============================================================================
+// 10. MODULE: PAYMENT HISTORY (Lịch sử thanh toán)
+// =============================================================================
+function formatPaymentStatus(status) {
+  switch (status) {
+    case "pending":
+      return { text: "Chờ thanh toán", class: "bg-yellow-100 text-yellow-800" };
+    case "success":
+      return { text: "Thành công", class: "bg-green-100 text-green-800" };
+    case "failed":
+      return { text: "Thất bại", class: "bg-red-100 text-red-800" };
+    case "expired":
+      return { text: "Hết Hạn", class: "bg-gray-100 text-gray-800" };
+    default:
+      return { text: status, class: "bg-gray-100 text-gray-800" };
   }
 }
-window.showAdminInvoiceDetails = showAdminInvoiceDetails; // Export ra window
 
-// ========================================================
-// ✅ LOGIC NOTIFICATION MANAGEMENT (MỚI)
-// ========================================================
+async function loadAllPaymentHistory() {
+  const tbody = document.getElementById("payment-history-table-body");
+  if (!tbody) return;
+  tbody.innerHTML =
+    '<tr><td colspan="7" class="text-center py-4">Đang tải...</td></tr>';
 
-/**
- * Helper: Định dạng priority notification
- */
-function formatNotificationPriority(priority) {
-  switch (priority) {
+  try {
+    const history = await window.apiRequestCore(
+      window.ADMIN_TOKEN_KEY,
+      "/api/payments/history/all",
+      "GET"
+    );
+    if (!history || history.length === 0) {
+      tbody.innerHTML =
+        '<tr><td colspan="7" class="text-center py-4">Không có giao dịch.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = history
+      .map((t) => {
+        const statusInfo = formatPaymentStatus(t.status);
+        return `
+            <tr class="hover:bg-gray-50">
+                <td class="px-6 py-4 text-sm font-semibold">${t.id}</td>
+                <td class="px-6 py-4 text-sm">${t.invoice_id}</td>
+                <td class="px-6 py-4 text-sm">${t.user_id}</td>
+                <td class="px-6 py-4 text-sm font-bold text-red-600">${formatCurrency(
+                  t.amount
+                )}</td>
+                <td class="px-6 py-4 text-sm uppercase">${t.method}</td>
+                <td class="px-6 py-4 text-sm font-mono">${
+                  t.pg_transaction_id
+                }</td>
+                <td class="px-6 py-4 text-sm">
+                    <span class="p-1 rounded-full text-xs font-semibold ${
+                      statusInfo.class
+                    }">${statusInfo.text}</span>
+                </td>
+            </tr>`;
+      })
+      .join("");
+  } catch (e) {
+    tbody.innerHTML =
+      '<tr><td colspan="7" class="text-center text-red-500">Lỗi tải dữ liệu.</td></tr>';
+  }
+}
+window.loadAllPaymentHistory = loadAllPaymentHistory;
+
+// =============================================================================
+// 11. MODULE: NOTIFICATIONS
+// =============================================================================
+function formatNotificationPriority(p) {
+  switch (p) {
     case "low":
       return { text: "Low", class: "bg-green-100 text-green-800" };
     case "medium":
@@ -1381,454 +1213,307 @@ function formatNotificationPriority(priority) {
     case "urgent":
       return { text: "Urgent", class: "bg-red-100 text-red-800" };
     default:
-      return { text: priority, class: "bg-gray-100 text-gray-800" };
+      return { text: p, class: "bg-gray-100" };
   }
 }
 
-/**
- * Helper: Định dạng status notification
- */
-function formatNotificationStatus(status) {
-  switch (status) {
-    case "pending":
-      return { text: "Chờ gửi", class: "bg-yellow-100 text-yellow-800" };
-    case "sent":
-      return { text: "Đã gửi", class: "bg-blue-100 text-blue-800" };
-    case "read":
-      return { text: "Đã đọc", class: "bg-green-100 text-green-800" };
-    case "failed":
-      return { text: "Thất bại", class: "bg-red-100 text-red-800" };
-    default:
-      return { text: status, class: "bg-gray-100 text-gray-800" };
-  }
-}
-
-/**
- * 1. Tải tất cả notifications (Admin)
- */
 async function loadAllNotificationsAdmin() {
   const tbody = document.getElementById("notifications-table-body");
   if (!tbody) return;
   tbody.innerHTML =
-    '<tr><td colspan="7" class="text-center text-gray-500 py-4">Đang tải dữ liệu...</td></tr>';
-
+    '<tr><td colspan="7" class="text-center py-4">Đang tải...</td></tr>';
   try {
-    const notifications = await window.apiRequestCore(
+    const notifs = await window.apiRequestCore(
       window.ADMIN_TOKEN_KEY,
       "/api/notifications/admin/all",
       "GET"
     );
-
-    if (!notifications || notifications.length === 0) {
+    if (!notifs || notifs.length === 0) {
       tbody.innerHTML =
-        '<tr><td colspan="7" class="text-center text-gray-500 py-4">Không có notification nào.</td></tr>';
+        '<tr><td colspan="7" class="text-center py-4">Không có thông báo.</td></tr>';
       return;
     }
-
-    tbody.innerHTML = notifications
-      .map((notif) => {
-        const priorityInfo = formatNotificationPriority(notif.priority);
-        const statusInfo = formatNotificationStatus(notif.status);
-        const isUnread = !notif.read_at;
-
+    tbody.innerHTML = notifs
+      .map((n) => {
+        const pInfo = formatNotificationPriority(n.priority);
+        const isUnread = !n.read_at;
         return `
-                    <tr id="notification-row-${notif.id}" class="${
-          isUnread ? "bg-blue-50" : ""
-        }">
-                        <td class="px-6 py-4 text-sm font-semibold">${
-                          notif.id
-                        }</td>
-                        <td class="px-6 py-4 text-sm">${notif.user_id}</td>
-                        <td class="px-6 py-4 text-sm">
-                            <span class="px-2 py-1 text-xs font-semibold rounded ${
-                              notif.notification_type === "booking"
-                                ? "bg-indigo-100 text-indigo-800"
-                                : notif.notification_type === "maintenance"
-                                ? "bg-purple-100 text-purple-800"
-                                : notif.notification_type === "payment"
-                                ? "bg-green-100 text-green-800"
-                                : "bg-gray-100 text-gray-800"
-                            }">
-                                ${notif.notification_type}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 text-sm max-w-xs truncate">${
-                          notif.title
-                        }</td>
-                        <td class="px-6 py-4 text-sm">
-                            <span class="px-2 py-1 text-xs font-semibold rounded ${
-                              priorityInfo.class
-                            }">
-                                ${priorityInfo.text}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 text-sm">
-                            <span class="px-2 py-1 text-xs font-semibold rounded ${
-                              statusInfo.class
-                            }">
-                                ${statusInfo.text}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 text-center space-x-2">
-                            <button onclick="viewNotificationDetail(${
-                              notif.id
-                            })" class="text-indigo-600 hover:text-indigo-900">
-                                Xem
-                            </button>
-                        </td>
-                    </tr>
-                `;
+            <tr class="${isUnread ? "bg-blue-50" : ""}">
+                <td class="px-6 py-4 text-sm">${n.id}</td>
+                <td class="px-6 py-4 text-sm">${n.user_id}</td>
+                <td class="px-6 py-4 text-sm"><span class="badge">${
+                  n.notification_type
+                }</span></td>
+                <td class="px-6 py-4 text-sm truncate max-w-xs">${n.title}</td>
+                <td class="px-6 py-4 text-sm"><span class="badge ${
+                  pInfo.class
+                }">${pInfo.text}</span></td>
+                <td class="px-6 py-4 text-sm">${n.status}</td>
+                <td class="px-6 py-4 text-center">
+                    <button onclick="viewNotificationDetail(${
+                      n.id
+                    })" class="text-indigo-600 hover:text-indigo-900 font-medium">Xem</button>
+                </td>
+            </tr>`;
       })
       .join("");
-  } catch (err) {
-    console.error(err);
+  } catch (e) {
     tbody.innerHTML =
-      '<tr><td colspan="7" class="text-center text-red-500 py-4">Lỗi khi tải dữ liệu Notifications.</td></tr>';
+      '<tr><td colspan="7" class="text-red-500 text-center">Lỗi tải dữ liệu.</td></tr>';
   }
 }
 window.loadAllNotificationsAdmin = loadAllNotificationsAdmin;
 
-/**
- * 2. Modal tạo notification
- */
-const createNotificationModal = document.getElementById(
-  "create-notification-modal"
-);
+// Modal Notification Detail & Create
+const viewNotifModal = document.getElementById("view-notification-modal");
+window.closeViewNotificationModal = () =>
+  viewNotifModal?.classList.add("hidden");
 
-function closeCreateNotificationModal() {
-  if (createNotificationModal)
-    createNotificationModal.classList.add("hidden");
+window.viewNotificationDetail = async (id) => {
+  try {
+    const notifs = await window.apiRequestCore(
+      window.ADMIN_TOKEN_KEY,
+      "/api/notifications/admin/all",
+      "GET"
+    );
+    const n = notifs.find((i) => i.id === id);
+    if (!n) return;
+
+    document.getElementById("notif-detail-id").textContent = n.id;
+    document.getElementById("notif-detail-user-id").textContent = n.user_id;
+    document.getElementById("notif-detail-type").textContent =
+      n.notification_type;
+    document.getElementById("notif-detail-title").textContent = n.title;
+    document.getElementById("notif-detail-message").textContent = n.message;
+    document.getElementById("notif-detail-created").textContent =
+      formatDateTime(n.created_at);
+
+    viewNotifModal?.classList.remove("hidden");
+  } catch (e) {}
+};
+
+const createNotifModal = document.getElementById("create-notification-modal");
+window.openCreateNotificationModal = () =>
+  createNotifModal?.classList.remove("hidden");
+window.closeCreateNotificationModal = () => {
+  createNotifModal?.classList.add("hidden");
   document.getElementById("create-notification-form")?.reset();
-}
-window.closeCreateNotificationModal = closeCreateNotificationModal;
-
-function openCreateNotificationModal() {
-  if (createNotificationModal)
-    createNotificationModal.classList.remove("hidden");
-}
-window.openCreateNotificationModal = openCreateNotificationModal;
+};
 
 document
   .getElementById("create-notification-form")
   ?.addEventListener("submit", async (e) => {
     e.preventDefault();
+    // Giả lập internal call
+    const token = prompt("Nhập INTERNAL_SERVICE_TOKEN:", "Bearer eyJhbGci...");
+    if (!token) return;
 
-    const userId = parseInt(document.getElementById("notif-user-id")?.value);
-    const type = document.getElementById("notif-type")?.value;
-    const title = document.getElementById("notif-title")?.value;
-    const message = document.getElementById("notif-message")?.value;
-    const priority = document.getElementById("notif-priority")?.value;
-
-    if (isNaN(userId)) {
-      window.showToast("User ID phải là số hợp lệ.", true);
-      return;
-    }
+    const data = {
+      user_id: parseInt(document.getElementById("notif-user-id").value),
+      notification_type: document.getElementById("notif-type").value,
+      title: document.getElementById("notif-title").value,
+      message: document.getElementById("notif-message").value,
+      priority: document.getElementById("notif-priority").value,
+      channel: "in_app",
+    };
 
     try {
-      // Sử dụng internal API endpoint
-      const internalToken = prompt(
-        "Nhập INTERNAL_SERVICE_TOKEN từ .env file:",
-        "Bearer eyJhbGci..."
-      );
-      if (!internalToken) {
-        window.showToast("Cần INTERNAL_SERVICE_TOKEN để tạo notification.", true);
-        return;
-      }
-
-      const response = await fetch(
+      const res = await fetch(
         "http://localhost/internal/notifications/create",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-Internal-Token": internalToken,
+            "X-Internal-Token": token,
           },
-          body: JSON.stringify({
-            user_id: userId,
-            notification_type: type,
-            title: title,
-            message: message,
-            priority: priority,
-            channel: "in_app",
-          }),
+          body: JSON.stringify(data),
         }
       );
-
-      const data = await response.json();
-
-      if (response.ok) {
-        window.showToast(data.message || "Tạo notification thành công!");
-        closeCreateNotificationModal();
+      if (res.ok) {
+        window.showToast("Tạo notification thành công!");
+        window.closeCreateNotificationModal();
         loadAllNotificationsAdmin();
       } else {
-        window.showToast(
-          data.error || "Lỗi khi tạo notification",
-          true
-        );
+        window.showToast("Lỗi tạo notification", true);
       }
-    } catch (error) {
-      console.error("Lỗi khi tạo notification:", error);
-      window.showToast("Lỗi khi tạo notification: " + error.message, true);
+    } catch (e) {
+      window.showToast("Lỗi kết nối", true);
     }
   });
 
-/**
- * 3. Xem chi tiết notification
- */
-const viewNotificationModal = document.getElementById(
-  "view-notification-modal"
-);
+// =============================================================================
+// 12. MODULE: REPORTS (Báo cáo)
+// =============================================================================
+window.switchReportTab = function (tabName) {
+  document
+    .querySelectorAll(".report-content")
+    .forEach((tab) => tab.classList.add("hidden"));
+  document.querySelectorAll(".report-tab").forEach((tab) => {
+    tab.classList.remove("border-indigo-600", "text-indigo-600");
+    tab.classList.add("border-transparent", "text-gray-500");
+  });
 
-function closeViewNotificationModal() {
-  if (viewNotificationModal) viewNotificationModal.classList.add("hidden");
-}
-window.closeViewNotificationModal = closeViewNotificationModal;
+  if (tabName === "revenue") {
+    document.getElementById("revenue-report-tab").classList.remove("hidden");
+    document
+      .getElementById("tab-revenue")
+      .classList.add("border-indigo-600", "text-indigo-600");
+    loadRevenueReport();
+  } else if (tabName === "inventory") {
+    document.getElementById("inventory-report-tab").classList.remove("hidden");
+    document
+      .getElementById("tab-inventory")
+      .classList.add("border-indigo-600", "text-indigo-600");
+    loadInventoryReport();
+  }
+};
 
-async function viewNotificationDetail(notifId) {
+async function loadDashboardData() {
   try {
-    // Get all notifications và tìm notification cần xem
-    const notifications = await window.apiRequestCore(
+    const response = await window.apiRequestCore(
       window.ADMIN_TOKEN_KEY,
-      "/api/notifications/admin/all",
+      "/api/reports/dashboard",
+      "GET"
+    );
+    document.getElementById("revenue-today").textContent = formatCurrency(
+      response.revenue.today.total_revenue
+    );
+    document.getElementById(
+      "transactions-today"
+    ).textContent = `${response.revenue.today.transaction_count} giao dịch`;
+    document.getElementById("revenue-month").textContent = formatCurrency(
+      response.revenue.month.total_revenue
+    );
+    document.getElementById(
+      "transactions-month"
+    ).textContent = `${response.revenue.month.transaction_count} giao dịch`;
+    document.getElementById("low-stock-count").textContent =
+      response.inventory.low_stock_count;
+  } catch (error) {
+    console.error("Lỗi dashboard:", error);
+  }
+}
+
+async function loadRevenueReport() {
+  try {
+    const res = await window.apiRequestCore(
+      window.ADMIN_TOKEN_KEY,
+      "/api/reports/revenue",
       "GET"
     );
 
-    const notif = notifications.find((n) => n.id === notifId);
-    if (!notif) {
-      window.showToast("Không tìm thấy notification.", true);
-      return;
+    const details = `
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="text-center p-4 bg-gray-50 rounded">
+                    <p class="text-sm text-gray-600">Tổng Doanh Thu</p>
+                    <p class="text-2xl font-bold text-green-600">${formatCurrency(
+                      res.total_revenue
+                    )}</p>
+                </div>
+                <div class="text-center p-4 bg-gray-50 rounded">
+                    <p class="text-sm text-gray-600">Số Giao Dịch</p>
+                    <p class="text-2xl font-bold text-blue-600">${
+                      res.transaction_count
+                    }</p>
+                </div>
+                <div class="text-center p-4 bg-gray-50 rounded">
+                    <p class="text-sm text-gray-600">Giá Trị TB</p>
+                    <p class="text-2xl font-bold text-indigo-600">${formatCurrency(
+                      res.avg_transaction_value
+                    )}</p>
+                </div>
+            </div>`;
+    document.getElementById("revenue-details-container").innerHTML = details;
+
+    let methods = '<div class="space-y-3">';
+    for (const [method, data] of Object.entries(res.payment_methods)) {
+      methods += `
+                <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
+                    <div><p class="font-semibold">${method}</p><p class="text-sm text-gray-600">${
+        data.count
+      } GD</p></div>
+                    <p class="text-lg font-bold text-green-600">${formatCurrency(
+                      data.amount
+                    )}</p>
+                </div>`;
     }
-
-    // Fill dữ liệu vào modal
-    document.getElementById("notif-detail-id").textContent = notif.id;
-    document.getElementById("notif-detail-user-id").textContent =
-      notif.user_id;
-    document.getElementById("notif-detail-type").textContent =
-      notif.notification_type;
-
-    const priorityInfo = formatNotificationPriority(notif.priority);
-    const statusInfo = formatNotificationStatus(notif.status);
-
-    document.getElementById("notif-detail-priority").innerHTML = `
-            <span class="px-2 py-1 text-xs font-semibold rounded ${priorityInfo.class}">
-                ${priorityInfo.text}
-            </span>
-        `;
-
-    document.getElementById("notif-detail-status").innerHTML = `
-            <span class="px-2 py-1 text-xs font-semibold rounded ${statusInfo.class}">
-                ${statusInfo.text}
-            </span>
-        `;
-
-    document.getElementById("notif-detail-title").textContent = notif.title;
-    document.getElementById("notif-detail-message").textContent =
-      notif.message;
-    document.getElementById("notif-detail-created").textContent = new Date(
-      notif.created_at
-    ).toLocaleString("vi-VN");
-    document.getElementById("notif-detail-read-at").textContent = notif.read_at
-      ? new Date(notif.read_at).toLocaleString("vi-VN")
-      : "Chưa đọc";
-
-    if (viewNotificationModal)
-      viewNotificationModal.classList.remove("hidden");
-  } catch (error) {
-    console.error("Lỗi khi xem chi tiết notification:", error);
-    window.showToast("Lỗi khi xem chi tiết notification.", true);
-  }
+    document.getElementById("payment-methods-container").innerHTML =
+      methods + "</div>";
+  } catch (e) {}
 }
-window.viewNotificationDetail = viewNotificationDetail;
 
-// --- Khối INIT: Đảm bảo tải Inventory mặc định ---
+async function loadInventoryReport() {
+  try {
+    const res = await window.apiRequestCore(
+      window.ADMIN_TOKEN_KEY,
+      "/api/reports/inventory",
+      "GET"
+    );
+
+    const overview = `
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="text-center p-4 bg-gray-50 rounded">
+                    <p class="text-sm text-gray-600">Tổng Loại PT</p>
+                    <p class="text-2xl font-bold text-blue-600">${
+                      res.total_parts
+                    }</p>
+                </div>
+                <div class="text-center p-4 bg-gray-50 rounded">
+                    <p class="text-sm text-gray-600">Tổng SL</p>
+                    <p class="text-2xl font-bold text-indigo-600">${
+                      res.total_quantity
+                    }</p>
+                </div>
+                <div class="text-center p-4 bg-gray-50 rounded">
+                    <p class="text-sm text-gray-600">Giá Trị Kho</p>
+                    <p class="text-2xl font-bold text-green-600">${formatCurrency(
+                      res.total_inventory_value
+                    )}</p>
+                </div>
+                <div class="text-center p-4 bg-gray-50 rounded">
+                    <p class="text-sm text-gray-600">Sắp Hết</p>
+                    <p class="text-2xl font-bold text-red-600">${
+                      res.low_stock_count
+                    }</p>
+                </div>
+            </div>`;
+    document.getElementById("inventory-overview-container").innerHTML =
+      overview;
+
+    const lowStock = res.low_stock_parts
+      .map(
+        (p) => `
+            <div class="flex justify-between items-center p-3 border border-red-200 bg-red-50 rounded mb-2">
+                <div><p class="font-semibold">${p.name}</p><p class="text-sm text-gray-600">SKU: ${p.sku}</p></div>
+                <div class="text-right"><p class="text-lg font-bold text-red-600">Còn: ${p.quantity}</p></div>
+            </div>
+        `
+      )
+      .join("");
+    document.getElementById("low-stock-container").innerHTML =
+      lowStock || '<p class="text-green-600">✅ Kho ổn định</p>';
+  } catch (e) {}
+}
+
+// =============================================================================
+// 13. INITIALIZATION
+// =============================================================================
 document.addEventListener("DOMContentLoaded", () => {
   const token = localStorage.getItem(window.ADMIN_TOKEN_KEY);
   if (!token) return;
 
   try {
     const payload = JSON.parse(atob(token.split(".")[1]));
-    const valid = payload.exp * 1000 > Date.now();
+    const isValid = payload.exp * 1000 > Date.now();
 
-    if (valid && payload.role === window.ADMIN_ROLE) {
+    if (isValid && payload.role === window.ADMIN_ROLE) {
       showDashboard();
-      // CHUYỂN TẢI MẶC ĐỊNH SANG INVENTORY SAU KHI PAGE ĐÃ HIỆN
+      // Mặc định vào Inventory Section
       navigateToDashboardSection("inventory-section", "Quản lý Kho Phụ Tùng");
     } else {
       adminLogout();
     }
-  } catch {
+  } catch (e) {
     adminLogout();
   }
 });
-
-// ==================== BÁO CÁO FUNCTIONS ====================
-
-function switchReportTab(tabName) {
-  // Hide all tabs
-  document.querySelectorAll('.report-content').forEach(tab => tab.classList.add('hidden'));
-  document.querySelectorAll('.report-tab').forEach(tab => {
-    tab.classList.remove('border-indigo-600', 'text-indigo-600');
-    tab.classList.add('border-transparent', 'text-gray-500');
-  });
-
-  // Show selected tab
-  if (tabName === 'revenue') {
-    document.getElementById('revenue-report-tab').classList.remove('hidden');
-    document.getElementById('tab-revenue').classList.add('border-indigo-600', 'text-indigo-600');
-    loadRevenueReport();
-  } else if (tabName === 'inventory') {
-    document.getElementById('inventory-report-tab').classList.remove('hidden');
-    document.getElementById('tab-inventory').classList.add('border-indigo-600', 'text-indigo-600');
-    loadInventoryReport();
-  }
-}
-
-async function loadDashboardData() {
-  try {
-    const response = await apiRequestCore(
-      window.ADMIN_TOKEN_KEY,
-      "/api/reports/dashboard",
-      "GET"
-    );
-
-    // Update dashboard cards
-    const formatCurrency = (amount) => new Intl.NumberFormat('vi-VN').format(amount) + '₫';
-
-    document.getElementById('revenue-today').textContent = formatCurrency(response.revenue.today.total_revenue);
-    document.getElementById('transactions-today').textContent = `${response.revenue.today.transaction_count} giao dịch`;
-
-    document.getElementById('revenue-month').textContent = formatCurrency(response.revenue.month.total_revenue);
-    document.getElementById('transactions-month').textContent = `${response.revenue.month.transaction_count} giao dịch`;
-
-    document.getElementById('low-stock-count').textContent = response.inventory.low_stock_count;
-
-  } catch (error) {
-    console.error("Error loading dashboard:", error);
-    showToast("Lỗi khi tải dashboard", true);
-  }
-}
-
-async function loadRevenueReport() {
-  try {
-    const response = await apiRequestCore(
-      window.ADMIN_TOKEN_KEY,
-      "/api/reports/revenue",
-      "GET"
-    );
-
-    const formatCurrency = (amount) => new Intl.NumberFormat('vi-VN').format(amount) + '₫';
-
-    // Revenue details
-    const detailsHtml = `
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="text-center p-4 bg-gray-50 rounded">
-          <p class="text-sm text-gray-600">Tổng Doanh Thu</p>
-          <p class="text-2xl font-bold text-green-600">${formatCurrency(response.total_revenue)}</p>
-        </div>
-        <div class="text-center p-4 bg-gray-50 rounded">
-          <p class="text-sm text-gray-600">Số Giao Dịch</p>
-          <p class="text-2xl font-bold text-blue-600">${response.transaction_count}</p>
-        </div>
-        <div class="text-center p-4 bg-gray-50 rounded">
-          <p class="text-sm text-gray-600">Giá Trị TB</p>
-          <p class="text-2xl font-bold text-indigo-600">${formatCurrency(response.avg_transaction_value)}</p>
-        </div>
-      </div>
-    `;
-    document.getElementById('revenue-details-container').innerHTML = detailsHtml;
-
-    // Payment methods
-    let methodsHtml = '<div class="space-y-3">';
-    for (const [method, data] of Object.entries(response.payment_methods)) {
-      const methodName = method === 'bank_transfer' ? 'Chuyển Khoản' : method === 'momo_qr' ? 'MoMo QR' : method;
-      methodsHtml += `
-        <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
-          <div>
-            <p class="font-semibold">${methodName}</p>
-            <p class="text-sm text-gray-600">${data.count} giao dịch</p>
-          </div>
-          <p class="text-lg font-bold text-green-600">${formatCurrency(data.amount)}</p>
-        </div>
-      `;
-    }
-    methodsHtml += '</div>';
-    document.getElementById('payment-methods-container').innerHTML = methodsHtml || '<p class="text-gray-500">Chưa có dữ liệu</p>';
-
-  } catch (error) {
-    console.error("Error loading revenue report:", error);
-    showToast("Lỗi khi tải báo cáo doanh thu", true);
-  }
-}
-
-async function loadInventoryReport() {
-  try {
-    const response = await apiRequestCore(
-      window.ADMIN_TOKEN_KEY,
-      "/api/reports/inventory",
-      "GET"
-    );
-
-    const formatCurrency = (amount) => new Intl.NumberFormat('vi-VN').format(amount) + '₫';
-
-    // Overview
-    const overviewHtml = `
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="text-center p-4 bg-gray-50 rounded">
-          <p class="text-sm text-gray-600">Tổng Loại PT</p>
-          <p class="text-2xl font-bold text-blue-600">${response.total_parts}</p>
-        </div>
-        <div class="text-center p-4 bg-gray-50 rounded">
-          <p class="text-sm text-gray-600">Tổng Số Lượng</p>
-          <p class="text-2xl font-bold text-indigo-600">${response.total_quantity}</p>
-        </div>
-        <div class="text-center p-4 bg-gray-50 rounded">
-          <p class="text-sm text-gray-600">Giá Trị Kho</p>
-          <p class="text-2xl font-bold text-green-600">${formatCurrency(response.total_inventory_value)}</p>
-        </div>
-        <div class="text-center p-4 bg-gray-50 rounded">
-          <p class="text-sm text-gray-600">Sắp Hết Hàng</p>
-          <p class="text-2xl font-bold text-red-600">${response.low_stock_count}</p>
-        </div>
-      </div>
-    `;
-    document.getElementById('inventory-overview-container').innerHTML = overviewHtml;
-
-    // Low stock items
-    if (response.low_stock_parts.length > 0) {
-      let lowStockHtml = '<div class="space-y-2">';
-      response.low_stock_parts.forEach(part => {
-        lowStockHtml += `
-          <div class="flex justify-between items-center p-3 border border-red-200 bg-red-50 rounded">
-            <div>
-              <p class="font-semibold">${part.name}</p>
-              <p class="text-sm text-gray-600">SKU: ${part.sku}</p>
-            </div>
-            <div class="text-right">
-              <p class="text-lg font-bold text-red-600">Còn: ${part.quantity}</p>
-              <p class="text-sm text-gray-600">${formatCurrency(part.price)}/cái</p>
-            </div>
-          </div>
-        `;
-      });
-      lowStockHtml += '</div>';
-      document.getElementById('low-stock-container').innerHTML = lowStockHtml;
-    } else {
-      document.getElementById('low-stock-container').innerHTML = '<p class="text-green-600">✅ Tất cả phụ tùng đều đủ hàng</p>';
-    }
-
-  } catch (error) {
-    console.error("Error loading inventory report:", error);
-    showToast("Lỗi khi tải báo cáo kho", true);
-  }
-}
-
-// Hook vào navigateToDashboardSection để load data khi vào reports
-const originalNavigate = window.navigateToDashboardSection;
-window.navigateToDashboardSection = function(sectionId, title) {
-  originalNavigate(sectionId, title);
-
-  if (sectionId === 'reports-section') {
-    loadDashboardData();
-    switchReportTab('revenue');
-  }
-};
