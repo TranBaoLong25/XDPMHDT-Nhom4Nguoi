@@ -1030,14 +1030,19 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
+      const technicianIdValue = document.getElementById("technician-id").value;
       const data = {
         service_type: document.getElementById("service-type").value,
-        technician_id: parseInt(document.getElementById("technician-id").value),
         station_id: parseInt(document.getElementById("station-id")?.value || 1),
         center_id: parseInt(centerId),
         start_time: document.getElementById("start-time").value + ":00",
         end_time: document.getElementById("end-time").value + ":00",
       };
+
+      // Chỉ thêm technician_id nếu có giá trị
+      if (technicianIdValue && technicianIdValue.trim() !== "") {
+        data.technician_id = parseInt(technicianIdValue);
+      }
 
       try {
         await apiRequestCore(TOKEN_KEY, "/api/bookings/items", "POST", data);

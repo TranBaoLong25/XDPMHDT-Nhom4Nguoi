@@ -319,6 +319,44 @@ services:
       - ev_network
     restart: unless-stopped
 
+  # ===================== CHAT DATABASE =====================
+  db-chat:
+    image: postgres:14-alpine
+    container_name: chat_db
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=ev_chat_db
+    ports:
+      - "5440:5432"
+    volumes:
+      - chat_data:/var/lib/postgresql/data
+    networks:
+      - ev_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ev_chat_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ===================== CHAT SERVICE (WebSocket) =====================
+  chat-service:
+    build: ./services/chat-service
+    container_name: chat-service
+    command: gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:8007 wsgi:app --timeout 120
+    volumes:
+      - ./services/chat-service:/app
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@chat_db:5432/ev_chat_db
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+    expose:
+      - "8007"
+    depends_on:
+      db-chat:
+        condition: service_healthy
+    networks:
+      - ev_network
+
   # ===================== REPORT SERVICE =====================
   report-service:
     build: ./services/report-service
@@ -373,6 +411,8 @@ services:
         condition: service_started
       notification-service:
         condition: service_started
+      chat-service:
+        condition: service_started
     networks:
       - ev_network
     restart: on-failure  
@@ -389,4 +429,5 @@ volumes:
   finance_data:
   maintenance_data:
   payment_data:
-  notification_data:  #   
+  notification_data:
+  chat_data:   

@@ -45,6 +45,60 @@
           transform: translateY(0);
         }
       }
+
+      /* Floating Chat Button */
+      .chat-button {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        transition: all 0.3s ease;
+        z-index: 50;
+      }
+      .chat-button:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+      }
+      .chat-button svg {
+        width: 28px;
+        height: 28px;
+        color: white;
+      }
+      @keyframes pulse {
+        0%, 100% {
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        50% {
+          box-shadow: 0 4px 20px rgba(102, 126, 234, 0.8);
+        }
+      }
+      .chat-button.has-notification {
+        animation: pulse 2s infinite;
+      }
+      .chat-button .notification-badge {
+        position: absolute;
+        top: -2px;
+        right: -2px;
+        background: #ef4444;
+        color: white;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        font-size: 11px;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #1f2937;
+      }
     </style>
   </head>
 
@@ -579,12 +633,12 @@
                   >3. Mã Kỹ Thuật Viên (Nếu có)</label
                 >
                 <input
-                  type="number"
+                  type="text"
                   id="technician-id"
-                  value="1"
-                  min="1"
+                  placeholder="Để trống nếu không có"
+                  pattern="[0-9]*"
+                  inputmode="numeric"
                   class="block w-full px-4 py-3 border border-gray-600 rounded-lg bg-gray-700 text-white focus:ring-2 focus:ring-indigo-500"
-                  required
                 />
               </div>
             </div>
@@ -974,6 +1028,29 @@
         Đang xử lý...
       </p>
     </div>
+
+    <!-- Floating Chat Button -->
+    <a
+      href="/chat.html"
+      id="chat-button"
+      class="chat-button"
+      title="Chat với chúng tôi"
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+        />
+      </svg>
+      <span id="chat-notification-badge" class="notification-badge hidden">0</span>
+    </a>
 
     <script src="scripts.js"></script>
   </body>

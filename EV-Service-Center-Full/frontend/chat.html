@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Hỗ Trợ - EV Service Center</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: "Inter", sans-serif;
+        }
+        .chat-message {
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .typing-indicator span {
+            animation: bounce 1.4s infinite;
+        }
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        @keyframes bounce {
+            0%, 60%, 100% {
+                transform: translateY(0);
+            }
+            30% {
+                transform: translateY(-10px);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <button onclick="goBack()" class="text-gray-600 hover:text-gray-900">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                </button>
+                <div>
+                    <h1 class="text-xl font-bold text-gray-900">Chat Hỗ Trợ</h1>
+                    <p id="connection-status" class="text-sm text-gray-500">Đang kết nối...</p>
+                </div>
+            </div>
+            <div id="support-info" class="hidden text-right">
+                <p class="text-sm font-medium text-gray-900" id="support-name"></p>
+                <p class="text-xs text-gray-500" id="support-role"></p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Chat Container -->
+    <div class="max-w-4xl mx-auto h-[calc(100vh-120px)] flex flex-col bg-white shadow-lg my-4 rounded-lg overflow-hidden">
+        <!-- Messages Area -->
+        <div id="messages-container" class="flex-1 overflow-y-auto p-4 space-y-4">
+            <!-- Messages will be appended here -->
+        </div>
+
+        <!-- Typing Indicator -->
+        <div id="typing-indicator" class="hidden px-4 py-2 text-sm text-gray-500">
+            <div class="typing-indicator flex items-center gap-1">
+                <span class="w-2 h-2 bg-gray-400 rounded-full"></span>
+                <span class="w-2 h-2 bg-gray-400 rounded-full"></span>
+                <span class="w-2 h-2 bg-gray-400 rounded-full"></span>
+                <span class="ml-2" id="typing-user"></span>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="border-t bg-gray-50 p-4">
+            <form id="message-form" class="flex gap-2">
+                <input
+                    type="text"
+                    id="message-input"
+                    placeholder="Nhập tin nhắn..."
+                    class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    autocomplete="off"
+                >
+                <button
+                    type="submit"
+                    class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition"
+                >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                    </svg>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loading-spinner" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 flex flex-col items-center gap-3">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+            <p class="text-gray-700 font-medium">Đang tải...</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="chat_scripts.js"></script>
+</body>
+</html>
