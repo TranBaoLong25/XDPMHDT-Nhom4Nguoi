@@ -15,8 +15,7 @@ class Inventory(db.Model):
     min_quantity = db.Column(db.Integer, nullable=False, default=10)
     price = db.Column(db.Float, nullable=False)
 
-    # --- THÊM MỚI: Center ID ---
-    # Mặc định center_id = 1 cho các dữ liệu cũ (nếu có)
+    # Center ID (Mặc định 1)
     center_id = db.Column(db.Integer, nullable=False, default=1)
 
     created_at = db.Column(db.DateTime, nullable=False, default=func.now())
@@ -28,7 +27,6 @@ class Inventory(db.Model):
     )
 
     def to_dict(self):
-        """Chuyển đổi đối tượng Inventory thành dictionary để trả về API"""
         return {
             "id": self.id,
             "name": self.name,
@@ -36,7 +34,22 @@ class Inventory(db.Model):
             "quantity": self.quantity,
             "min_quantity": self.min_quantity,
             "price": self.price,
-            "center_id": self.center_id, # Trả về center_id
+            "center_id": self.center_id,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }
+
+class InventoryCompatibility(db.Model):
+    """Bảng phụ lưu thông tin tương thích cho AI Suggestion (Tránh sửa bảng Inventory chính)"""
+    __tablename__ = "inventory_compatibility"
+
+    id = db.Column(db.Integer, primary_key=True, index=True)
+    inventory_id = db.Column(db.Integer, db.ForeignKey('inventory.id'), nullable=False)
+    
+    # Lưu danh sách các model xe tương thích (ví dụ: "VF8, VF9")
+    compatible_models = db.Column(db.String(255), nullable=True)
+    
+    # Loại phụ tùng (ví dụ: "brake", "tire")
+    category = db.Column(db.String(100), nullable=True)
+
+    created_at = db.Column(db.DateTime, nullable=False, default=func.now())

@@ -747,18 +747,21 @@ async function loadAllMaintenanceTasks() {
           t.status === "completed" || t.status === "failed" ? "disabled" : "";
         return `
             <tr class="hover:bg-gray-50">
-                <td class="px-6 py-4 text-sm">${t.task_id}</td>
+                <td class="px-6 py-4 text-sm font-mono text-gray-600">#${
+                  t.task_id
+                }</td>
                 <td class="px-6 py-4 text-sm">Booking #${t.booking_id}</td>
                 <td class="px-6 py-4 text-sm">${t.description}</td>
-                <td class="px-6 py-4 text-sm font-mono">${t.vehicle_vin}</td>
+                <td class="px-6 py-4 text-sm font-mono">${
+                  t.vehicle_vin || "-"
+                }</td>
                 <td class="px-6 py-4 text-sm">KTV ID: ${t.technician_id}</td>
                 <td class="px-6 py-4 text-sm">
                      <select class="border rounded p-1 text-xs ${
                        statusInfo.class
-                     }" ${disabled}
-                            onchange="updateMaintenanceTaskStatus(${
-                              t.task_id
-                            }, this.value)">
+                     }" ${disabled} onchange="updateMaintenanceTaskStatus(${
+          t.task_id
+        }, this.value)">
                         <option value="pending" ${
                           t.status === "pending" ? "selected" : ""
                         }>Chờ thực hiện</option>
@@ -773,11 +776,14 @@ async function loadAllMaintenanceTasks() {
                         }>Thất bại</option>
                     </select>
                 </td>
-                <td class="px-6 py-4 text-center">
+                <td class="px-6 py-4 text-center space-x-2">
+                    <button onclick="viewMaintenanceDetail(${
+                      t.task_id
+                    })" class="text-blue-600 hover:text-blue-900 font-medium bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 transition">Chi Tiết</button>
                     ${
                       disabled
-                        ? '<span class="text-gray-400">Đã khóa</span>'
-                        : `<button onclick="if(confirm('Hoàn thành công việc?')) updateMaintenanceTaskStatus(${t.task_id}, 'completed')" class="text-green-600 hover:text-green-900 font-medium">Hoàn Thành</button>`
+                        ? ""
+                        : `<button onclick="if(confirm('Hoàn thành công việc?')) updateMaintenanceTaskStatus(${t.task_id}, 'completed')" class="text-green-600 hover:text-green-900 font-medium">Xong</button>`
                     }
                 </td>
             </tr>`;
@@ -863,7 +869,101 @@ window.openCreateTaskModal = async () => {
     window.showToast("Lỗi tải dữ liệu dropdown", true);
   }
 };
+// --- LOGIC XEM CHI TIẾT BẢO TRÌ (MỚI) ---
+const maintDetailModal = document.getElementById("maintenance-detail-modal");
+window.closeMaintenanceDetailModal = () =>
+  maintDetailModal?.classList.add("hidden");
 
+window.viewMaintenanceDetail = async (taskId) => {
+  try {
+    window.showLoading();
+    const [task, parts, checklist, inventory] = await Promise.all([
+      window.apiRequestCore(
+        window.ADMIN_TOKEN_KEY,
+        `/api/maintenance/tasks/${taskId}`,
+        "GET"
+      ),
+      window.apiRequestCore(
+        window.ADMIN_TOKEN_KEY,
+        `/api/maintenance/tasks/${taskId}/parts`,
+        "GET"
+      ),
+      window.apiRequestCore(
+        window.ADMIN_TOKEN_KEY,
+        `/api/maintenance/tasks/${taskId}/checklist`,
+        "GET"
+      ),
+      window.apiRequestCore(
+        window.ADMIN_TOKEN_KEY,
+        `/api/inventory/items`,
+        "GET"
+      ),
+    ]);
+
+    const statusInfo = formatMaintenanceStatus(task.status);
+    document.getElementById("maint-detail-id").textContent = task.task_id;
+    document.getElementById("maint-detail-vin").textContent =
+      task.vehicle_vin || "N/A";
+    document.getElementById("maint-detail-desc").textContent = task.description;
+    document.getElementById(
+      "maint-detail-tech"
+    ).textContent = `ID: ${task.technician_id}`;
+    const statusEl = document.getElementById("maint-detail-status");
+    statusEl.textContent = statusInfo.text;
+    statusEl.className = `font-bold px-2 py-1 rounded text-sm ${statusInfo.class}`;
+
+    const partsBody = document.getElementById("maint-detail-parts-body");
+    if (!parts || parts.length === 0) {
+      partsBody.innerHTML =
+        '<tr><td colspan="2" class="px-4 py-2 text-center text-gray-500 italic">Chưa sử dụng phụ tùng nào.</td></tr>';
+    } else {
+      partsBody.innerHTML = parts
+        .map((p) => {
+          const itemInfo = inventory.find((i) => i.id === p.item_id);
+          const itemName = itemInfo ? itemInfo.name : `Mã PT #${p.item_id}`;
+          return `<tr class="border-b last:border-0"><td class="px-4 py-2 text-sm font-medium text-gray-800">${itemName}</td><td class="px-4 py-2 text-sm text-right font-mono font-bold text-indigo-600">x${p.quantity}</td></tr>`;
+        })
+        .join("");
+    }
+
+    const checklistBody = document.getElementById(
+      "maint-detail-checklist-body"
+    );
+    if (!checklist || checklist.length === 0) {
+      checklistBody.innerHTML =
+        '<tr><td colspan="3" class="px-4 py-2 text-center text-gray-500 italic">Chưa có checklist.</td></tr>';
+    } else {
+      checklistBody.innerHTML = checklist
+        .map((c) => {
+          let statusBadge = "";
+          if (c.status === "pass")
+            statusBadge =
+              '<span class="text-green-600 font-bold flex items-center">✅ Đạt</span>';
+          else if (c.status === "fail")
+            statusBadge =
+              '<span class="text-red-600 font-bold flex items-center">❌ Hỏng</span>';
+          else if (c.status === "needs_repair")
+            statusBadge =
+              '<span class="text-yellow-600 font-bold flex items-center">⚠️ Cần sửa</span>';
+          else
+            statusBadge =
+              '<span class="text-gray-400 italic">Chưa kiểm tra</span>';
+          return `<tr class="border-b last:border-0 hover:bg-gray-50"><td class="px-4 py-2 text-sm font-medium">${
+            c.item_name
+          }</td><td class="px-4 py-2 text-sm">${statusBadge}</td><td class="px-4 py-2 text-sm text-gray-600 italic">${
+            c.note || "-"
+          }</td></tr>`;
+        })
+        .join("");
+    }
+    maintDetailModal?.classList.remove("hidden");
+  } catch (e) {
+    console.error(e);
+    window.showToast("Không thể tải chi tiết công việc", true);
+  } finally {
+    window.hideLoading();
+  }
+};
 document
   .getElementById("create-task-form")
   ?.addEventListener("submit", async (e) => {

@@ -64,3 +64,26 @@ def delete_item_route(item_id):
         return jsonify({"error": message}), 404
     
     return jsonify({"message": message}), 200
+
+# ✅ 7. AI SUGGEST REPLACEMENT PARTS (POST /api/inventory/suggest-parts)
+@inventory_bp.route("/suggest-parts", methods=["POST"])
+def suggest_replacement_parts():
+    """
+    Gợi ý phụ tùng thay thế dựa trên thông tin xe và triệu chứng/hạng mục cần sửa.
+    """
+    data = request.get_json()
+    vehicle_model = data.get("vehicle_model")
+    category = data.get("category") 
+
+    if not vehicle_model:
+        return jsonify({"error": "vehicle_model is required"}), 400
+    
+    suggestions = service.suggest_parts(vehicle_model, category)
+    return jsonify([item.to_dict() for item in suggestions]), 200
+
+# ✅ 8. SEED DEMO DATA (POST /api/inventory/seed-ai-data)
+@inventory_bp.route("/seed-ai-data", methods=["POST"])
+def seed_ai_data():
+    """API để tạo dữ liệu mẫu phục vụ demo AI"""
+    service.seed_demo_data()
+    return jsonify({"message": "Đã nạp dữ liệu mẫu AI thành công!"}), 201
