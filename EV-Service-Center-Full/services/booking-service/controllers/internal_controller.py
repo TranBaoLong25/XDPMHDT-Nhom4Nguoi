@@ -25,3 +25,18 @@ def get_booking_by_id(booking_id):
     if not booking:
         return jsonify({"error": "Booking not found"}), 404
     return jsonify(booking.to_dict()), 200
+
+@internal_bp.route("/items/<int:booking_id>/status", methods=["PUT"])
+def update_booking_status(booking_id):
+    """Cập nhật trạng thái booking (cho payment-service)"""
+    data = request.json
+    if not data or "status" not in data:
+        return jsonify({"error": "Missing status field"}), 400
+
+    new_status = data.get("status")
+    booking, error = BookingService.update_booking_status(booking_id, new_status)
+
+    if error:
+        return jsonify({"error": error}), 400
+
+    return jsonify(booking.to_dict()), 200

@@ -222,11 +222,29 @@ class MaintenanceService:
         return MaintenanceChecklist.query.filter_by(task_id=task_id).all()
 
     @staticmethod
-    def update_checklist_item(item_id, status=None, note=None):
+    def update_checklist_item(item_id, status=None, note=None, current_user_id=None, is_admin=False):
         item = MaintenanceChecklist.query.get(item_id)
-        if not item: return None, "Hạng mục kiểm tra không tồn tại"
-        if status: item.status = status
-        if note is not None: item.note = note
+        if not item:
+            return None, "Hạng mục kiểm tra không tồn tại"
+
+        # Kiểm tra quyền: Admin hoặc KTV owner của task
+        if not is_admin and current_user_id:
+            # Lấy task liên quan đến checklist item
+            task = MaintenanceTask.query.get(item.task_id)
+            if task and task.technician_id:
+                # Convert both to int for comparison
+                try:
+                    tech_id = int(task.technician_id)
+                    user_id = int(current_user_id) if not isinstance(current_user_id, int) else current_user_id
+                    if tech_id != user_id:
+                        return None, "Bạn không có quyền cập nhật checklist này"
+                except (ValueError, TypeError):
+                    return None, "Lỗi xác thực người dùng"
+
+        if status:
+            item.status = status
+        if note is not None:
+            item.note = note
         db.session.commit()
         return item, None
 

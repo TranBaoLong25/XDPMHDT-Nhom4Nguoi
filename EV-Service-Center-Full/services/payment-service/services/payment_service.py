@@ -44,9 +44,20 @@ class PaymentService:
         """Cập nhật trạng thái Invoice"""
         finance_url = current_app.config.get("FINANCE_SERVICE_URL")
         return PaymentService._call_internal_api(
-            finance_url, 
-            f"/internal/invoices/{invoice_id}/status", 
-            "PUT", 
+            finance_url,
+            f"/internal/invoices/{invoice_id}/status",
+            "PUT",
+            {"status": new_status}
+        )
+
+    @staticmethod
+    def _update_booking_status(booking_id, new_status):
+        """Cập nhật trạng thái Booking"""
+        booking_url = current_app.config.get("BOOKING_SERVICE_URL")
+        return PaymentService._call_internal_api(
+            booking_url,
+            f"/internal/bookings/items/{booking_id}/status",
+            "PUT",
             {"status": new_status}
         )
     
@@ -178,12 +189,29 @@ class PaymentService:
             transaction.status = final_status
             db.session.commit()
 
-            # 2. Nếu thành công, cập nhật trạng thái Invoice VÀ GỬI NOTIFICATION
+            # 2. Nếu thành công, cập nhật trạng thái Invoice VÀ Booking VÀ GỬI NOTIFICATION
             if final_status == 'success':
+                # Cập nhật trạng thái Invoice thành 'paid'
                 _, error = PaymentService._update_invoice_status(transaction.invoice_id, 'paid')
                 if error:
                     current_app.logger.error(f"Failed to update Invoice {transaction.invoice_id} status to 'paid': {error}")
-                
+
+                # Lấy thông tin Invoice để biết booking_id
+                invoice_data, invoice_error = PaymentService._get_invoice_details(transaction.invoice_id)
+                if not invoice_error and invoice_data:
+                    booking_id = invoice_data.get('booking_id')
+                    if booking_id:
+                        # Cập nhật trạng thái Booking thành 'completed'
+                        _, booking_error = PaymentService._update_booking_status(booking_id, 'completed')
+                        if booking_error:
+                            current_app.logger.error(f"Failed to update Booking {booking_id} status to 'completed': {booking_error}")
+                        else:
+                            current_app.logger.info(f"✅ Successfully updated Booking {booking_id} to 'completed' after payment success")
+                    else:
+                        current_app.logger.warning(f"Invoice {transaction.invoice_id} has no booking_id")
+                else:
+                    current_app.logger.error(f"Failed to get Invoice {transaction.invoice_id} details: {invoice_error}")
+
                 # 🎯 BỔ SUNG: GỬI NOTIFICATION THANH TOÁN THÀNH CÔNG
                 PaymentService._notify_payment_success(transaction) 
             

@@ -33,6 +33,7 @@ def create_app():
         app.config["INTERNAL_SERVICE_TOKEN"] = internal_token.strip()
 
     app.config["FINANCE_SERVICE_URL"] = os.getenv("FINANCE_SERVICE_URL")
+    app.config["BOOKING_SERVICE_URL"] = os.getenv("BOOKING_SERVICE_URL")
     # ✅ THÊM DÒNG NÀY: Đọc biến môi trường MOMO QR và đưa vào cấu hình Flask
     app.config["MOMO_QR_CODE_URL"] = os.getenv("MOMO_QR_CODE_URL")
     

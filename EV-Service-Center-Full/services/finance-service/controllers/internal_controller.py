@@ -27,6 +27,7 @@ def internal_get_invoice(invoice_id):
     # Chỉ trả về dữ liệu cần thiết cho Payment Service
     return jsonify({
         "id": invoice_data.get('id'),
+        "booking_id": invoice_data.get('booking_id'),
         "user_id": invoice_data.get('user_id'),
         "total_amount": invoice_data.get('total_amount'),
         "status": invoice_data.get('status')

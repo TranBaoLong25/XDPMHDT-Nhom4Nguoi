@@ -615,6 +615,7 @@ async function loadAllBookings() {
       return;
     }
     tbody.innerHTML = bookings
+      .reverse()
       .map((b) => {
         const dateStr = formatDateTime(b.start_time);
         const statusInfo = formatBookingStatus(b.status);

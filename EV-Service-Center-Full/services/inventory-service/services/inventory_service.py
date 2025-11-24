@@ -38,6 +38,11 @@ class InventoryService:
         return query.order_by(Inventory.id.desc()).all()
 
     @staticmethod
+    def get_all_parts(center_id=None):
+        """Alias for get_all_items - used by report service"""
+        return InventoryService.get_all_items(center_id)
+
+    @staticmethod
     def create_item(data):
         part_number = data.get("part_number")
         center_id = data.get("center_id", 1) 

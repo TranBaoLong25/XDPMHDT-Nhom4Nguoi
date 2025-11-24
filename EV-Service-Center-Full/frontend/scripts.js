@@ -206,6 +206,9 @@ function navigateTo(pageId) {
   currentPageElement = nextPageElement;
 
   // Trigger logic based on page
+  if (pageId === "home") {
+    loadMyBookingsForHome();
+  }
   if (pageId === "profile") loadProfileDetails();
   if (pageId === "forget-password") resetForgetForm();
   if (pageId === "inventory-list") loadInventoryList();
@@ -385,6 +388,74 @@ async function loadMyBookings() {
   // Logic tương tự loadBookingsForProfile nhưng có thể render khác
   // Ở đây tôi dùng lại logic tương tự để code gọn
   await loadBookingsForProfile();
+}
+
+async function loadMyBookingsForHome() {
+  // Load bookings for home page (booking-list container)
+  const bookingListEl = document.getElementById("booking-list");
+  if (!bookingListEl) return;
+
+  bookingListEl.innerHTML = '<div class="text-center text-gray-400 py-4">Đang tải lịch hẹn...</div>';
+
+  try {
+    const bookings = await apiRequestCore(
+      TOKEN_KEY,
+      "/api/bookings/my-bookings",
+      "GET"
+    );
+
+    if (!bookings || bookings.length === 0) {
+      bookingListEl.innerHTML =
+        '<div class="text-center text-gray-500 py-8">Chưa có lịch hẹn nào.</div>';
+      return;
+    }
+
+    bookingListEl.innerHTML = bookings
+      .slice(0, 5) // Chỉ hiển thị 5 lịch hẹn gần đây nhất
+      .map((booking) => {
+        const startDate = new Date(booking.start_time).toLocaleString("vi-VN", {
+          dateStyle: "short",
+          timeStyle: "short",
+        });
+        const endDate = new Date(booking.end_time).toLocaleString("vi-VN", {
+          timeStyle: "short",
+        });
+        const status = getStatusBadge(booking.status, "booking");
+
+        return `
+          <div class="bg-gray-800 p-5 rounded-xl border border-gray-700 hover:border-indigo-500 transition">
+            <div class="flex justify-between items-start mb-3">
+              <div>
+                <h4 class="font-bold text-white text-lg">${booking.service_type}</h4>
+                <p class="text-gray-400 text-sm mt-1">
+                  <span class="mr-3">📅 ${startDate} - ${endDate}</span>
+                </p>
+              </div>
+              <span class="px-3 py-1 rounded-full text-xs font-bold ${status.class}">
+                ${status.text}
+              </span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-sm">
+              <div class="text-gray-400">
+                <span class="text-gray-500">Booking ID:</span>
+                <span class="text-white font-mono">#${booking.id}</span>
+              </div>
+              ${booking.technician_id ? `
+                <div class="text-gray-400">
+                  <span class="text-gray-500">Kỹ thuật viên:</span>
+                  <span class="text-indigo-400">#${booking.technician_id}</span>
+                </div>
+              ` : '<div class="text-gray-500 italic">Chưa có KTV</div>'}
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+  } catch (error) {
+    console.error("Error loading bookings:", error);
+    bookingListEl.innerHTML =
+      '<div class="text-center text-red-400 py-4">Không thể tải lịch hẹn</div>';
+  }
 }
 
 function setServiceType(itemName) {
