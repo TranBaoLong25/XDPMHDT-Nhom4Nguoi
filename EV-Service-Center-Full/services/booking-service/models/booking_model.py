@@ -37,9 +37,9 @@ class Booking(db.Model):
     
     customer_name = db.Column(db.String(100), nullable=False)
     service_type = db.Column(db.String(100), nullable=False)
-
+    
     # Giả định Kỹ thuật viên và Trạm được quản lý ở đây
-    technician_id = db.Column(db.Integer, nullable=True)  # Optional - người dùng có thể không chọn KTV
+    technician_id = db.Column(db.Integer, nullable=False)
     station_id = db.Column(db.Integer, nullable=False)
     
     # --- THÊM MỚI: Liên kết với Chi nhánh ---

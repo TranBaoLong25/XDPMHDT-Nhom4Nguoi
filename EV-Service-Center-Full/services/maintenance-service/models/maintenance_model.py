@@ -67,3 +67,26 @@ class TaskPart(db.Model):
             "quantity": self.quantity,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
+
+class MaintenanceChecklist(db.Model):
+    """Bảng lưu checklist các hạng mục kiểm tra (Lốp, Phanh, Pin, Động cơ...)"""
+    __tablename__ = "maintenance_checklists"
+
+    id = db.Column(db.Integer, primary_key=True, index=True)
+    task_id = db.Column(db.Integer, nullable=False, index=True)
+    item_name = db.Column(db.String(100), nullable=False) # Tên hạng mục (Lốp, Phanh, v.v.)
+    status = db.Column(db.String(50), nullable=False) # Trạng thái: "pass", "fail", "needs_repair", etc.
+    note = db.Column(db.String(255), nullable=True) # Ghi chú thêm
+    created_at = db.Column(db.DateTime, nullable=False, default=func.now())
+    updated_at = db.Column(db.DateTime, nullable=False, default=func.now(), onupdate=func.now())
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "task_id": self.task_id,
+            "item_name": self.item_name,
+            "status": self.status,
+            "note": self.note,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None
+        }

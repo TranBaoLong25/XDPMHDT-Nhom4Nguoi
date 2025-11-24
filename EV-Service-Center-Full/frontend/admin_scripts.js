@@ -186,10 +186,6 @@ function navigateToDashboardSection(sectionId, title) {
       loadDashboardData();
       switchReportTab("revenue");
       break;
-    case "chat-support-section":
-      initChatSocket();
-      loadChatRooms();
-      break;
   }
 }
 window.navigateToDashboardSection = navigateToDashboardSection;
@@ -751,18 +747,21 @@ async function loadAllMaintenanceTasks() {
           t.status === "completed" || t.status === "failed" ? "disabled" : "";
         return `
             <tr class="hover:bg-gray-50">
-                <td class="px-6 py-4 text-sm">${t.task_id}</td>
+                <td class="px-6 py-4 text-sm font-mono text-gray-600">#${
+                  t.task_id
+                }</td>
                 <td class="px-6 py-4 text-sm">Booking #${t.booking_id}</td>
                 <td class="px-6 py-4 text-sm">${t.description}</td>
-                <td class="px-6 py-4 text-sm font-mono">${t.vehicle_vin}</td>
+                <td class="px-6 py-4 text-sm font-mono">${
+                  t.vehicle_vin || "-"
+                }</td>
                 <td class="px-6 py-4 text-sm">KTV ID: ${t.technician_id}</td>
                 <td class="px-6 py-4 text-sm">
                      <select class="border rounded p-1 text-xs ${
                        statusInfo.class
-                     }" ${disabled}
-                            onchange="updateMaintenanceTaskStatus(${
-                              t.task_id
-                            }, this.value)">
+                     }" ${disabled} onchange="updateMaintenanceTaskStatus(${
+          t.task_id
+        }, this.value)">
                         <option value="pending" ${
                           t.status === "pending" ? "selected" : ""
                         }>Chờ thực hiện</option>
@@ -777,11 +776,14 @@ async function loadAllMaintenanceTasks() {
                         }>Thất bại</option>
                     </select>
                 </td>
-                <td class="px-6 py-4 text-center">
+                <td class="px-6 py-4 text-center space-x-2">
+                    <button onclick="viewMaintenanceDetail(${
+                      t.task_id
+                    })" class="text-blue-600 hover:text-blue-900 font-medium bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 transition">Chi Tiết</button>
                     ${
                       disabled
-                        ? '<span class="text-gray-400">Đã khóa</span>'
-                        : `<button onclick="if(confirm('Hoàn thành công việc?')) updateMaintenanceTaskStatus(${t.task_id}, 'completed')" class="text-green-600 hover:text-green-900 font-medium">Hoàn Thành</button>`
+                        ? ""
+                        : `<button onclick="if(confirm('Hoàn thành công việc?')) updateMaintenanceTaskStatus(${t.task_id}, 'completed')" class="text-green-600 hover:text-green-900 font-medium">Xong</button>`
                     }
                 </td>
             </tr>`;
@@ -867,7 +869,101 @@ window.openCreateTaskModal = async () => {
     window.showToast("Lỗi tải dữ liệu dropdown", true);
   }
 };
+// --- LOGIC XEM CHI TIẾT BẢO TRÌ (MỚI) ---
+const maintDetailModal = document.getElementById("maintenance-detail-modal");
+window.closeMaintenanceDetailModal = () =>
+  maintDetailModal?.classList.add("hidden");
 
+window.viewMaintenanceDetail = async (taskId) => {
+  try {
+    window.showLoading();
+    const [task, parts, checklist, inventory] = await Promise.all([
+      window.apiRequestCore(
+        window.ADMIN_TOKEN_KEY,
+        `/api/maintenance/tasks/${taskId}`,
+        "GET"
+      ),
+      window.apiRequestCore(
+        window.ADMIN_TOKEN_KEY,
+        `/api/maintenance/tasks/${taskId}/parts`,
+        "GET"
+      ),
+      window.apiRequestCore(
+        window.ADMIN_TOKEN_KEY,
+        `/api/maintenance/tasks/${taskId}/checklist`,
+        "GET"
+      ),
+      window.apiRequestCore(
+        window.ADMIN_TOKEN_KEY,
+        `/api/inventory/items`,
+        "GET"
+      ),
+    ]);
+
+    const statusInfo = formatMaintenanceStatus(task.status);
+    document.getElementById("maint-detail-id").textContent = task.task_id;
+    document.getElementById("maint-detail-vin").textContent =
+      task.vehicle_vin || "N/A";
+    document.getElementById("maint-detail-desc").textContent = task.description;
+    document.getElementById(
+      "maint-detail-tech"
+    ).textContent = `ID: ${task.technician_id}`;
+    const statusEl = document.getElementById("maint-detail-status");
+    statusEl.textContent = statusInfo.text;
+    statusEl.className = `font-bold px-2 py-1 rounded text-sm ${statusInfo.class}`;
+
+    const partsBody = document.getElementById("maint-detail-parts-body");
+    if (!parts || parts.length === 0) {
+      partsBody.innerHTML =
+        '<tr><td colspan="2" class="px-4 py-2 text-center text-gray-500 italic">Chưa sử dụng phụ tùng nào.</td></tr>';
+    } else {
+      partsBody.innerHTML = parts
+        .map((p) => {
+          const itemInfo = inventory.find((i) => i.id === p.item_id);
+          const itemName = itemInfo ? itemInfo.name : `Mã PT #${p.item_id}`;
+          return `<tr class="border-b last:border-0"><td class="px-4 py-2 text-sm font-medium text-gray-800">${itemName}</td><td class="px-4 py-2 text-sm text-right font-mono font-bold text-indigo-600">x${p.quantity}</td></tr>`;
+        })
+        .join("");
+    }
+
+    const checklistBody = document.getElementById(
+      "maint-detail-checklist-body"
+    );
+    if (!checklist || checklist.length === 0) {
+      checklistBody.innerHTML =
+        '<tr><td colspan="3" class="px-4 py-2 text-center text-gray-500 italic">Chưa có checklist.</td></tr>';
+    } else {
+      checklistBody.innerHTML = checklist
+        .map((c) => {
+          let statusBadge = "";
+          if (c.status === "pass")
+            statusBadge =
+              '<span class="text-green-600 font-bold flex items-center">✅ Đạt</span>';
+          else if (c.status === "fail")
+            statusBadge =
+              '<span class="text-red-600 font-bold flex items-center">❌ Hỏng</span>';
+          else if (c.status === "needs_repair")
+            statusBadge =
+              '<span class="text-yellow-600 font-bold flex items-center">⚠️ Cần sửa</span>';
+          else
+            statusBadge =
+              '<span class="text-gray-400 italic">Chưa kiểm tra</span>';
+          return `<tr class="border-b last:border-0 hover:bg-gray-50"><td class="px-4 py-2 text-sm font-medium">${
+            c.item_name
+          }</td><td class="px-4 py-2 text-sm">${statusBadge}</td><td class="px-4 py-2 text-sm text-gray-600 italic">${
+            c.note || "-"
+          }</td></tr>`;
+        })
+        .join("");
+    }
+    maintDetailModal?.classList.remove("hidden");
+  } catch (e) {
+    console.error(e);
+    window.showToast("Không thể tải chi tiết công việc", true);
+  } finally {
+    window.hideLoading();
+  }
+};
 document
   .getElementById("create-task-form")
   ?.addEventListener("submit", async (e) => {
@@ -1500,334 +1596,7 @@ async function loadInventoryReport() {
 }
 
 // =============================================================================
-// 13. CHAT SUPPORT
-// =============================================================================
-let chatSocket = null;
-let currentChatRoom = null;
-let chatTypingTimeout = null;
-let currentChatTab = 'waiting';
-
-// Initialize Socket.IO for chat
-function initChatSocket() {
-  if (chatSocket && chatSocket.connected) return;
-
-  chatSocket = io("http://localhost", {
-    transports: ["websocket", "polling"],
-    reconnection: true,
-    reconnectionDelay: 1000,
-    reconnectionAttempts: 5
-  });
-
-  chatSocket.on("connect", () => {
-    console.log("✅ Admin Chat Socket connected:", chatSocket.id);
-    const token = localStorage.getItem(window.ADMIN_TOKEN_KEY);
-    const payload = JSON.parse(atob(token.split(".")[1]));
-
-    chatSocket.emit("authenticate", {
-      user_id: parseInt(payload.sub),
-      user_name: payload.username || "Admin",
-      role: payload.role
-    });
-  });
-
-  chatSocket.on("authenticated", (data) => {
-    console.log("🔐 Admin authenticated:", data);
-    loadChatRooms();
-  });
-
-  chatSocket.on("new_message", (message) => {
-    console.log("📩 New message:", message);
-
-    // Refresh room list if message in waiting room
-    if (message.room_id !== currentChatRoom?.id) {
-      loadChatRooms();
-    } else {
-      // Append to current chat
-      appendAdminMessage(message);
-    }
-  });
-
-  chatSocket.on("user_typing", (data) => {
-    showAdminTypingIndicator(data.user_name);
-  });
-
-  chatSocket.on("disconnect", () => {
-    console.log("❌ Admin Chat Socket disconnected");
-  });
-}
-
-// Load chat rooms
-async function loadChatRooms() {
-  try {
-    let endpoint = "/api/chat/rooms/waiting";
-    if (currentChatTab === 'active') {
-      const token = localStorage.getItem(window.ADMIN_TOKEN_KEY);
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      endpoint = `/api/chat/rooms/support/${payload.sub}`;
-    }
-
-    const rooms = await window.apiRequestCore(window.ADMIN_TOKEN_KEY, endpoint, "GET");
-    displayChatRooms(rooms);
-    updateChatStats(rooms);
-  } catch (error) {
-    console.error("Error loading chat rooms:", error);
-  }
-}
-
-// Display chat rooms
-function displayChatRooms(rooms) {
-  const container = document.getElementById("chat-rooms-list");
-
-  if (!rooms || rooms.length === 0) {
-    container.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">Chưa có phòng chat</p>';
-    return;
-  }
-
-  container.innerHTML = rooms.map(room => `
-    <div
-      onclick="selectChatRoom(${room.id})"
-      class="p-3 border rounded-lg cursor-pointer hover:bg-indigo-50 transition ${currentChatRoom?.id === room.id ? 'bg-indigo-100 border-indigo-500' : 'border-gray-200'}"
-    >
-      <div class="flex justify-between items-start mb-1">
-        <p class="font-semibold text-sm">${room.user_name}</p>
-        <span class="text-xs px-2 py-1 rounded ${room.status === 'waiting' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}">
-          ${room.status === 'waiting' ? 'Chờ' : 'Active'}
-        </span>
-      </div>
-      <p class="text-xs text-gray-600 truncate">${room.subject || 'Yêu cầu hỗ trợ'}</p>
-      <p class="text-xs text-gray-400 mt-1">${formatDateTime(room.created_at)}</p>
-    </div>
-  `).join('');
-}
-
-// Update chat statistics
-function updateChatStats(rooms) {
-  const waiting = rooms.filter(r => r.status === 'waiting').length;
-  const active = rooms.filter(r => r.status === 'active').length;
-
-  document.getElementById("waiting-rooms-count").textContent = waiting;
-  document.getElementById("active-rooms-count").textContent = active;
-
-  // Update badge in header
-  const badge = document.getElementById("waiting-rooms-badge");
-  if (waiting > 0) {
-    badge.textContent = waiting;
-    badge.classList.remove("hidden");
-  } else {
-    badge.classList.add("hidden");
-  }
-}
-
-// Switch chat tab
-window.switchChatTab = function(tab) {
-  currentChatTab = tab;
-
-  // Update tab styles
-  document.querySelectorAll('.chat-tab').forEach(btn => {
-    btn.classList.remove('text-orange-600', 'text-green-600', 'border-orange-600', 'border-green-600');
-    btn.classList.add('text-gray-500', 'border-transparent');
-  });
-
-  const activeBtn = document.getElementById(`chat-tab-${tab}`);
-  const color = tab === 'waiting' ? 'orange' : 'green';
-  activeBtn.classList.remove('text-gray-500', 'border-transparent');
-  activeBtn.classList.add(`text-${color}-600`, `border-${color}-600`);
-
-  loadChatRooms();
-};
-
-// Select a chat room
-async function selectChatRoom(roomId) {
-  try {
-    const room = await window.apiRequestCore(window.ADMIN_TOKEN_KEY, `/api/chat/rooms/${roomId}`, "GET");
-    currentChatRoom = room;
-
-    // Update UI
-    document.getElementById("chat-room-title").textContent = room.user_name;
-    document.getElementById("chat-room-subtitle").textContent = room.subject || "Yêu cầu hỗ trợ";
-    document.getElementById("close-room-btn").classList.remove("hidden");
-    document.getElementById("chat-input-container").classList.remove("hidden");
-
-    // Join room via socket
-    if (chatSocket && chatSocket.connected) {
-      chatSocket.emit("join_room", { room_id: roomId });
-    }
-
-    // Load messages
-    const messages = await window.apiRequestCore(window.ADMIN_TOKEN_KEY, `/api/chat/rooms/${roomId}/messages`, "GET");
-    const container = document.getElementById("admin-messages-container");
-    container.innerHTML = "";
-    messages.forEach(msg => appendAdminMessage(msg));
-
-    // Assign support if waiting
-    if (room.status === 'waiting') {
-      await assignSelfToRoom(roomId);
-    }
-
-    // Mark as read
-    await window.apiRequestCore(window.ADMIN_TOKEN_KEY, `/api/chat/rooms/${roomId}/read`, "PUT", {
-      user_id: getCurrentAdminUserId()
-    });
-
-    loadChatRooms();
-  } catch (error) {
-    console.error("Error selecting chat room:", error);
-    showToast("Không thể mở phòng chat", true);
-  }
-}
-
-// Assign self to room
-async function assignSelfToRoom(roomId) {
-  try {
-    const token = localStorage.getItem(window.ADMIN_TOKEN_KEY);
-    const payload = JSON.parse(atob(token.split(".")[1]));
-
-    await window.apiRequestCore(window.ADMIN_TOKEN_KEY, `/api/chat/rooms/${roomId}/assign`, "PUT", {
-      support_user_id: parseInt(payload.sub),
-      support_user_name: payload.username,
-      support_role: payload.role
-    });
-  } catch (error) {
-    console.error("Error assigning support:", error);
-  }
-}
-
-// Append message to admin chat
-function appendAdminMessage(message) {
-  const container = document.getElementById("admin-messages-container");
-  const isOwn = message.sender_id === getCurrentAdminUserId();
-  const isSystem = message.message_type === "system";
-
-  let messageHTML;
-
-  if (isSystem) {
-    messageHTML = `
-      <div class="flex justify-center">
-        <div class="bg-gray-200 text-gray-700 text-xs px-3 py-1 rounded-full">
-          ${escapeHtml(message.message)}
-        </div>
-      </div>
-    `;
-  } else {
-    messageHTML = `
-      <div class="flex ${isOwn ? 'justify-end' : 'justify-start'}">
-        <div class="max-w-md">
-          ${!isOwn ? `<p class="text-xs text-gray-500 mb-1 ml-2">${escapeHtml(message.sender_name)}</p>` : ''}
-          <div class="${isOwn ? 'bg-indigo-600 text-white' : 'bg-white text-gray-900 border border-gray-200'} rounded-lg px-4 py-2 shadow-sm">
-            <p class="text-sm">${escapeHtml(message.message)}</p>
-          </div>
-          <p class="text-xs text-gray-400 mt-1 ${isOwn ? 'text-right' : 'text-left'} mx-2">
-            ${formatTime(message.created_at)}
-          </p>
-        </div>
-      </div>
-    `;
-  }
-
-  container.insertAdjacentHTML("beforeend", messageHTML);
-  container.scrollTop = container.scrollHeight;
-}
-
-// Format time for messages
-function formatTime(dateString) {
-  const date = new Date(dateString);
-  return date.toLocaleTimeString("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit"
-  });
-}
-
-// Escape HTML
-function escapeHtml(text) {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-// Get current admin user ID
-function getCurrentAdminUserId() {
-  const token = localStorage.getItem(window.ADMIN_TOKEN_KEY);
-  const payload = JSON.parse(atob(token.split(".")[1]));
-  return parseInt(payload.sub);
-}
-
-// Show typing indicator
-function showAdminTypingIndicator(userName) {
-  const indicator = document.getElementById("admin-typing-indicator");
-  const userEl = document.getElementById("admin-typing-user");
-
-  userEl.textContent = `${userName} đang gõ...`;
-  indicator.classList.remove("hidden");
-
-  if (chatTypingTimeout) clearTimeout(chatTypingTimeout);
-  chatTypingTimeout = setTimeout(() => {
-    indicator.classList.add("hidden");
-  }, 3000);
-}
-
-// Close current room
-window.closeCurrentRoom = async function() {
-  if (!currentChatRoom) return;
-
-  if (!confirm("Bạn có chắc muốn đóng phòng chat này?")) return;
-
-  try {
-    await window.apiRequestCore(window.ADMIN_TOKEN_KEY, `/api/chat/rooms/${currentChatRoom.id}/close`, "PUT");
-    showToast("Đã đóng phòng chat");
-    currentChatRoom = null;
-
-    // Reset UI
-    document.getElementById("admin-messages-container").innerHTML = `
-      <div class="flex items-center justify-center h-full">
-        <p class="text-gray-400 text-center">Chọn một phòng chat để bắt đầu hỗ trợ khách hàng</p>
-      </div>
-    `;
-    document.getElementById("chat-room-title").textContent = "Chọn một phòng chat";
-    document.getElementById("chat-room-subtitle").textContent = "";
-    document.getElementById("close-room-btn").classList.add("hidden");
-    document.getElementById("chat-input-container").classList.add("hidden");
-
-    loadChatRooms();
-  } catch (error) {
-    showToast("Không thể đóng phòng chat", true);
-  }
-};
-
-// Send admin message
-document.getElementById("admin-message-form")?.addEventListener("submit", (e) => {
-  e.preventDefault();
-
-  const input = document.getElementById("admin-message-input");
-  const message = input.value.trim();
-
-  if (!message || !currentChatRoom) return;
-
-  if (chatSocket && chatSocket.connected) {
-    chatSocket.emit("send_message", {
-      room_id: currentChatRoom.id,
-      message: message,
-      message_type: "text"
-    });
-
-    input.value = "";
-  } else {
-    showToast("Chưa kết nối đến server", true);
-  }
-});
-
-// Typing event
-document.getElementById("admin-message-input")?.addEventListener("input", (e) => {
-  if (!chatSocket || !currentChatRoom) return;
-
-  const isTyping = e.target.value.length > 0;
-  chatSocket.emit("typing", {
-    room_id: currentChatRoom.id,
-    is_typing: isTyping
-  });
-});
-
-// =============================================================================
-// 14. INITIALIZATION
+// 13. INITIALIZATION
 // =============================================================================
 document.addEventListener("DOMContentLoaded", () => {
   const token = localStorage.getItem(window.ADMIN_TOKEN_KEY);

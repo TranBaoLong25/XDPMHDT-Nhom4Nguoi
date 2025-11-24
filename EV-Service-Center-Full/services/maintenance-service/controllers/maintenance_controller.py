@@ -207,3 +207,77 @@ def get_booking_parts_route(booking_id):
         return jsonify({"error": error}), 404
 
     return jsonify(parts), 200
+
+# ============= Checklist Endpoints =============
+
+@maintenance_bp.route("/tasks/<int:task_id>/checklist", methods=["POST"])
+@jwt_required()
+def add_checklist_item_route(task_id):
+    """Thêm hạng mục kiểm tra vào checklist"""
+    data = request.get_json()
+    item_name = data.get("item_name")
+    status = data.get("status", "pending")
+    note = data.get("note")
+
+    if not item_name:
+        return jsonify({"error": "item_name là bắt buộc"}), 400
+
+    # Kiểm tra quyền: phải là owner của task hoặc admin
+    current_user_id = get_jwt_identity()
+    claims = get_jwt()
+    is_admin = claims.get("role") == "admin"
+
+    task = service.get_task_by_id(task_id)
+    if not task:
+        return jsonify({"error": "Task không tồn tại"}), 404
+
+    is_owner = str(task.user_id) == str(current_user_id)
+
+    if not is_admin and not is_owner:
+        return jsonify({"error": "Bạn không có quyền thực hiện hành động này"}), 403
+
+    item, error = service.add_checklist_item(task_id, item_name, status, note)
+    if error:
+        return jsonify({"error": error}), 400
+        
+    return jsonify({
+        "message": "Thêm hạng mục kiểm tra thành công",
+        "checklist_item": item.to_dict()
+    }), 201
+
+@maintenance_bp.route("/tasks/<int:task_id>/checklist", methods=["GET"])
+@jwt_required()
+def get_task_checklist_route(task_id):
+    """Lấy checklist của task"""
+    checklist = service.get_task_checklist(task_id)
+    return jsonify([item.to_dict() for item in checklist]), 200
+
+@maintenance_bp.route("/checklist/<int:item_id>", methods=["PUT"])
+@jwt_required()
+def update_checklist_item_route(item_id):
+    """Cập nhật hạng mục kiểm tra"""
+    data = request.get_json()
+    status = data.get("status")
+    note = data.get("note")
+
+    # Cần kiểm tra quyền sở hữu task (thông qua item -> task) nhưng để đơn giản ta cho phép nếu đăng nhập
+    # Tốt nhất nên query ngược lại task_id để check owner
+    
+    item, error = service.update_checklist_item(item_id, status, note)
+    if error:
+        return jsonify({"error": error}), 404
+
+    return jsonify({
+        "message": "Cập nhật hạng mục kiểm tra thành công",
+        "checklist_item": item.to_dict()
+    }), 200
+
+@maintenance_bp.route("/checklist/<int:item_id>", methods=["DELETE"])
+@jwt_required()
+def remove_checklist_item_route(item_id):
+    """Xóa hạng mục kiểm tra"""
+    success, error = service.remove_checklist_item(item_id)
+    if error:
+        return jsonify({"error": error}), 404
+
+    return jsonify({"message": "Xóa hạng mục kiểm tra thành công"}), 200

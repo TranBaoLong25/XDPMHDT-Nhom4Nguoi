@@ -100,14 +100,14 @@ class BookingService:
     @staticmethod
     def create_booking(data):
         """Tạo lịch đặt mới"""
-        required_fields = ["user_id", "service_type", "station_id", "start_time", "end_time"]
+        required_fields = ["user_id", "service_type", "technician_id", "station_id", "start_time", "end_time"]
         if not all(k in data for k in required_fields):
             return None, "Thiếu thông tin đặt lịch bắt buộc."
-
+        
         user_id = data['user_id']
         start_time = data['start_time']
         end_time = data['end_time']
-        technician_id = data.get('technician_id')  # Optional
+        technician_id = data['technician_id']
         station_id = data['station_id']
         center_id = data.get('center_id') # Lấy center_id (có thể null nếu legacy)
         
@@ -121,9 +121,9 @@ class BookingService:
         user_data, user_error = BookingService._verify_user(user_id)
         if user_error:
             return None, user_error
-
-        # 2. Kiểm tra trùng lịch (chỉ khi có technician_id)
-        if technician_id and not BookingService.is_time_available(technician_id, station_id, start_time, end_time):
+        
+        # 2. Kiểm tra trùng lịch
+        if not BookingService.is_time_available(technician_id, station_id, start_time, end_time):
             return None, "Thời gian này đã có lịch hẹn trùng."
 
         # 3. Tạo Booking
