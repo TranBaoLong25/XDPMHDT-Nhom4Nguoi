@@ -1,12 +1,7 @@
 // ==================== CONSTANTS ====================
 const TECH_TOKEN_KEY = "tech_access_token";
-<<<<<<< HEAD
-// Sử dụng API Gateway (Cổng 80) làm đầu mối duy nhất
+// Sử dụng API Gateway (Cổng 80) làm đầu mối duy nhất, thay vì trỏ thẳng vào một service
 const API_BASE_URL = window.location.origin; // Sẽ là http://localhost nếu chạy local
-=======
-// Trỏ thẳng vào API Gateway (Cổng 80) hoặc Maintenance Service (Cổng 8003)
-const API_BASE_URL = "http://localhost:8003";
->>>>>>> 54da90f9bcb05968fde8337de43b1ed07284ce0a
 
 // ==================== UTILITY FUNCTIONS ====================
 function showToast(message, isError = false) {
@@ -115,21 +110,16 @@ async function loadWorkList() {
     tbody.innerHTML = tasks
       .map((task) => {
         const statusBadge = formatTaskStatus(task.status);
-<<<<<<< HEAD
-        // Encode vehicle info in data attribute for easy access
-        const taskData = encodeURIComponent(JSON.stringify(task));
-        
-=======
-        const date = new Date(task.created_at).toLocaleDateString("vi-VN");
->>>>>>> 54da90f9bcb05968fde8337de43b1ed07284ce0a
+        // Dùng vehicle_vin và description để truyền vào modal AI suggestion
+        const vehicleVin = task.vehicle_vin || 'N/A';
+        const description = task.description || 'N/A';
+
         return `
           <tr class="hover:bg-gray-50">
             <td class="px-6 py-4 text-sm font-mono">#${task.task_id}</td>
             <td class="px-6 py-4 text-sm">Booking #${task.booking_id}</td>
-            <td class="px-6 py-4 text-sm font-semibold">${
-              task.vehicle_vin || "N/A"
-            }</td>
-            <td class="px-6 py-4 text-sm">${task.description || "N/A"}</td>
+            <td class="px-6 py-4 text-sm font-semibold">${vehicleVin}</td>
+            <td class="px-6 py-4 text-sm">${description}</td>
             <td class="px-6 py-4 text-sm"><span class="px-2 py-1 text-xs rounded-full ${
               statusBadge.class
             }">${statusBadge.text}</span></td>
@@ -139,14 +129,10 @@ async function loadWorkList() {
                   ? `<button onclick="updateTaskStatus(${task.task_id}, 'in_progress')" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs transition">Bắt Đầu</button>`
                   : task.status === "in_progress"
                   ? `<div class="flex flex-col space-y-2">
-                       <button onclick="openChecklistModal(${task.task_id})" class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1 rounded text-xs transition flex items-center justify-center gap-1">📋 Checklist</button>
-<<<<<<< HEAD
-                       <button onclick="openAddPartsModal(${task.task_id}, '${task.vehicle_vin}', '${task.description}')" class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded text-xs transition flex items-center justify-center gap-1">🔧 Phụ Tùng</button>
-=======
-                       <button onclick="openAddPartsModal(${task.task_id})" class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded text-xs transition flex items-center justify-center gap-1">🔧 Phụ Tùng</button>
->>>>>>> 54da90f9bcb05968fde8337de43b1ed07284ce0a
-                       <button onclick="updateTaskStatus(${task.task_id}, 'completed')" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-xs transition">✅ Hoàn Thành</button>
-                     </div>`
+                         <button onclick="openChecklistModal(${task.task_id})" class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1 rounded text-xs transition flex items-center justify-center gap-1">📋 Checklist</button>
+                         <button onclick="openAddPartsModal(${task.task_id}, '${vehicleVin}', '${description}')" class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded text-xs transition flex items-center justify-center gap-1">🔧 Phụ Tùng</button>
+                         <button onclick="updateTaskStatus(${task.task_id}, 'completed')" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-xs transition">✅ Hoàn Thành</button>
+                       </div>`
                   : '<span class="text-gray-400 italic">Đã khóa</span>'
               }
             </td>
@@ -238,7 +224,6 @@ async function openAddPartsModal(taskId, vehicleVin = null, description = null) 
   currentTaskId = taskId;
   document.getElementById("current-task-id-parts").textContent = taskId;
   document.getElementById("add-parts-modal").classList.remove("hidden");
-<<<<<<< HEAD
   
   // Reset AI Suggestion
   const aiBox = document.getElementById("ai-suggestion-box");
@@ -251,9 +236,6 @@ async function openAddPartsModal(taskId, vehicleVin = null, description = null) 
   if (vehicleVin && vehicleVin !== "N/A") {
     await loadAiSuggestions(vehicleVin, description);
   }
-=======
-  await Promise.all([loadInventoryItemsForParts(), loadTaskParts(taskId)]);
->>>>>>> 54da90f9bcb05968fde8337de43b1ed07284ce0a
 }
 window.openAddPartsModal = openAddPartsModal;
 
@@ -281,7 +263,7 @@ async function loadAiSuggestions(vehicleVin, description) {
         else if (descLower.includes("nhớt") || descLower.includes("lọc")) category = "filter";
 
         // Call API via Gateway!
-        // Chú ý: Sử dụng apiRequest để đi qua Gateway, thay vì fetch trực tiếp
+        // Chú ý: Sử dụng apiRequest để đi qua Gateway
         const suggestions = await apiRequest("/api/inventory/suggest-parts", "POST", { 
             vehicle_model: vehicleModel, 
             category: category 
@@ -295,6 +277,9 @@ async function loadAiSuggestions(vehicleVin, description) {
                 </li>`
             ).join("");
             aiBox.classList.remove("hidden");
+        } else {
+             aiList.innerHTML = `<li class="text-xs text-gray-500 italic">Không có gợi ý phù hợp cho xe ${vehicleModel}.</li>`;
+             aiBox.classList.remove("hidden");
         }
     } catch (e) {
         console.warn("AI Suggestion failed", e);
@@ -303,10 +288,19 @@ async function loadAiSuggestions(vehicleVin, description) {
 
 window.selectSuggestedPart = function(itemId) {
     const select = document.getElementById("part-item-id");
-    select.value = itemId;
-    select.dispatchEvent(new Event('change'));
-    select.classList.add("ring-2", "ring-blue-500");
-    setTimeout(() => select.classList.remove("ring-2", "ring-blue-500"), 1000);
+    // Đảm bảo item tồn tại
+    const itemExists = Array.from(select.options).some(opt => opt.value === String(itemId));
+
+    if (itemExists) {
+        select.value = itemId;
+        // Kích hoạt sự kiện change để cập nhật giá trị max cho input quantity
+        select.dispatchEvent(new Event('change')); 
+        // Tạo hiệu ứng highlight
+        select.classList.add("ring-2", "ring-blue-500");
+        setTimeout(() => select.classList.remove("ring-2", "ring-blue-500"), 1000);
+    } else {
+        showToast("Phụ tùng gợi ý không tìm thấy trong danh sách kho", true);
+    }
 }
 
 function closeAddPartsModal() {
@@ -331,25 +325,21 @@ async function loadInventoryItemsForParts() {
       opt.dataset.max = item.quantity;
       select.appendChild(opt);
     });
+    
+    // Tối ưu: Lọc giá trị max và tự động cập nhật số lượng
     select.onchange = function () {
-<<<<<<< HEAD
       const selectedOpt = this.options[this.selectedIndex];
-      if (!selectedOpt) return;
+      if (!selectedOpt || !selectedOpt.dataset.max) return;
       
-      const max = selectedOpt.dataset.max;
-=======
-      const max = this.options[this.selectedIndex].dataset.max;
->>>>>>> 54da90f9bcb05968fde8337de43b1ed07284ce0a
+      const max = parseInt(selectedOpt.dataset.max);
       const qtyInput = document.getElementById("part-quantity");
-      if (max) {
-        qtyInput.max = max;
-        qtyInput.title = `Tối đa ${max}`;
-<<<<<<< HEAD
-        if (parseInt(qtyInput.value) > parseInt(max)) {
-            qtyInput.value = max;
-        }
-=======
->>>>>>> 54da90f9bcb05968fde8337de43b1ed07284ce0a
+      
+      qtyInput.max = max;
+      qtyInput.title = `Tối đa ${max}`;
+      
+      // Tự động điều chỉnh số lượng nếu vượt quá tồn kho
+      if (parseInt(qtyInput.value) > max) {
+          qtyInput.value = max;
       }
     };
   } catch (e) {
@@ -518,20 +508,18 @@ window.saveChecklistItem = async function (itemId) {
     showToast("Lỗi khi lưu mục kiểm tra", true);
   }
 };
-<<<<<<< HEAD
 
 // ====== DEMO DATA SEEDER ======
 window.seedAiData = async function() {
     if (!confirm("Nạp dữ liệu mẫu AI (Má phanh, Lốp, Pin) vào kho?")) return;
     try {
+        // Cần đảm bảo endpoint này có tồn tại trong inventory service controller
         await apiRequest("/api/inventory/seed-ai-data", "POST");
         showToast("✅ Đã nạp dữ liệu demo thành công! Hãy thử lại.");
     } catch (e) {
         showToast("Lỗi nạp dữ liệu demo", true);
     }
 };
-=======
->>>>>>> 54da90f9bcb05968fde8337de43b1ed07284ce0a
 
 document.addEventListener("DOMContentLoaded", () => {
   if (checkAuth())

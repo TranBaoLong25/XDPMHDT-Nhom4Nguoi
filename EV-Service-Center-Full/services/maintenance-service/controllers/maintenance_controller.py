@@ -27,6 +27,31 @@ def admin_required():
         return decorator
     return wrapper
 
+# --- Reusable Permission Check Helper ---
+def _check_task_permission(task_id, current_user_id, claims, required_roles=None):
+    """
+    Kiểm tra quyền truy cập/thao tác trên Task: Admin, Customer Owner, Technician Owner.
+    Trả về (task, is_authorized, is_admin, is_technician_owner)
+    """
+    task = service.get_task_by_id(task_id)
+    if not task:
+        return None, False, False, False
+
+    is_admin = claims.get("role") == "admin"
+    is_customer = str(task.user_id) == str(current_user_id)
+    is_technician_owner = str(task.technician_id) == str(current_user_id)
+
+    # Nếu không yêu cầu role cụ thể, check quyền truy cập cơ bản (Admin HOẶC Owner)
+    if not required_roles:
+        is_authorized = is_admin or is_customer or is_technician_owner
+    # Nếu yêu cầu role cụ thể (ví dụ: chỉ KTV/Admin mới được add parts)
+    elif "technician_or_admin" in required_roles:
+        is_authorized = is_admin or is_technician_owner
+    else:
+        is_authorized = False
+
+    return task, is_authorized, is_admin, is_technician_owner
+
 # --- Routes ---
 
 # 1. ADMIN: CREATE TASK (POST /api/maintenance/tasks)
@@ -71,28 +96,14 @@ def get_all_tasks_route():
 @jwt_required()
 def get_my_tasks_route():
     user_id = get_jwt_identity()
-    # user_id này là technician_id
-    # Hàm get_tasks_by_user đang tìm theo user_id (customer) hoặc technician_id?
-    # Cần kiểm tra lại logic của get_tasks_by_user trong service.
-    # Nhưng route này tên là my-tasks, dành cho KTV xem task của mình.
-    
-    # Kiểm tra lại service logic: 
-    # get_tasks_by_user(user_id): return MaintenanceTask.query.filter_by(user_id=int(user_id)) ...
-    # user_id trong model là Customer. technician_id là KTV.
-    # Vậy hàm service.get_tasks_by_user đang lấy task của Customer!
-    # Cần sửa lại logic service để lấy task của Technician nếu role là technician.
-    
-    # Tuy nhiên, API này hiện tại đang được dùng bởi Technician. 
-    # Nếu user_id trong token là ID của KTV, thì filter_by(user_id=...) sẽ sai nếu user_id cột đó là Customer.
-    
-    # Sửa nhanh tại đây: Gọi hàm mới hoặc sửa service. 
-    # Để an toàn, ta check role.
     claims = get_jwt()
     role = claims.get("role")
     
     if role == "technician":
-        tasks = service.get_tasks_by_technician(user_id) # Cần thêm hàm này bên service
+        # Yêu cầu service.get_tasks_by_technician(user_id) phải có trong service
+        tasks = service.get_tasks_by_technician(user_id) 
     else:
+        # Giả định user_id trong token là customer_id nếu không phải technician
         tasks = service.get_tasks_by_user(user_id)
         
     return jsonify([t.to_dict() for t in tasks]), 200
@@ -101,20 +112,15 @@ def get_my_tasks_route():
 @maintenance_bp.route("/tasks/<int:task_id>", methods=["GET"])
 @jwt_required()
 def get_task_details_route(task_id):
-    task = service.get_task_by_id(task_id)
+    current_user_id = get_jwt_identity()
+    claims = get_jwt()
+
+    task, is_authorized, _, _ = _check_task_permission(task_id, current_user_id, claims)
     
     if not task:
         return jsonify({"error": "Không tìm thấy Công việc."}), 404
-    
-    current_user_id = get_jwt_identity()
-    claims = get_jwt()
-    is_admin = claims.get("role") == "admin"
-    
-    # Check ownership: Customer (user_id) OR Technician (technician_id)
-    is_customer = str(task.user_id) == str(current_user_id)
-    is_technician = str(task.technician_id) == str(current_user_id)
 
-    if not is_admin and not is_customer and not is_technician:
+    if not is_authorized:
         return jsonify(error="Unauthorized access to task"), 403
 
     return jsonify(task.to_dict()), 200
@@ -129,24 +135,16 @@ def update_task_status_route(task_id):
     if not new_status:
         return jsonify({"error": "Missing 'status' field."}), 400
 
-    # Check if user is admin or task owner
     current_user_id = get_jwt_identity()
     claims = get_jwt()
-    is_admin = claims.get("role") == "admin"
 
-    task = service.get_task_by_id(task_id)
+    task, is_authorized, is_admin, is_technician_owner = _check_task_permission(task_id, current_user_id, claims)
+    
     if not task:
         return jsonify({"error": "Không tìm thấy công việc."}), 404
 
-    # Fix: Check technician_id as well
-    is_customer_owner = str(task.user_id) == str(current_user_id)
-    is_technician_owner = str(task.technician_id) == str(current_user_id)
-
-    # Thông thường chỉ Admin hoặc KTV mới update status (ví dụ completed).
-    # Khách hàng có thể cancel (nếu logic cho phép).
-    # Ở đây ta cho phép cả KTV.
-
-    if not is_admin and not is_customer_owner and not is_technician_owner:
+    # Cho phép Admin, Customer Owner, hoặc Technician Owner update status
+    if not is_authorized:
         return jsonify({"error": "Bạn không có quyền cập nhật công việc này."}), 403
 
     task, error = service.update_task_status(task_id, new_status)
@@ -173,19 +171,18 @@ def add_part_to_task_route(task_id):
     if not item_id:
         return jsonify({"error": "item_id là bắt buộc"}), 400
 
-    # Kiểm tra quyền: phải là owner của task hoặc admin
+    # Kiểm tra quyền: phải là Admin hoặc KTV được giao việc
     current_user_id = get_jwt_identity()
     claims = get_jwt()
-    is_admin = claims.get("role") == "admin"
 
-    task = service.get_task_by_id(task_id)
+    task, is_authorized, is_admin, is_technician_owner = _check_task_permission(
+        task_id, current_user_id, claims, required_roles=["technician_or_admin"]
+    )
+
     if not task:
         return jsonify({"error": "Task không tồn tại"}), 404
 
-    # Fix: Check technician_id
-    is_technician_owner = str(task.technician_id) == str(current_user_id)
-
-    if not is_admin and not is_technician_owner:
+    if not is_authorized:
         return jsonify({"error": "Bạn không có quyền thêm phụ tùng vào task này"}), 403
 
     part, error = service.add_part_to_task(task_id, item_id, quantity)
@@ -202,6 +199,8 @@ def add_part_to_task_route(task_id):
 @jwt_required()
 def get_task_parts_route(task_id):
     """Lấy danh sách phụ tùng của task"""
+    # Không cần kiểm tra quyền quá nghiêm ngặt, chỉ cần đăng nhập. 
+    # Nếu muốn strict hơn, nên dùng _check_task_permission như get_task_details_route
     parts = service.get_task_parts(task_id)
     return jsonify([p.to_dict() for p in parts]), 200
 
@@ -209,10 +208,18 @@ def get_task_parts_route(task_id):
 @maintenance_bp.route("/parts/<int:part_id>", methods=["DELETE"])
 @jwt_required()
 def remove_part_route(part_id):
-    """Xóa phụ tùng khỏi task"""
-    success, error = service.remove_part_from_task(part_id)
+    """Xóa phụ tùng khỏi task. Chỉ Admin hoặc KTV owner của task liên quan được phép."""
+    # Logic kiểm tra quyền này nên nằm trong Service vì ta chỉ có part_id. 
+    # Service cần query ngược lại task_id.
+    
+    current_user_id = get_jwt_identity()
+    claims = get_jwt()
+    is_admin = claims.get("role") == "admin"
+
+    success, error = service.remove_part_from_task(part_id, current_user_id, is_admin)
     if error:
-        return jsonify({"error": error}), 404
+        status_code = 403 if "quyền" in error else 404
+        return jsonify({"error": error}), status_code
 
     return jsonify({"message": "Xóa phụ tùng thành công"}), 200
 
@@ -246,7 +253,7 @@ def get_booking_parts_route(booking_id):
 @maintenance_bp.route("/tasks/<int:task_id>/checklist", methods=["POST"])
 @jwt_required()
 def add_checklist_item_route(task_id):
-    """Thêm hạng mục kiểm tra vào checklist"""
+    """Thêm hạng mục kiểm tra vào checklist. Chỉ Admin hoặc KTV owner được phép."""
     data = request.get_json()
     item_name = data.get("item_name")
     status = data.get("status", "pending")
@@ -255,28 +262,19 @@ def add_checklist_item_route(task_id):
     if not item_name:
         return jsonify({"error": "item_name là bắt buộc"}), 400
 
-<<<<<<< HEAD
-    # Kiểm tra quyền
-=======
-    # Kiểm tra quyền: phải là owner của task hoặc admin
->>>>>>> 54da90f9bcb05968fde8337de43b1ed07284ce0a
+    # Kiểm tra quyền: phải là Admin hoặc KTV được giao việc
     current_user_id = get_jwt_identity()
     claims = get_jwt()
-    is_admin = claims.get("role") == "admin"
+    
+    # Dùng helper để check task và quyền
+    task, is_authorized, is_admin, is_technician_owner = _check_task_permission(
+        task_id, current_user_id, claims, required_roles=["technician_or_admin"]
+    )
 
-    task = service.get_task_by_id(task_id)
     if not task:
         return jsonify({"error": "Task không tồn tại"}), 404
 
-<<<<<<< HEAD
-    is_technician_owner = str(task.technician_id) == str(current_user_id)
-
-    if not is_admin and not is_technician_owner:
-=======
-    is_owner = str(task.user_id) == str(current_user_id)
-
-    if not is_admin and not is_owner:
->>>>>>> 54da90f9bcb05968fde8337de43b1ed07284ce0a
+    if not is_authorized:
         return jsonify({"error": "Bạn không có quyền thực hiện hành động này"}), 403
 
     item, error = service.add_checklist_item(task_id, item_name, status, note)
@@ -291,37 +289,29 @@ def add_checklist_item_route(task_id):
 @maintenance_bp.route("/tasks/<int:task_id>/checklist", methods=["GET"])
 @jwt_required()
 def get_task_checklist_route(task_id):
-    """Lấy checklist của task"""
+    """Lấy checklist của task. Chỉ cần đăng nhập."""
+    # Tương tự như get_task_parts, không cần kiểm tra quyền quá nghiêm ngặt
     checklist = service.get_task_checklist(task_id)
     return jsonify([item.to_dict() for item in checklist]), 200
 
 @maintenance_bp.route("/checklist/<int:item_id>", methods=["PUT"])
 @jwt_required()
 def update_checklist_item_route(item_id):
-    """Cập nhật hạng mục kiểm tra"""
+    """Cập nhật hạng mục kiểm tra. Chỉ Admin hoặc KTV owner của task liên quan được phép."""
     data = request.get_json()
     status = data.get("status")
     note = data.get("note")
 
-<<<<<<< HEAD
-    # Cần kiểm tra quyền sở hữu task
-    # Để đơn giản, ta sẽ cho phép nếu user là admin hoặc technician owner của task chứa checklist item này
-    # Logic này nên nằm trong service hoặc query ngược lại task
-    
-    # Tạm thời:
+    # Kiểm tra quyền: Logic này nên nằm trong Service vì ta chỉ có item_id.
     current_user_id = get_jwt_identity()
     claims = get_jwt()
     is_admin = claims.get("role") == "admin"
     
-    # TODO: Check ownership strictly
-=======
-    # Cần kiểm tra quyền sở hữu task (thông qua item -> task) nhưng để đơn giản ta cho phép nếu đăng nhập
-    # Tốt nhất nên query ngược lại task_id để check owner
->>>>>>> 54da90f9bcb05968fde8337de43b1ed07284ce0a
+    item, error = service.update_checklist_item(item_id, status, note, current_user_id, is_admin)
     
-    item, error = service.update_checklist_item(item_id, status, note)
     if error:
-        return jsonify({"error": error}), 404
+        status_code = 403 if "quyền" in error else 404
+        return jsonify({"error": error}), status_code
 
     return jsonify({
         "message": "Cập nhật hạng mục kiểm tra thành công",
@@ -331,13 +321,16 @@ def update_checklist_item_route(item_id):
 @maintenance_bp.route("/checklist/<int:item_id>", methods=["DELETE"])
 @jwt_required()
 def remove_checklist_item_route(item_id):
-    """Xóa hạng mục kiểm tra"""
-<<<<<<< HEAD
-    # TODO: Add permission check
-=======
->>>>>>> 54da90f9bcb05968fde8337de43b1ed07284ce0a
-    success, error = service.remove_checklist_item(item_id)
+    """Xóa hạng mục kiểm tra. Chỉ Admin hoặc KTV owner của task liên quan được phép."""
+    # Logic kiểm tra quyền này nên nằm trong Service vì ta chỉ có item_id.
+    current_user_id = get_jwt_identity()
+    claims = get_jwt()
+    is_admin = claims.get("role") == "admin"
+    
+    success, error = service.remove_checklist_item(item_id, current_user_id, is_admin)
+    
     if error:
-        return jsonify({"error": error}), 404
+        status_code = 403 if "quyền" in error else 404
+        return jsonify({"error": error}), status_code
 
     return jsonify({"message": "Xóa hạng mục kiểm tra thành công"}), 200

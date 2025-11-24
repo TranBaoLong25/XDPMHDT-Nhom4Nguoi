@@ -190,28 +190,40 @@
     >
       <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-2xl">
         <h3 class="text-xl font-bold mb-6 text-gray-800">
-<<<<<<< HEAD
-          Thêm Phụ Tùng Đã Sử Dụng - Task #<span id="current-task-id-parts"></span>
+          Thêm Phụ Tùng Đã Sử Dụng - Task #<span
+            id="current-task-id-parts"
+          ></span>
         </h3>
 
-        <!-- AI Suggestion Box -->
-        <div id="ai-suggestion-box" class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg hidden">
+        <div
+          id="ai-suggestion-box"
+          class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg hidden"
+        >
           <h4 class="font-semibold text-blue-800 mb-2 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-5 w-5 mr-2"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z"
+                clip-rule="evenodd"
+              />
             </svg>
             Gợi Ý Thông Minh (AI)
           </h4>
-          <p class="text-sm text-blue-700 mb-2">Dựa trên xe <span id="ai-vehicle-info" class="font-bold"></span>, hệ thống gợi ý:</p>
-          <ul id="ai-suggestions-list" class="list-disc pl-5 text-sm text-blue-800">
-            <!-- AI items here -->
-          </ul>
+          <p class="text-sm text-blue-700 mb-2">
+            Dựa trên xe <span id="ai-vehicle-info" class="font-bold"></span>, hệ
+            thống gợi ý:
+          </p>
+          <ul
+            id="ai-suggestions-list"
+            class="list-disc pl-5 text-sm text-blue-800"
+          ></ul>
         </div>
 
-=======
-          Quản Lý Phụ Tùng - Task #<span id="current-task-id-parts"></span>
-        </h3>
->>>>>>> 54da90f9bcb05968fde8337de43b1ed07284ce0a
         <div class="mb-6">
           <h4 class="text-lg font-semibold mb-3">Phụ Tùng Đã Thêm</h4>
           <div
@@ -272,45 +284,9 @@
       </div>
     </div>
 
-<<<<<<< HEAD
-    <!-- Modal Checklist -->
-    <div id="checklist-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center hidden z-50">
-      <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-4xl">
-          <div class="flex justify-between items-center mb-6">
-              <h3 class="text-xl font-bold text-gray-800">Checklist Kiểm Tra - Task #<span id="checklist-task-id"></span></h3>
-              <button onclick="closeChecklistModal()" class="text-gray-500 hover:text-gray-700">
-                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-              </button>
-          </div>
-          
-          <div class="overflow-x-auto mb-6">
-              <table class="min-w-full divide-y divide-gray-200 border">
-                  <thead class="bg-gray-50">
-                      <tr>
-                          <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Hạng Mục</th>
-                          <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Trạng Thái</th>
-                          <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Ghi Chú</th>
-                          <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Hành Động</th>
-                      </tr>
-                  </thead>
-                  <tbody id="checklist-tbody" class="bg-white divide-y divide-gray-200">
-                      <!-- Checklist items here -->
-                  </tbody>
-              </table>
-          </div>
-
-          <div class="flex justify-end">
-               <button onclick="closeChecklistModal()" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700">Đóng</button>
-          </div>
-      </div>
-    </div>
-
-    <!-- Scripts -->
-    <script src="technician_scripts.js?v=8"></script>
-=======
     <div
       id="checklist-modal"
-      class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center hidden z-40"
+      class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center hidden z-50"
     >
       <div
         class="bg-white p-6 rounded-lg shadow-xl w-full max-w-4xl h-[90vh] flex flex-col"
@@ -348,7 +324,7 @@
             </div>
             <div class="ml-3">
               <p class="text-sm text-yellow-700">
-                Kiểm tra kỹ từng hạng mục. Chọn "Needs Repair" (Cần sửa) nếu
+                Kiểm tra kỹ từng hạng mục. Chọn "Cần sửa chữa" hoặc "Hỏng" nếu
                 phát hiện hư hỏng.
               </p>
             </div>
@@ -397,7 +373,6 @@
       </div>
     </div>
 
-    <script src="technician_scripts.js?v=5"></script>
->>>>>>> 54da90f9bcb05968fde8337de43b1ed07284ce0a
+    <script src="technician_scripts.js"></script>
   </body>
 </html>
