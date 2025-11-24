@@ -255,7 +255,11 @@ def add_checklist_item_route(task_id):
     if not item_name:
         return jsonify({"error": "item_name là bắt buộc"}), 400
 
+<<<<<<< HEAD
     # Kiểm tra quyền
+=======
+    # Kiểm tra quyền: phải là owner của task hoặc admin
+>>>>>>> 54da90f9bcb05968fde8337de43b1ed07284ce0a
     current_user_id = get_jwt_identity()
     claims = get_jwt()
     is_admin = claims.get("role") == "admin"
@@ -264,9 +268,15 @@ def add_checklist_item_route(task_id):
     if not task:
         return jsonify({"error": "Task không tồn tại"}), 404
 
+<<<<<<< HEAD
     is_technician_owner = str(task.technician_id) == str(current_user_id)
 
     if not is_admin and not is_technician_owner:
+=======
+    is_owner = str(task.user_id) == str(current_user_id)
+
+    if not is_admin and not is_owner:
+>>>>>>> 54da90f9bcb05968fde8337de43b1ed07284ce0a
         return jsonify({"error": "Bạn không có quyền thực hiện hành động này"}), 403
 
     item, error = service.add_checklist_item(task_id, item_name, status, note)
@@ -293,6 +303,7 @@ def update_checklist_item_route(item_id):
     status = data.get("status")
     note = data.get("note")
 
+<<<<<<< HEAD
     # Cần kiểm tra quyền sở hữu task
     # Để đơn giản, ta sẽ cho phép nếu user là admin hoặc technician owner của task chứa checklist item này
     # Logic này nên nằm trong service hoặc query ngược lại task
@@ -303,6 +314,10 @@ def update_checklist_item_route(item_id):
     is_admin = claims.get("role") == "admin"
     
     # TODO: Check ownership strictly
+=======
+    # Cần kiểm tra quyền sở hữu task (thông qua item -> task) nhưng để đơn giản ta cho phép nếu đăng nhập
+    # Tốt nhất nên query ngược lại task_id để check owner
+>>>>>>> 54da90f9bcb05968fde8337de43b1ed07284ce0a
     
     item, error = service.update_checklist_item(item_id, status, note)
     if error:
@@ -317,7 +332,10 @@ def update_checklist_item_route(item_id):
 @jwt_required()
 def remove_checklist_item_route(item_id):
     """Xóa hạng mục kiểm tra"""
+<<<<<<< HEAD
     # TODO: Add permission check
+=======
+>>>>>>> 54da90f9bcb05968fde8337de43b1ed07284ce0a
     success, error = service.remove_checklist_item(item_id)
     if error:
         return jsonify({"error": error}), 404

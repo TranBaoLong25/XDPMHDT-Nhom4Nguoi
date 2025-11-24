@@ -1,4 +1,3 @@
-# File: services/maintenance-service/services/maintenance_service.py
 import requests
 from flask import current_app
 from app import db
@@ -47,6 +46,7 @@ class MaintenanceService:
 
     @staticmethod
     def get_tasks_by_user(user_id):
+<<<<<<< HEAD
         """Lấy danh sách task của Customer"""
         return MaintenanceTask.query.filter_by(user_id=int(user_id)).order_by(MaintenanceTask.created_at.desc()).all()
 
@@ -56,6 +56,13 @@ class MaintenanceService:
         return MaintenanceTask.query.filter_by(technician_id=int(technician_id)).order_by(MaintenanceTask.created_at.desc()).all()
 
     @staticmethod
+=======
+        # === FIX QUAN TRỌNG ===
+        # Lọc theo technician_id để KTV thấy việc được giao
+        return MaintenanceTask.query.filter_by(technician_id=int(user_id)).order_by(MaintenanceTask.created_at.desc()).all()
+
+    @staticmethod
+>>>>>>> 54da90f9bcb05968fde8337de43b1ed07284ce0a
     def create_task_from_booking(booking_id, technician_id):
         existing_task = MaintenanceTask.query.filter_by(
             booking_id=booking_id,
@@ -74,7 +81,12 @@ class MaintenanceService:
 
         user_data, error = MaintenanceService._get_user_profile(user_id)
         if error:
+<<<<<<< HEAD
             user_data = {} # Fallback nếu lỗi user service
+=======
+            # Có thể bỏ qua lỗi user profile để không chặn luồng
+            user_data = {}
+>>>>>>> 54da90f9bcb05968fde8337de43b1ed07284ce0a
         
         vehicle_vin = f"VIN_{booking_id}_{user_data.get('username', 'Unknown')}" 
 

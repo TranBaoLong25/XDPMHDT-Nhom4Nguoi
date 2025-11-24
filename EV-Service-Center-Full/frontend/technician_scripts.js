@@ -1,7 +1,12 @@
 // ==================== CONSTANTS ====================
 const TECH_TOKEN_KEY = "tech_access_token";
+<<<<<<< HEAD
 // Sử dụng API Gateway (Cổng 80) làm đầu mối duy nhất
 const API_BASE_URL = window.location.origin; // Sẽ là http://localhost nếu chạy local
+=======
+// Trỏ thẳng vào API Gateway (Cổng 80) hoặc Maintenance Service (Cổng 8003)
+const API_BASE_URL = "http://localhost:8003";
+>>>>>>> 54da90f9bcb05968fde8337de43b1ed07284ce0a
 
 // ==================== UTILITY FUNCTIONS ====================
 function showToast(message, isError = false) {
@@ -110,9 +115,13 @@ async function loadWorkList() {
     tbody.innerHTML = tasks
       .map((task) => {
         const statusBadge = formatTaskStatus(task.status);
+<<<<<<< HEAD
         // Encode vehicle info in data attribute for easy access
         const taskData = encodeURIComponent(JSON.stringify(task));
         
+=======
+        const date = new Date(task.created_at).toLocaleDateString("vi-VN");
+>>>>>>> 54da90f9bcb05968fde8337de43b1ed07284ce0a
         return `
           <tr class="hover:bg-gray-50">
             <td class="px-6 py-4 text-sm font-mono">#${task.task_id}</td>
@@ -131,7 +140,11 @@ async function loadWorkList() {
                   : task.status === "in_progress"
                   ? `<div class="flex flex-col space-y-2">
                        <button onclick="openChecklistModal(${task.task_id})" class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1 rounded text-xs transition flex items-center justify-center gap-1">📋 Checklist</button>
+<<<<<<< HEAD
                        <button onclick="openAddPartsModal(${task.task_id}, '${task.vehicle_vin}', '${task.description}')" class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded text-xs transition flex items-center justify-center gap-1">🔧 Phụ Tùng</button>
+=======
+                       <button onclick="openAddPartsModal(${task.task_id})" class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded text-xs transition flex items-center justify-center gap-1">🔧 Phụ Tùng</button>
+>>>>>>> 54da90f9bcb05968fde8337de43b1ed07284ce0a
                        <button onclick="updateTaskStatus(${task.task_id}, 'completed')" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-xs transition">✅ Hoàn Thành</button>
                      </div>`
                   : '<span class="text-gray-400 italic">Đã khóa</span>'
@@ -225,6 +238,7 @@ async function openAddPartsModal(taskId, vehicleVin = null, description = null) 
   currentTaskId = taskId;
   document.getElementById("current-task-id-parts").textContent = taskId;
   document.getElementById("add-parts-modal").classList.remove("hidden");
+<<<<<<< HEAD
   
   // Reset AI Suggestion
   const aiBox = document.getElementById("ai-suggestion-box");
@@ -237,6 +251,9 @@ async function openAddPartsModal(taskId, vehicleVin = null, description = null) 
   if (vehicleVin && vehicleVin !== "N/A") {
     await loadAiSuggestions(vehicleVin, description);
   }
+=======
+  await Promise.all([loadInventoryItemsForParts(), loadTaskParts(taskId)]);
+>>>>>>> 54da90f9bcb05968fde8337de43b1ed07284ce0a
 }
 window.openAddPartsModal = openAddPartsModal;
 
@@ -315,17 +332,24 @@ async function loadInventoryItemsForParts() {
       select.appendChild(opt);
     });
     select.onchange = function () {
+<<<<<<< HEAD
       const selectedOpt = this.options[this.selectedIndex];
       if (!selectedOpt) return;
       
       const max = selectedOpt.dataset.max;
+=======
+      const max = this.options[this.selectedIndex].dataset.max;
+>>>>>>> 54da90f9bcb05968fde8337de43b1ed07284ce0a
       const qtyInput = document.getElementById("part-quantity");
       if (max) {
         qtyInput.max = max;
         qtyInput.title = `Tối đa ${max}`;
+<<<<<<< HEAD
         if (parseInt(qtyInput.value) > parseInt(max)) {
             qtyInput.value = max;
         }
+=======
+>>>>>>> 54da90f9bcb05968fde8337de43b1ed07284ce0a
       }
     };
   } catch (e) {
@@ -494,6 +518,7 @@ window.saveChecklistItem = async function (itemId) {
     showToast("Lỗi khi lưu mục kiểm tra", true);
   }
 };
+<<<<<<< HEAD
 
 // ====== DEMO DATA SEEDER ======
 window.seedAiData = async function() {
@@ -505,6 +530,8 @@ window.seedAiData = async function() {
         showToast("Lỗi nạp dữ liệu demo", true);
     }
 };
+=======
+>>>>>>> 54da90f9bcb05968fde8337de43b1ed07284ce0a
 
 document.addEventListener("DOMContentLoaded", () => {
   if (checkAuth())
