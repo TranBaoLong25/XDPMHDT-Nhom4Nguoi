@@ -1611,6 +1611,9 @@ document.addEventListener("DOMContentLoaded", () => {
       showDashboard();
       // Mặc định vào Inventory Section
       navigateToDashboardSection("inventory-section", "Quản lý Kho Phụ Tùng");
+
+      // Initialize admin chat
+      initializeAdminChat();
     } else {
       adminLogout();
     }
@@ -1618,3 +1621,402 @@ document.addEventListener("DOMContentLoaded", () => {
     adminLogout();
   }
 });
+
+// =============================================================================
+// 14. ADMIN CHAT MANAGEMENT
+// =============================================================================
+
+const ADMIN_CHAT_API_URL = "/api/chat";
+let adminChatSocket = null;
+let currentAdminChatRoom = null;
+let currentChatTab = "waiting";
+let adminTypingTimeout = null;
+
+// Helper function to get admin info from JWT token
+function getAdminUserInfo() {
+  const token = localStorage.getItem(window.ADMIN_TOKEN_KEY);
+  if (!token) return null;
+
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return {
+      id: payload.sub,
+      username: payload.username || "Admin",
+      fullname: payload.fullname || payload.username || "Admin",
+      role: payload.role
+    };
+  } catch (e) {
+    console.error("Error parsing admin token:", e);
+    return null;
+  }
+}
+
+function initializeAdminChat() {
+  // Connect to Socket.IO
+  connectAdminChatSocket();
+
+  // Load chat rooms
+  loadChatRooms();
+
+  // Refresh rooms every 10 seconds
+  setInterval(loadChatRooms, 10000);
+}
+
+function connectAdminChatSocket() {
+  if (adminChatSocket) return;
+
+  adminChatSocket = io("/", {
+    path: "/socket.io",
+    transports: ["websocket", "polling"]
+  });
+
+  adminChatSocket.on("connect", () => {
+    console.log("✅ Admin connected to chat server");
+  });
+
+  adminChatSocket.on("disconnect", () => {
+    console.log("❌ Admin disconnected from chat server");
+  });
+
+  adminChatSocket.on("new_message", (message) => {
+    // Reload rooms to update counts
+    loadChatRooms();
+
+    // If this is the current room, append message
+    if (currentAdminChatRoom && message.room_id === currentAdminChatRoom.id) {
+      appendAdminChatMessage(message);
+    }
+  });
+
+  adminChatSocket.on("user_typing", (data) => {
+    if (currentAdminChatRoom) {
+      document.getElementById("admin-typing-indicator").classList.remove("hidden");
+    }
+  });
+
+  adminChatSocket.on("user_stop_typing", (data) => {
+    document.getElementById("admin-typing-indicator").classList.add("hidden");
+  });
+}
+
+async function loadChatRooms() {
+  try {
+    // Load waiting rooms
+    const waitingRes = await fetch(`${ADMIN_CHAT_API_URL}/rooms/waiting`);
+    const waitingData = await waitingRes.json();
+
+    // Load active rooms
+    const activeRes = await fetch(`${ADMIN_CHAT_API_URL}/rooms/active`);
+    const activeData = await activeRes.json();
+
+    // Update counts
+    document.getElementById("waiting-count").textContent = waitingData.rooms?.length || 0;
+    document.getElementById("active-count").textContent = activeData.rooms?.length || 0;
+
+    // Render rooms
+    renderChatRoomList("waiting-rooms-list", waitingData.rooms, "waiting");
+    renderChatRoomList("active-rooms-list", activeData.rooms, "active");
+  } catch (error) {
+    console.error("Error loading chat rooms:", error);
+  }
+}
+
+function renderChatRoomList(containerId, rooms, status) {
+  const container = document.getElementById(containerId);
+
+  if (!rooms || rooms.length === 0) {
+    container.innerHTML = `<p class="text-gray-500 text-center py-8">Không có phòng ${
+      status === "waiting" ? "chờ" : status === "active" ? "đang hỗ trợ" : "đã đóng"
+    }</p>`;
+    return;
+  }
+
+  container.innerHTML = rooms.map(room => `
+    <div
+      onclick="selectAdminChatRoom(${room.id})"
+      class="p-4 mb-2 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition ${
+        currentAdminChatRoom && currentAdminChatRoom.id === room.id ? "bg-indigo-50 border-indigo-500" : ""
+      }"
+    >
+      <div class="flex items-center justify-between mb-2">
+        <h4 class="font-semibold text-gray-800">${room.user_name}</h4>
+        ${room.unread_count > 0 ? `<span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full">${room.unread_count}</span>` : ""}
+      </div>
+      <p class="text-sm text-gray-600 truncate">${room.subject || "Hỗ trợ khách hàng"}</p>
+      <p class="text-xs text-gray-400 mt-1">${formatAdminChatTime(room.updated_at)}</p>
+    </div>
+  `).join("");
+}
+
+async function selectAdminChatRoom(roomId) {
+  try {
+    const response = await fetch(`${ADMIN_CHAT_API_URL}/rooms/${roomId}`);
+    const data = await response.json();
+
+    if (!data.success) {
+      alert("Không thể tải phòng chat");
+      return;
+    }
+
+    currentAdminChatRoom = data.room;
+
+    // Join room
+    if (adminChatSocket) {
+      adminChatSocket.emit("join_room", { room_id: roomId });
+    }
+
+    // Update header with user info
+    document.getElementById("admin-chat-user-name").textContent = data.room.user_name;
+    document.getElementById("admin-chat-user-id").textContent = `User ID: ${data.room.user_id}`;
+
+    const statusText = data.room.status === "waiting" ? "Đang chờ hỗ trợ" :
+      data.room.status === "active" ? `Đang hỗ trợ bởi ${data.room.support_user_name}` : "";
+
+    // Create status element with user ID
+    const statusElement = document.getElementById("admin-chat-status");
+    statusElement.innerHTML = `${statusText} • <span id="admin-chat-user-id">User ID: ${data.room.user_id}</span>`;
+
+    // Always show input for waiting and active rooms
+    const inputContainer = document.getElementById("admin-chat-input-container");
+    inputContainer.classList.remove("hidden");
+
+    // If room is waiting, assign it to this admin
+    if (data.room.status === "waiting") {
+      await assignRoomToAdmin(roomId);
+    }
+
+    // Load messages
+    await loadAdminChatMessages(roomId);
+  } catch (error) {
+    console.error("Error selecting chat room:", error);
+  }
+}
+
+async function assignRoomToAdmin(roomId) {
+  const admin = getAdminUserInfo();
+  if (!admin) {
+    console.error("Admin not logged in");
+    return;
+  }
+
+  try {
+    const response = await fetch(`${ADMIN_CHAT_API_URL}/rooms/${roomId}/assign`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        support_user_id: admin.id,
+        support_user_name: admin.fullname || admin.username,
+        support_role: admin.role
+      })
+    });
+
+    const data = await response.json();
+    if (data.success) {
+      currentAdminChatRoom = data.room;
+
+      // Notify via Socket.IO
+      if (adminChatSocket) {
+        adminChatSocket.emit("room_assigned", { room_id: roomId });
+      }
+
+      // Reload rooms
+      loadChatRooms();
+    }
+  } catch (error) {
+    console.error("Error assigning room:", error);
+  }
+}
+
+async function loadAdminChatMessages(roomId) {
+  try {
+    const response = await fetch(`${ADMIN_CHAT_API_URL}/rooms/${roomId}/messages`);
+    const data = await response.json();
+
+    const messagesContainer = document.getElementById("admin-chat-messages");
+    messagesContainer.innerHTML = "";
+
+    if (data.messages && data.messages.length > 0) {
+      data.messages.forEach(msg => appendAdminChatMessage(msg, false));
+    } else {
+      messagesContainer.innerHTML = `
+        <div class="text-center text-gray-500 py-20">
+          <p class="text-lg">Chưa có tin nhắn</p>
+        </div>
+      `;
+    }
+
+    scrollAdminChatToBottom();
+  } catch (error) {
+    console.error("Error loading messages:", error);
+  }
+}
+
+function switchChatTab(tab) {
+  currentChatTab = tab;
+
+  // Update tab styles
+  document.querySelectorAll(".chat-tab").forEach(t => {
+    t.classList.remove("border-indigo-600", "text-indigo-600");
+    t.classList.add("border-transparent", "text-gray-500");
+  });
+
+  document.getElementById(`tab-chat-${tab}`).classList.remove("border-transparent", "text-gray-500");
+  document.getElementById(`tab-chat-${tab}`).classList.add("border-indigo-600", "text-indigo-600");
+
+  // Show/hide room lists
+  document.querySelectorAll(".chat-rooms-list").forEach(list => list.classList.add("hidden"));
+  document.getElementById(`${tab}-rooms-list`).classList.remove("hidden");
+}
+
+function handleAdminChatKeyPress(event) {
+  if (event.key === "Enter") {
+    sendAdminChatMessage();
+  } else {
+    // Send typing indicator
+    if (adminChatSocket && currentAdminChatRoom) {
+      const admin = getAdminUserInfo();
+      if (admin) {
+        adminChatSocket.emit("typing", {
+          room_id: currentAdminChatRoom.id,
+          user_name: admin.fullname || admin.username
+        });
+
+        // Clear previous timeout
+        if (adminTypingTimeout) clearTimeout(adminTypingTimeout);
+
+        // Stop typing after 2 seconds
+        adminTypingTimeout = setTimeout(() => {
+          adminChatSocket.emit("stop_typing", {
+            room_id: currentAdminChatRoom.id,
+            user_name: admin.fullname || admin.username
+          });
+        }, 2000);
+      }
+    }
+  }
+}
+
+async function sendAdminChatMessage() {
+  const input = document.getElementById("admin-chat-input");
+  const message = input.value.trim();
+
+  if (!message || !currentAdminChatRoom) return;
+
+  const admin = getAdminUserInfo();
+  if (!admin) {
+    console.error("Admin not logged in");
+    return;
+  }
+
+  const messageData = {
+    room_id: currentAdminChatRoom.id,
+    sender_id: admin.id,
+    sender_name: admin.fullname || admin.username,
+    sender_role: admin.role,
+    message: message,
+    message_type: "text"
+  };
+
+  // Send via Socket.IO
+  if (adminChatSocket) {
+    adminChatSocket.emit("send_message", messageData);
+    adminChatSocket.emit("stop_typing", {
+      room_id: currentAdminChatRoom.id,
+      user_name: admin.fullname || admin.username
+    });
+  }
+
+  input.value = "";
+}
+
+function appendAdminChatMessage(message, scroll = true) {
+  const messagesContainer = document.getElementById("admin-chat-messages");
+  const admin = getAdminUserInfo();
+
+  // Remove empty state if exists
+  const emptyState = messagesContainer.querySelector(".text-center");
+  if (emptyState && emptyState.textContent.includes("Chưa có tin nhắn")) {
+    emptyState.remove();
+  }
+
+  const isOwnMessage = admin && message.sender_id === admin.id;
+  const isSystem = message.message_type === "system";
+
+  const messageDiv = document.createElement("div");
+
+  if (isSystem) {
+    messageDiv.className = "text-center text-gray-500 text-xs py-2";
+    messageDiv.innerHTML = `<span class="bg-gray-200 px-3 py-1 rounded-full">${message.message}</span>`;
+  } else {
+    messageDiv.className = `flex ${isOwnMessage ? "justify-end" : "justify-start"}`;
+    messageDiv.innerHTML = `
+      <div class="max-w-[70%]">
+        <div class="text-xs ${isOwnMessage ? "text-right" : "text-left"} mb-1 text-gray-500">
+          ${message.sender_name}
+        </div>
+        <div class="${isOwnMessage ? "bg-indigo-600 text-white" : "bg-gray-200 text-gray-800"} px-4 py-2 rounded-lg">
+          ${escapeHtml(message.message)}
+        </div>
+        <div class="text-xs ${isOwnMessage ? "text-right" : "text-left"} mt-1 text-gray-400">
+          ${formatAdminChatTime(message.created_at)}
+        </div>
+      </div>
+    `;
+  }
+
+  messagesContainer.appendChild(messageDiv);
+
+  if (scroll) {
+    scrollAdminChatToBottom();
+  }
+}
+
+function scrollAdminChatToBottom() {
+  const messagesContainer = document.getElementById("admin-chat-messages");
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+// Chat rooms are never closed - all history is preserved
+
+function formatAdminChatTime(timestamp) {
+  if (!timestamp) return "";
+
+  // Parse timestamp - handle both ISO string and Python datetime string
+  let date;
+  if (typeof timestamp === 'string') {
+    // If timestamp doesn't end with 'Z', it's likely server local time, treat as UTC
+    if (!timestamp.endsWith('Z') && !timestamp.includes('+')) {
+      date = new Date(timestamp + 'Z');
+    } else {
+      date = new Date(timestamp);
+    }
+  } else {
+    date = new Date(timestamp);
+  }
+
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+
+  // Handle negative differences (future dates due to timezone issues)
+  if (diffMins < 0) return "Vừa xong";
+  if (diffMins < 1) return "Vừa xong";
+  if (diffMins < 60) return `${diffMins} phút trước`;
+
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours} giờ trước`;
+
+  return date.toLocaleDateString("vi-VN", {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function escapeHtml(text) {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}

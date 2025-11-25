@@ -9,4 +9,4 @@ COPY . .
 
 EXPOSE 8007
 
-CMD ["gunicorn", "--worker-class", "eventlet", "-w", "1", "--bind", "0.0.0.0:8007", "wsgi:app", "--timeout", "120"]
+CMD ["gunicorn", "--worker-class", "eventlet", "-w", "1", "--bind", "0.0.0.0:8007", "app:create_app()"]

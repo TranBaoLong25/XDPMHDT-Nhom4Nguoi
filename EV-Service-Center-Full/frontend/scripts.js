@@ -1042,6 +1042,8 @@ document.addEventListener("DOMContentLoaded", () => {
           } else {
             updateNav();
             navigateTo("home");
+            // Initialize chat after login
+            initializeChat();
           }
         }
       } catch (e) {
@@ -1157,4 +1159,392 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
+
+  // Initialize chat after DOM loaded
+  initializeChat();
 });
+
+// ========================
+// CHAT FUNCTIONALITY
+// ========================
+
+const CHAT_API_URL = "/api/chat";
+let chatSocket = null;
+let currentChatRoom = null;
+let chatOpen = false;
+let typingTimeout = null;
+
+function getChatUserInfo() {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) return null;
+
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return {
+      id: payload.sub,
+      username: payload.username || "User",
+      fullname: payload.fullname || payload.username || "User",
+      role: payload.role
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
+function initializeChat() {
+  const chatBtn = document.getElementById("chat-toggle-btn");
+  if (!chatBtn) return;
+
+  const user = getChatUserInfo();
+  if (!user) {
+    chatBtn.style.display = "none";
+    return;
+  }
+
+  // Only show for regular users, not admin/technician
+  if (user.role !== "admin" && user.role !== "technician") {
+    chatBtn.style.display = "block";
+
+    // Connect to Socket.IO
+    connectChatSocket();
+
+    // Load existing chat room or create new one
+    loadOrCreateChatRoom();
+  } else {
+    chatBtn.style.display = "none";
+  }
+}
+
+function connectChatSocket() {
+  if (chatSocket) return;
+
+  chatSocket = io("/", {
+    path: "/socket.io",
+    transports: ["websocket", "polling"]
+  });
+
+  chatSocket.on("connect", () => {
+    console.log("✅ Connected to chat server");
+    updateChatStatus("Đã kết nối");
+  });
+
+  chatSocket.on("disconnect", () => {
+    console.log("❌ Disconnected from chat server");
+    updateChatStatus("Mất kết nối");
+  });
+
+  chatSocket.on("new_message", (message) => {
+    appendChatMessage(message);
+
+    // Show notification if chat is closed
+    if (!chatOpen && message.sender_role !== "user") {
+      showChatNotification();
+    }
+  });
+
+  chatSocket.on("user_typing", (data) => {
+    document.getElementById("typing-indicator").classList.remove("hidden");
+  });
+
+  chatSocket.on("user_stop_typing", (data) => {
+    document.getElementById("typing-indicator").classList.add("hidden");
+  });
+
+  chatSocket.on("room_status_changed", (room) => {
+    currentChatRoom = room;
+    updateChatStatus(room.status === "active" ? "Đang hỗ trợ" : "Đang chờ");
+  });
+}
+
+async function loadOrCreateChatRoom() {
+  const user = getChatUserInfo();
+  if (!user) return;
+
+  try {
+    // Get user's chat rooms
+    const response = await fetch(`${CHAT_API_URL}/rooms/user/${user.id}`);
+    const data = await response.json();
+
+    if (data.rooms && data.rooms.length > 0) {
+      // Use the most recent room that's not closed
+      const activeRoom = data.rooms.find(r => r.status !== "closed");
+      if (activeRoom) {
+        currentChatRoom = activeRoom;
+        joinChatRoom(activeRoom.id);
+        loadChatMessages(activeRoom.id);
+        updateChatStatus(activeRoom.status === "active" ? "Đang hỗ trợ" : "Đang chờ");
+        return;
+      }
+    }
+
+    // Create new room if no active room exists
+    await createNewChatRoom();
+  } catch (error) {
+    console.error("Error loading chat room:", error);
+  }
+}
+
+async function createNewChatRoom() {
+  const user = getChatUserInfo();
+  if (!user) return;
+
+  try {
+    const response = await fetch(`${CHAT_API_URL}/rooms`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: user.id,
+        user_name: user.fullname,
+        subject: "Hỗ trợ khách hàng"
+      })
+    });
+
+    const data = await response.json();
+    if (data.success) {
+      currentChatRoom = data.room;
+      joinChatRoom(data.room.id);
+      loadChatMessages(data.room.id);
+      updateChatStatus("Đang chờ");
+    }
+  } catch (error) {
+    console.error("Error creating chat room:", error);
+  }
+}
+
+function joinChatRoom(roomId) {
+  if (chatSocket) {
+    chatSocket.emit("join_room", { room_id: roomId });
+  }
+}
+
+async function loadChatMessages(roomId) {
+  try {
+    const response = await fetch(`${CHAT_API_URL}/rooms/${roomId}/messages`);
+    const data = await response.json();
+
+    const messagesContainer = document.getElementById("chat-messages");
+    messagesContainer.innerHTML = "";
+
+    if (data.messages && data.messages.length > 0) {
+      data.messages.forEach(msg => appendChatMessage(msg, false));
+    } else {
+      messagesContainer.innerHTML = `
+        <div class="text-center text-gray-500 text-sm py-8">
+          Chào mừng! Hãy gửi tin nhắn để bắt đầu trò chuyện.
+        </div>
+      `;
+    }
+
+    scrollChatToBottom();
+  } catch (error) {
+    console.error("Error loading messages:", error);
+  }
+}
+
+function toggleChat() {
+  chatOpen = !chatOpen;
+  const widget = document.getElementById("chat-widget");
+  const iconOpen = document.getElementById("chat-icon-open");
+  const iconClose = document.getElementById("chat-icon-close");
+
+  if (chatOpen) {
+    widget.classList.remove("hidden");
+    iconOpen.classList.add("hidden");
+    iconClose.classList.remove("hidden");
+    document.getElementById("chat-input").focus();
+    clearChatNotification();
+
+    // Mark messages as read
+    if (currentChatRoom) {
+      markMessagesAsRead(currentChatRoom.id);
+    }
+  } else {
+    widget.classList.add("hidden");
+    iconOpen.classList.remove("hidden");
+    iconClose.classList.add("hidden");
+  }
+}
+
+function handleChatKeyPress(event) {
+  if (event.key === "Enter") {
+    sendChatMessage();
+  } else {
+    // Send typing indicator
+    if (chatSocket && currentChatRoom) {
+      const user = getChatUserInfo();
+      if (!user) return;
+
+      chatSocket.emit("typing", {
+        room_id: currentChatRoom.id,
+        user_name: user.fullname
+      });
+
+      // Clear previous timeout
+      if (typingTimeout) clearTimeout(typingTimeout);
+
+      // Stop typing after 2 seconds
+      typingTimeout = setTimeout(() => {
+        const u = getChatUserInfo();
+        if (u) {
+          chatSocket.emit("stop_typing", {
+            room_id: currentChatRoom.id,
+            user_name: u.fullname
+          });
+        }
+      }, 2000);
+    }
+  }
+}
+
+async function sendChatMessage() {
+  const input = document.getElementById("chat-input");
+  const message = input.value.trim();
+
+  if (!message || !currentChatRoom) return;
+
+  const user = getChatUserInfo();
+  if (!user) return;
+
+  const messageData = {
+    room_id: currentChatRoom.id,
+    sender_id: user.id,
+    sender_name: user.fullname,
+    sender_role: "user",
+    message: message,
+    message_type: "text"
+  };
+
+  // Send via Socket.IO
+  if (chatSocket) {
+    chatSocket.emit("send_message", messageData);
+    chatSocket.emit("stop_typing", {
+      room_id: currentChatRoom.id,
+      user_name: user.fullname
+    });
+  }
+
+  input.value = "";
+}
+
+function appendChatMessage(message, scroll = true) {
+  const messagesContainer = document.getElementById("chat-messages");
+  const user = getChatUserInfo();
+  if (!user) return;
+
+  // Remove welcome message if exists
+  const welcomeMsg = messagesContainer.querySelector(".text-center");
+  if (welcomeMsg) welcomeMsg.remove();
+
+  const isOwnMessage = message.sender_id === user.id;
+  const isSystem = message.message_type === "system";
+
+  const messageDiv = document.createElement("div");
+
+  if (isSystem) {
+    messageDiv.className = "text-center text-gray-500 text-xs py-2";
+    messageDiv.innerHTML = `<span class="bg-gray-800 px-3 py-1 rounded-full">${message.message}</span>`;
+  } else {
+    messageDiv.className = `flex ${isOwnMessage ? "justify-end" : "justify-start"}`;
+    messageDiv.innerHTML = `
+      <div class="max-w-[70%]">
+        <div class="text-xs ${isOwnMessage ? "text-right" : "text-left"} mb-1 text-gray-400">
+          ${message.sender_name}
+        </div>
+        <div class="${isOwnMessage ? "bg-indigo-600" : "bg-gray-700"} text-white px-4 py-2 rounded-lg">
+          ${escapeHtml(message.message)}
+        </div>
+        <div class="text-xs ${isOwnMessage ? "text-right" : "text-left"} mt-1 text-gray-500">
+          ${formatChatTime(message.created_at)}
+        </div>
+      </div>
+    `;
+  }
+
+  messagesContainer.appendChild(messageDiv);
+
+  if (scroll) {
+    scrollChatToBottom();
+  }
+}
+
+function scrollChatToBottom() {
+  const messagesContainer = document.getElementById("chat-messages");
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+function updateChatStatus(status) {
+  document.getElementById("chat-status-indicator").textContent = `(${status})`;
+}
+
+function showChatNotification() {
+  const badge = document.getElementById("chat-unread-badge");
+  badge.classList.remove("hidden");
+
+  // Get current count and increment
+  let count = parseInt(badge.textContent || "0") + 1;
+  badge.textContent = count > 9 ? "9+" : count;
+}
+
+function clearChatNotification() {
+  const badge = document.getElementById("chat-unread-badge");
+  badge.classList.add("hidden");
+  badge.textContent = "";
+}
+
+async function markMessagesAsRead(roomId) {
+  const user = getChatUserInfo();
+  if (!user) return;
+
+  try {
+    await fetch(`${CHAT_API_URL}/rooms/${roomId}/read`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: user.id })
+    });
+  } catch (error) {
+    console.error("Error marking messages as read:", error);
+  }
+}
+
+function formatChatTime(timestamp) {
+  if (!timestamp) return "";
+
+  // Parse timestamp - handle both ISO string and Python datetime string
+  let date;
+  if (typeof timestamp === 'string') {
+    // If timestamp doesn't end with 'Z', it's likely server local time, treat as UTC
+    if (!timestamp.endsWith('Z') && !timestamp.includes('+')) {
+      date = new Date(timestamp + 'Z');
+    } else {
+      date = new Date(timestamp);
+    }
+  } else {
+    date = new Date(timestamp);
+  }
+
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+
+  // Handle negative differences (future dates due to timezone issues)
+  if (diffMins < 0) return "Vừa xong";
+  if (diffMins < 1) return "Vừa xong";
+  if (diffMins < 60) return `${diffMins} phút trước`;
+
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours} giờ trước`;
+
+  return date.toLocaleDateString("vi-VN", {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function escapeHtml(text) {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}

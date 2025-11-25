@@ -149,6 +149,12 @@
               Báo Cáo
             </button>
             <button
+              onclick="navigateToDashboardSection('chat-section', 'Hỗ Trợ Chat')"
+              class="text-gray-600 hover:text-indigo-600 font-medium"
+            >
+              Hỗ Trợ Chat
+            </button>
+            <button
               onclick="adminLogout()"
               class="bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600"
             >
@@ -768,6 +774,137 @@
               </h3>
               <div id="low-stock-container">
                 <p class="text-gray-500">Đang tải dữ liệu...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Support Section -->
+        <div id="chat-section" class="dashboard-section hidden">
+          <h2 class="text-xl font-semibold mb-4">Hỗ Trợ Chat Khách Hàng</h2>
+
+          <!-- Chat Tabs -->
+          <div class="mb-4 border-b border-gray-200">
+            <nav class="flex space-x-8">
+              <button
+                onclick="switchChatTab('waiting')"
+                id="tab-chat-waiting"
+                class="chat-tab py-2 px-1 border-b-2 border-indigo-600 font-medium text-indigo-600"
+              >
+                Đang Chờ (<span id="waiting-count">0</span>)
+              </button>
+              <button
+                onclick="switchChatTab('active')"
+                id="tab-chat-active"
+                class="chat-tab py-2 px-1 border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700"
+              >
+                Đang Hỗ Trợ (<span id="active-count">0</span>)
+              </button>
+            </nav>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Chat Room List -->
+            <div class="lg:col-span-1">
+              <div class="bg-white shadow rounded-lg p-4 h-[600px] overflow-y-auto">
+                <!-- Waiting Rooms -->
+                <div id="waiting-rooms-list" class="chat-rooms-list">
+                  <p class="text-gray-500 text-center py-8">
+                    Không có phòng chờ
+                  </p>
+                </div>
+
+                <!-- Active Rooms -->
+                <div id="active-rooms-list" class="chat-rooms-list hidden">
+                  <p class="text-gray-500 text-center py-8">
+                    Không có phòng đang hỗ trợ
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Chat Window -->
+            <div class="lg:col-span-2">
+              <div class="bg-white shadow rounded-lg h-[600px] flex flex-col">
+                <!-- Chat Header -->
+                <div
+                  id="admin-chat-header"
+                  class="bg-indigo-600 text-white px-6 py-4 rounded-t-lg flex items-center justify-between"
+                >
+                  <div>
+                    <h3 class="font-semibold text-lg" id="admin-chat-user-name">
+                      Chọn phòng chat để bắt đầu
+                    </h3>
+                    <p class="text-sm text-indigo-200" id="admin-chat-status">
+                      <span id="admin-chat-user-id"></span>
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Chat Messages -->
+                <div
+                  id="admin-chat-messages"
+                  class="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50"
+                >
+                  <div class="text-center text-gray-500 py-20">
+                    <svg
+                      class="w-16 h-16 mx-auto mb-4 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                      ></path>
+                    </svg>
+                    <p class="text-lg">Chọn một phòng chat để xem tin nhắn</p>
+                  </div>
+                </div>
+
+                <!-- Admin Typing Indicator -->
+                <div
+                  id="admin-typing-indicator"
+                  class="px-6 py-2 text-sm text-gray-500 italic hidden"
+                >
+                  Khách hàng đang gõ...
+                </div>
+
+                <!-- Chat Input -->
+                <div
+                  id="admin-chat-input-container"
+                  class="p-6 bg-white border-t border-gray-200 rounded-b-lg hidden"
+                >
+                  <div class="flex gap-3">
+                    <input
+                      type="text"
+                      id="admin-chat-input"
+                      placeholder="Nhập tin nhắn..."
+                      class="flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      onkeypress="handleAdminChatKeyPress(event)"
+                    />
+                    <button
+                      onclick="sendAdminChatMessage()"
+                      class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-lg transition"
+                    >
+                      <svg
+                        class="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                        ></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1541,6 +1678,7 @@
         </div>
       </div>
     </div>
-    <script src="admin_scripts.js?v=7"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="admin_scripts.js?v=202511251130"></script>
   </body>
 </html>

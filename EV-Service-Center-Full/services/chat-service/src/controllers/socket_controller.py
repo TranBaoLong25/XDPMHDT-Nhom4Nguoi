@@ -1,190 +1,104 @@
-from flask_socketio import emit, join_room, leave_room, rooms
+from flask import request
+from flask_socketio import emit, join_room, leave_room
+from app import socketio
 from src.services.chat_service import ChatService
 
-# Store connected users: {socket_id: {user_id, user_name, role}}
-connected_users = {}
+@socketio.on("connect")
+def handle_connect():
+    """Client kết nối"""
+    print(f"Client connected: {request.sid}")
+    emit("connected", {"sid": request.sid})
 
-def register_socket_events(socketio):
-    """Đăng ký các socket events"""
+@socketio.on("disconnect")
+def handle_disconnect():
+    """Client ngắt kết nối"""
+    print(f"Client disconnected: {request.sid}")
 
-    @socketio.on('connect')
-    def handle_connect():
-        """Client kết nối"""
-        print(f"🔌 Client connected: {request.sid}")
-        emit('connected', {'sid': request.sid})
+@socketio.on("join_room")
+def handle_join_room(data):
+    """Join vào một chat room"""
+    room_id = data.get("room_id")
+    if not room_id:
+        emit("error", {"message": "Missing room_id"})
+        return
 
-    @socketio.on('disconnect')
-    def handle_disconnect():
-        """Client ngắt kết nối"""
-        sid = request.sid
-        if sid in connected_users:
-            user_info = connected_users.pop(sid)
-            print(f"👋 User disconnected: {user_info['user_name']} ({user_info['user_id']})")
+    join_room(str(room_id))
+    emit("joined_room", {"room_id": room_id}, room=request.sid)
+    print(f"Client {request.sid} joined room {room_id}")
 
-    @socketio.on('authenticate')
-    def handle_authenticate(data):
-        """Xác thực user khi kết nối"""
-        try:
-            user_id = data.get('user_id')
-            user_name = data.get('user_name')
-            role = data.get('role', 'user')
+@socketio.on("leave_room")
+def handle_leave_room(data):
+    """Leave khỏi một chat room"""
+    room_id = data.get("room_id")
+    if not room_id:
+        emit("error", {"message": "Missing room_id"})
+        return
 
-            connected_users[request.sid] = {
-                'user_id': user_id,
-                'user_name': user_name,
-                'role': role
-            }
+    leave_room(str(room_id))
+    emit("left_room", {"room_id": room_id}, room=request.sid)
+    print(f"Client {request.sid} left room {room_id}")
 
-            print(f"✅ User authenticated: {user_name} ({user_id}) - Role: {role}")
-            emit('authenticated', {
-                'success': True,
-                'user_id': user_id,
-                'user_name': user_name
-            })
-        except Exception as e:
-            emit('error', {'message': str(e)})
+@socketio.on("send_message")
+def handle_send_message(data):
+    """Gửi tin nhắn"""
+    required_fields = ["room_id", "sender_id", "sender_name", "sender_role", "message"]
+    if not all(field in data for field in required_fields):
+        emit("error", {"message": "Missing required fields"})
+        return
 
-    @socketio.on('join_room')
-    def handle_join_room(data):
-        """User tham gia room"""
-        try:
-            room_id = str(data.get('room_id'))
-            user_info = connected_users.get(request.sid, {})
+    message, error = ChatService.send_message(data)
+    if error:
+        emit("error", {"message": error}, room=request.sid)
+        return
 
-            join_room(room_id)
-            print(f"👥 {user_info.get('user_name', 'Unknown')} joined room {room_id}")
+    # Broadcast tin nhắn đến tất cả clients trong room
+    emit("new_message", message.to_dict(), room=str(data["room_id"]))
+    print(f"Message sent in room {data['room_id']}")
 
-            # Đánh dấu tin nhắn đã đọc
-            if user_info.get('user_id'):
-                ChatService.mark_messages_as_read(int(room_id), user_info['user_id'])
+@socketio.on("typing")
+def handle_typing(data):
+    """User đang gõ"""
+    room_id = data.get("room_id")
+    user_name = data.get("user_name")
 
-            emit('joined_room', {
-                'room_id': room_id,
-                'user_name': user_info.get('user_name')
-            }, room=room_id)
+    if not room_id or not user_name:
+        return
 
-        except Exception as e:
-            emit('error', {'message': str(e)})
+    # Broadcast typing indicator đến room (trừ sender)
+    emit("user_typing", {"user_name": user_name}, room=str(room_id), skip_sid=request.sid)
 
-    @socketio.on('leave_room')
-    def handle_leave_room(data):
-        """User rời room"""
-        try:
-            room_id = str(data.get('room_id'))
-            user_info = connected_users.get(request.sid, {})
+@socketio.on("stop_typing")
+def handle_stop_typing(data):
+    """User dừng gõ"""
+    room_id = data.get("room_id")
+    user_name = data.get("user_name")
 
-            leave_room(room_id)
-            print(f"👋 {user_info.get('user_name', 'Unknown')} left room {room_id}")
+    if not room_id or not user_name:
+        return
 
-            emit('left_room', {
-                'room_id': room_id,
-                'user_name': user_info.get('user_name')
-            }, room=room_id)
+    # Broadcast stop typing đến room (trừ sender)
+    emit("user_stop_typing", {"user_name": user_name}, room=str(room_id), skip_sid=request.sid)
 
-        except Exception as e:
-            emit('error', {'message': str(e)})
+@socketio.on("room_assigned")
+def handle_room_assigned(data):
+    """Admin nhận phòng chat"""
+    room_id = data.get("room_id")
+    if not room_id:
+        return
 
-    @socketio.on('send_message')
-    def handle_send_message(data):
-        """Gửi tin nhắn"""
-        try:
-            room_id = str(data.get('room_id'))
-            user_info = connected_users.get(request.sid, {})
+    room = ChatService.get_room(room_id)
+    if room:
+        # Thông báo cho tất cả clients trong room
+        emit("room_status_changed", room.to_dict(), room=str(room_id))
 
-            if not user_info:
-                emit('error', {'message': 'Not authenticated'})
-                return
+@socketio.on("room_closed")
+def handle_room_closed(data):
+    """Phòng chat được đóng"""
+    room_id = data.get("room_id")
+    if not room_id:
+        return
 
-            # Lưu tin nhắn vào database
-            message_data = {
-                'room_id': int(room_id),
-                'sender_id': user_info['user_id'],
-                'sender_name': user_info['user_name'],
-                'sender_role': user_info['role'],
-                'message': data.get('message'),
-                'message_type': data.get('message_type', 'text'),
-                'attachment_url': data.get('attachment_url')
-            }
-
-            message, error = ChatService.send_message(message_data)
-            if error:
-                emit('error', {'message': error})
-                return
-
-            # Broadcast tin nhắn đến tất cả users trong room
-            print(f"💬 Message from {user_info['user_name']} in room {room_id}: {data.get('message')}")
-            emit('new_message', message.to_dict(), room=room_id)
-
-            # Emit notification đến user khác (nếu họ không online trong room)
-            emit('message_notification', {
-                'room_id': int(room_id),
-                'sender_name': user_info['user_name'],
-                'message_preview': data.get('message')[:50]
-            }, broadcast=True, skip_sid=request.sid)
-
-        except Exception as e:
-            print(f"❌ Error sending message: {str(e)}")
-            emit('error', {'message': str(e)})
-
-    @socketio.on('typing')
-    def handle_typing(data):
-        """User đang gõ"""
-        try:
-            room_id = str(data.get('room_id'))
-            user_info = connected_users.get(request.sid, {})
-
-            emit('user_typing', {
-                'user_name': user_info.get('user_name'),
-                'is_typing': data.get('is_typing', True)
-            }, room=room_id, skip_sid=request.sid)
-
-        except Exception as e:
-            emit('error', {'message': str(e)})
-
-    @socketio.on('assign_support')
-    def handle_assign_support(data):
-        """Admin/Technician nhận phòng chat"""
-        try:
-            room_id = data.get('room_id')
-            user_info = connected_users.get(request.sid, {})
-
-            if user_info.get('role') not in ['admin', 'technician']:
-                emit('error', {'message': 'Unauthorized'})
-                return
-
-            room, error = ChatService.assign_support(
-                room_id,
-                user_info['user_id'],
-                user_info['user_name'],
-                user_info['role']
-            )
-
-            if error:
-                emit('error', {'message': error})
-                return
-
-            # Notify room về support đã join
-            emit('support_assigned', room.to_dict(), room=str(room_id))
-
-        except Exception as e:
-            emit('error', {'message': str(e)})
-
-    @socketio.on('close_room')
-    def handle_close_room(data):
-        """Đóng phòng chat"""
-        try:
-            room_id = data.get('room_id')
-            user_info = connected_users.get(request.sid, {})
-
-            room, error = ChatService.close_room(room_id)
-            if error:
-                emit('error', {'message': error})
-                return
-
-            # Notify room đã đóng
-            emit('room_closed', room.to_dict(), room=str(room_id))
-
-        except Exception as e:
-            emit('error', {'message': str(e)})
-
-from flask import request
+    room = ChatService.get_room(room_id)
+    if room:
+        # Thông báo cho tất cả clients trong room
+        emit("room_status_changed", room.to_dict(), room=str(room_id))

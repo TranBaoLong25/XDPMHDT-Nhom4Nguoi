@@ -11,25 +11,27 @@ def create_app():
     app = Flask(__name__)
 
     # CORS configuration
+    allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8080").split(",")
     CORS(app, resources={
         r"/*": {
-            "origins": "*",
+            "origins": allowed_origins,
             "allow_headers": ["Content-Type", "Authorization"],
-            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "supports_credentials": True
         }
     })
 
     # Configuration
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
         "DATABASE_URL",
-        "postgresql://ev_user:ev_pass@chat_db:5432/ev_chat_db"
+        "postgresql://ev_user:ev_pass@localhost:5432/ev_chat_db"
     )
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "supersecretkey")
 
     # Initialize extensions
     db.init_app(app)
-    socketio.init_app(app, cors_allowed_origins="*", async_mode='eventlet')
+    socketio.init_app(app, cors_allowed_origins=allowed_origins, async_mode='eventlet')
 
     @app.route("/health", methods=["GET"])
     def health():
@@ -37,13 +39,11 @@ def create_app():
 
     # Register blueprints
     with app.app_context():
-        # Import models để tạo tables
         from src.models import chat_model
         from src.controllers.chat_controller import chat_bp
-        from src.controllers.socket_controller import register_socket_events
+        import src.controllers.socket_controller
 
         app.register_blueprint(chat_bp)
-        register_socket_events(socketio)
 
         # Create tables
         db.create_all()
