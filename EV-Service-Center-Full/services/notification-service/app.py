@@ -44,9 +44,23 @@ def create_app():
     # ===== REGISTER BLUEPRINTS =====
     from controllers.notification_controller import notification_bp
     from controllers.internal_controller import internal_bp
-    
+
     app.register_blueprint(notification_bp)
     app.register_blueprint(internal_bp)
+
+    # ===== INITIALIZE REMINDER SCHEDULER =====
+    from services.reminder_scheduler import reminder_scheduler
+    reminder_scheduler.init_app(app)
+
+    # Start scheduler in a separate thread
+    import threading
+    def start_scheduler():
+        import time
+        time.sleep(5)  # Wait for app to fully start
+        reminder_scheduler.start()
+
+    scheduler_thread = threading.Thread(target=start_scheduler, daemon=True)
+    scheduler_thread.start()
 
     # ===== HEALTH CHECK =====
     @app.route("/health", methods=["GET"])

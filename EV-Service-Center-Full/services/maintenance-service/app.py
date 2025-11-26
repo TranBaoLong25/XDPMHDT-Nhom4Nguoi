@@ -47,7 +47,10 @@ def create_app():
 
     # ===== ĐĂNG KÝ BLUEPRINTS (Controllers) =====
     from controllers.maintenance_controller import maintenance_bp
-    app.register_blueprint(maintenance_bp) 
+    from controllers.internal_controller import internal_bp
+
+    app.register_blueprint(maintenance_bp)
+    app.register_blueprint(internal_bp)
 
     # ===== HEALTH CHECK =====
     @app.route("/health", methods=["GET"])
